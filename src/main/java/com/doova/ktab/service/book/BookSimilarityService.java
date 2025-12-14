@@ -4,6 +4,7 @@ import com.doova.ktab.api.dto.BookScore;
 import com.doova.ktab.api.dto.response.BookResponseDto;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.configuration.MainGenre;
+import com.doova.ktab.model.configuration.SubGenre;
 import com.doova.ktab.repository.book.BookLibraryEntryRepository;
 import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.service.helpers.BookResponseBuilderService;
@@ -13,79 +14,133 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class BookSimilarityService {
 
-    private BookLibraryEntryRepository libraryRepository;
-    private BookRepository bookRepository;
+    private final BookLibraryEntryRepository libraryRepository;
+    private final BookRepository bookRepository;
     private final BookResponseBuilderService responseBuilder;
 
-    private Map<Long, Integer> loadCollaborativeScores(Long bookId) {
-        Map<Long, Integer> map = new HashMap<>();
+    private Map<Long, Long> loadCollaborativeScores(Long bookId) {
         List<Object[]> rows = libraryRepository.findCollaborativeScores(bookId);
 
-        for (Object[] row : rows) {
-            Long id = (Long) row[0];
-            Integer count = ((Long) row[1]).intValue(); // SQL returns Long
-            map.put(id, count);
-        }
-        return map;
+        return rows.stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
+    /**
+     * Computes a score based on MainGenre and shared SubGenre similarity.
+     * Uses Jaccard Index for sub-genre overlap to provide a more granular score.
+     */
     private double computeGenreScore(MainGenre a, MainGenre b) {
-        if (a.getId().equals(b.getId())) return 1.0;   // exact match
-        return 0.6; // fallback for same cluster → can be enhanced later
+        // 1. Exact Main Genre Match
+        if (a.getId().equals(b.getId())) return 1.0;
+
+        // 2. Sub-Genre Overlap using Jaccard Index
+
+        // ASSUMPTION: MainGenre has a getSubGenreIds() method.
+        Set<Long> subGenresA = a.getSubGenres().stream().map(SubGenre::getId).collect(Collectors.toSet());
+        Set<Long> subGenresB = b.getSubGenres().stream().map(SubGenre::getId).collect(Collectors.toSet());
+
+        if (subGenresA.isEmpty() && subGenresB.isEmpty()) {
+            // If neither has sub-genres, fall back to the old broad category match
+            return 0.6;
+        }
+
+        // Find Intersection (shared sub-genres)
+        Set<Long> intersection = new HashSet<>(subGenresA);
+        intersection.retainAll(subGenresB);
+
+        // Find Union (all unique sub-genres)
+        Set<Long> union = new HashSet<>(subGenresA);
+        union.addAll(subGenresB);
+
+        // If union is 0 (i.e., both sets are empty, handled above, but good for safety)
+        if (union.isEmpty()) return 0.6;
+
+        // Calculate Jaccard Similarity Index: |Intersection| / |Union|
+        double jaccardIndex = (double) intersection.size() / union.size();
+
+        // Scale the Jaccard Index (0 to 1) between the base score (0.6) and the max score (1.0)
+        // Formula: BaseScore + (JaccardIndex * (MaxScore - BaseScore))
+        return 0.6 + (jaccardIndex * 0.4);
     }
 
-    private double computeAgeOverlap(Book t, Book c) {
+    private double computeAgeOverlap(Book target, Book candidate) {
 
-        int overlap = Math.min(t.getAgeRangeMax(), c.getAgeRangeMax()) - Math.max(t.getAgeRangeMin(), c.getAgeRangeMin());
+        int overlap = Math.min(target.getAgeRangeMax(), candidate.getAgeRangeMax())
+                - Math.max(target.getAgeRangeMin(), candidate.getAgeRangeMin());
 
-        if (overlap <= 0) return 0; // no overlap
+        if (overlap <= 0) return 0.0;
 
-        int range = Math.max(t.getAgeRangeMax(), c.getAgeRangeMax()) - Math.min(t.getAgeRangeMin(), c.getAgeRangeMin());
+        int range = Math.max(target.getAgeRangeMax(), candidate.getAgeRangeMax())
+                - Math.min(target.getAgeRangeMin(), candidate.getAgeRangeMin());
 
         return (double) overlap / range;
     }
 
-    private double computeSimilarity(Book target, Book candidate, Map<Long, Integer> collabMap, int maxCollab) {
+    private double computeSimilarity(Book target, Book candidate, Map<Long, Long> collabMap, Long maxCollabCount) {
         double genreScore = computeGenreScore(target.getMainGenre(), candidate.getMainGenre());
         double ageScore = computeAgeOverlap(target, candidate);
 
-        double collabRaw = collabMap.getOrDefault(candidate.getId(), 0);
-        double collabScore = (double) collabRaw / maxCollab;
+        long collabRaw = collabMap.getOrDefault(candidate.getId(), 0L);
+        double collabScore = (double) collabRaw / maxCollabCount;
 
+        // Hybrid Weighted Sum (0.5 + 0.3 + 0.2 = 1.0)
         return (genreScore * 0.5) + (ageScore * 0.3) + (collabScore * 0.2);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<BookResponseDto> getSmartSimilarBooks(Long bookId, int page, int size) {
 
-        Book target = bookRepository.findById(bookId).orElseThrow(() -> new EntityNotFoundException("Book not found"));
+        Book target = bookRepository.findById(bookId)
+                .orElseThrow(() -> new EntityNotFoundException("Book with ID " + bookId + " not found"));
 
-        // 1. Find initial candidate pool
-        List<Book> candidates = bookRepository.findBroadCandidates(bookId, target.getMainGenre().getId(), target.getAgeRangeMin(), target.getAgeRangeMax());
+        List<Book> candidates = bookRepository.findBroadCandidates(
+                bookId,
+                target.getMainGenre().getId(),
+                target.getAgeRangeMin(),
+                target.getAgeRangeMax());
 
-        // 2. Collaborative filtering data
-        Map<Long, Integer> collabMap = loadCollaborativeScores(bookId);
-        int maxCollab = collabMap.values().stream().max(Integer::compareTo).orElse(1);
+        Map<Long, Long> collabMap = loadCollaborativeScores(bookId);
+        Long maxCollabCount = collabMap.values().stream().max(Long::compareTo).orElse(1L);
 
-        // 3. Score each book
-        List<BookScore> scored = candidates.stream().map(b -> new BookScore(b, computeSimilarity(target, b, collabMap, maxCollab))).sorted((a, b) -> Double.compare(b.getScore(), a.getScore())) // DESC
+        List<BookScore> scored = candidates.stream()
+                .filter(b -> !b.getId().equals(bookId))
+                .map(b -> new BookScore(b, computeSimilarity(target, b, collabMap, maxCollabCount)))
+                .sorted((a, b) -> Double.compare(b.getScore(), a.getScore()))
                 .toList();
 
-        // 4. Manual pagination
+        int totalElements = scored.size();
+
         int start = page * size;
-        int end = Math.min(start + size, scored.size());
+        if (start >= totalElements) {
+            return PageResponse.empty(page, size);
+        }
+
+        int end = Math.min(start + size, totalElements);
         List<Book> pageResults = scored.subList(start, end).stream().map(BookScore::book).toList();
 
-        return new PageResponse<>(pageResults.stream().map(responseBuilder::build).toList(), page, size, scored.size(), (int) Math.ceil((double) scored.size() / size), end == scored.size());
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        boolean isLast = end == totalElements;
+
+        return new PageResponse<>(
+                pageResults.stream().map(responseBuilder::build).toList(),
+                page,
+                size,
+                totalElements,
+                totalPages,
+                isLast
+        );
     }
-
-
 }

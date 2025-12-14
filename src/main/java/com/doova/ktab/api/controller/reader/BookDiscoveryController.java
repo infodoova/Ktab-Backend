@@ -75,12 +75,12 @@ public class BookDiscoveryController {
     // ============================================================================================
     // GET SIMILAR BOOKS
     // ============================================================================================
-    @Operation(summary = "Get similar books", description = "Finds books similar to the given book based on genre and overlapping age range.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Similar books retrieved", content = @Content(schema = @Schema(implementation = PageResponse.class)))
-    @GetMapping("/similar/{bookId}")
-    @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(@PathVariable Long bookId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        PageResponse<BookResponseDto> similarBooks = bookService.getSimilarBooks(bookId, page, size);
-        return ResponseUtils.response(similarBooks);
-    }
+//    @Operation(summary = "Get similar books", description = "Finds books similar to the given book based on genre and overlapping age range.")
+//    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Similar books retrieved", content = @Content(schema = @Schema(implementation = PageResponse.class)))
+//    @GetMapping("/similar/{bookId}")
+//    @PreAuthorize("hasAnyAuthority('READER')")
+//    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(@PathVariable Long bookId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+//        PageResponse<BookResponseDto> similarBooks = bookService.getSimilarBooks(bookId, page, size);
+//        return ResponseUtils.response(similarBooks);
+//    }
 }
