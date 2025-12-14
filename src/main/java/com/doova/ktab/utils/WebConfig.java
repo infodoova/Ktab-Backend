@@ -1,4 +1,4 @@
-package com.doova.doovafeeds.utils;
+package com.doova.ktab.utils;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;

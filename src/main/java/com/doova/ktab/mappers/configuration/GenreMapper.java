@@ -1,4 +1,23 @@
 package com.doova.ktab.mappers.configuration;
 
-public class GenreMapper {
+import com.doova.ktab.api.dto.MainGenreDTO;
+import com.doova.ktab.api.dto.SubGenreDTO;
+import com.doova.ktab.model.configuration.MainGenre;
+import com.doova.ktab.model.configuration.SubGenre;
+import org.mapstruct.Mapper;
+
+@Mapper(componentModel = "spring")
+public interface GenreMapper {
+
+    // Convert MainGenre to MainGenreDTO
+    MainGenreDTO toMainGenreDTO(MainGenre mainGenre);
+
+    // Convert SubGenre to SubGenreDTO
+    SubGenreDTO toSubGenreDTO(SubGenre subGenre);
+
+    // Convert MainGenreDTO to MainGenre (for writing to DB)
+    MainGenre toMainGenre(MainGenreDTO mainGenreDTO);
+
+    // Convert SubGenreDTO to SubGenre (for writing to DB)
+    SubGenre toSubGenre(SubGenreDTO subGenreDTO);
 }

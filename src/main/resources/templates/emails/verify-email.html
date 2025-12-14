@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
 
 <body style="margin:0; background:#f7f4ef; font-family:Arial, sans-serif;">
 
@@ -21,7 +25,7 @@
 
             <tr><td align="center" style="padding:25px 0;">
                 <div style="font-size:32px; font-weight:700; letter-spacing:6px; color:#5a4633; background:#f2eee8; padding:12px 24px; border-radius:10px; border:1px solid #e4ded4;">
-                    {{CODE}}
+                    <span th:text="${CODE}"></span>
                 </div>
             </td></tr>
 

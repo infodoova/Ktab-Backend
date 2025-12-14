@@ -1,8 +1,8 @@
-package com.doova.doovafeeds.utils;
+package com.doova.ktab.utils;
 
 
-import com.doova.doovafeeds.model.User;
-import com.doova.doovafeeds.security.UserPrincipal;
+import com.doova.ktab.model.user.User;
+import com.doova.ktab.security.model.UserPrincipal;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.ClassPathResource;
@@ -50,7 +50,7 @@ public class Utils {
         if (authentication != null) {
             Object principal = authentication.getPrincipal();
             if (principal instanceof UserPrincipal) {
-                User user = ((UserPrincipal) principal).getUser();
+                User user = ((UserPrincipal) principal).user();
                 return Optional.of(user);
             }
         }
@@ -307,5 +307,13 @@ public class Utils {
             e.printStackTrace(); // Log the error or handle it as needed
             return null; // Or handle accordingly, e.g., return LocalDate.MIN
         }
+    }
+
+    public static boolean hasRole(String roleName) {
+        return SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals(roleName));
     }
 }

@@ -1,4 +1,4 @@
 package com.doova.ktab.api.dto.request;
 
-public class AssignBookRequest {
+public record AssignBookRequest(Long bookId) {
 }

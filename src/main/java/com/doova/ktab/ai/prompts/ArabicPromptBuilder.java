@@ -1,4 +1,4 @@
-package com.doova.ktab.ai.service;
+package com.doova.ktab.ai.prompts;
 
 public class ArabicPromptBuilder {
 

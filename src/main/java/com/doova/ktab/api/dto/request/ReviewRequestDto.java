@@ -1,4 +1,4 @@
 package com.doova.ktab.api.dto.request;
 
-public class ReviewRequestDto {
+public record ReviewRequestDto(int rating, String comment) {
 }

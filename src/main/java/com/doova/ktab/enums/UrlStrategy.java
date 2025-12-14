@@ -1,4 +1,5 @@
 package com.doova.ktab.enums;
 
-public enum URLStrategy {
+public enum UrlStrategy {
+    SIGNED, PUBLIC_READ
 }

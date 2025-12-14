@@ -1,4 +1,4 @@
-package com.doova.doovafeeds.exceptions;
+package com.doova.ktab.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

@@ -1,92 +1,89 @@
 package com.doova.ktab.ai.service;
 
+import com.doova.ktab.ai.dto.request.ConclusionRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.ai.content.Content;
-import org.springframework.ai.content.Media;
-import org.springframework.stereotype.Service;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.chat.prompt.*;
-import org.springframework.ai.chat.messages.*;
-import org.springframework.util.MimeType;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
-import java.util.Objects;
+import java.io.IOException;
 
+/**
+ * Service responsible for generating conclusions using GPT-5.
+ * Uses two models:
+ * - Streaming model for live output
+ * - Non-streaming model for full synchronous responses
+ */
 @Service
-@RequiredArgsConstructor
 public class ConclusionGeneratorService {
 
-    private final OpenAiChatModel defaultChatModel;
+    // Inject BOTH GPT-5 models
+    private final OpenAiChatModel nonStreamingModel;
+    private final OpenAiChatModel streamingModel;
+    private final ConclusionPromptBuilder promptBuilder;
 
-    public Flux<String> streamConclusion(
-            MultipartFile pdfFile,
-            String type,
-            int wordCount,
-            String audience
-    ) throws Exception {
-
-        if (pdfFile.getSize() > 10_000_000)
-            throw new RuntimeException("PDF size exceeds 10MB");
-
-        String systemPrompt = ArabicPromptBuilder.build(type, wordCount, audience);
-
-        Media pdfMedia = Media.builder()
-                .mimeType(MimeType.valueOf(Objects.requireNonNull(pdfFile.getContentType())))
-                .data(pdfFile.getBytes())
-                .name(pdfFile.getOriginalFilename())
-                .build();
-
-        UserMessage userMessage = UserMessage.builder()
-                .text("اقرأ هذا الملف ثم أنشئ الخلاصة المطلوبة.")
-                .media(pdfMedia)
-                .build();
-
-        Prompt prompt = new Prompt(
-                new SystemMessage(systemPrompt),
-                userMessage
-        );
-
-        return defaultChatModel.stream(prompt)
-                .mapNotNull(r -> r.getResult().getOutput().getText());
+    @Autowired
+    public ConclusionGeneratorService(
+            @Qualifier("nonStreamingModel") OpenAiChatModel nonStreamingModel,
+            @Qualifier("streamingModel") OpenAiChatModel streamingModel,
+            ConclusionPromptBuilder promptBuilder
+    ) {
+        this.nonStreamingModel = nonStreamingModel;
+        this.streamingModel = streamingModel;
+        this.promptBuilder = promptBuilder;
     }
 
-    public String fetchConclusion(
-            MultipartFile pdfFile,
-            String type,
-            int wordCount,
-            String audience
-    ) throws Exception {
+    /**
+     * Streams the conclusion response from the GPT-5 streaming model.
+     */
+    public Flux<String> streamConclusion(ConclusionRequest request) throws IOException {
 
-        if (pdfFile.getSize() > 10_000_000)
-            throw new RuntimeException("PDF size exceeds 10MB");
+        Prompt prompt = promptBuilder.build(request);
 
-        // Build main prompt text
-        String systemPrompt = ArabicPromptBuilder.build(type, wordCount, audience);
+        return streamingModel.stream(prompt)
+                .flatMap(response -> {
 
-        // Build PDF attachment
-        Media pdfMedia = Media.builder()
-                .mimeType(MimeType.valueOf(Objects.requireNonNull(pdfFile.getContentType())))
-                .data(pdfFile.getBytes())
-                .name(pdfFile.getOriginalFilename())
-                .build();
+                    // 1. Null response → skip
+                    if (response == null) return Flux.empty();
 
-        // Create user message
-        UserMessage userMsg = UserMessage.builder()
-                .text("اقرأ هذا الملف ثم أنشئ الخلاصة المطلوبة.")
-                .media(pdfMedia)
-                .build();
+                    // 2. Missing results (metadata events → skip)
+                    var results = response.getResults();
+                    if (results == null || results.isEmpty()) return Flux.empty();
 
-        // System + User prompt
-        Prompt prompt = new Prompt(
-                new SystemMessage(systemPrompt),
-                userMsg
-        );
+                    // 3. Take first generation
+                    var gen = results.getFirst();
+                    if (gen == null || gen.getOutput() == null) return Flux.empty();
 
-        // ❗ Non-streaming inference
-        var response = defaultChatModel.call(prompt);
+                    // 4. Extract text safely
+                    String text = gen.getOutput().getText();
+                    if (text == null || text.isBlank()) return Flux.empty();
 
-        // Extract final text
+                    // 5. Return clean delta token
+                    return Flux.just(text);
+
+                })
+                // 6. Ensure no accidental blank chunks
+                .filter(chunk -> chunk != null && !chunk.isBlank())
+                .onErrorResume(e -> {
+                    // ABSOLUTE GUARANTEE no "Error: null"
+                    return Flux.just("[STREAM_ERROR] " + e.getMessage());
+                });
+    }
+
+
+
+    /**
+     * Fetches the complete conclusion response using GPT-5 non-streaming model.
+     */
+    public String fetchConclusion(ConclusionRequest request) throws IOException {
+
+        Prompt prompt = promptBuilder.build(request);
+
+        var response = nonStreamingModel.call(prompt);
+
         return response.getResult().getOutput().getText();
     }
 }

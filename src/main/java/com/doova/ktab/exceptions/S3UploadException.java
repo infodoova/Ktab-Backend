@@ -1,4 +1,12 @@
 package com.doova.ktab.exceptions;
 
-public class S3UploadException {
+public class S3UploadException extends RuntimeException {
+
+    public S3UploadException(String message) {
+        super(message);
+    }
+
+    public S3UploadException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
