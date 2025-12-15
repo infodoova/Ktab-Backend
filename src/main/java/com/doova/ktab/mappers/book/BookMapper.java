@@ -5,7 +5,11 @@ import com.doova.ktab.api.dto.request.BookRequestDto;
 import com.doova.ktab.api.dto.response.BookResponseDto;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
+import com.doova.ktab.repository.configuration.MainGenreRepository;
+import com.doova.ktab.repository.configuration.SubGenreRepository;
 import com.doova.ktab.service.user.UserService;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
@@ -21,40 +25,79 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public abstract class BookMapper {
 
+    @Autowired
+    protected MainGenreRepository mainGenreRepository;
+
+    @Autowired
+    protected SubGenreRepository subGenreRepository;
+
     /**
-     * Converts a Book entity to a BookResponseDto.
+     * Entity → Response DTO
      */
     public abstract BookResponseDto toResponseDto(Book book);
 
-    /**
-     * Converts a list of Book entities to a list of BookResponseDtos.
-     */
     public abstract List<BookResponseDto> toResponseDto(List<Book> books);
 
     /**
-     * Converts a BookRequestDto to a Book entity for creation.
-     * The 'authorId' in the DTO is automatically mapped to the 'author' entity
-     * using the custom 'mapAuthorIdToUser' method.
+     * DTO → Entity (CREATE)
      */
     @Mapping(target = "author", ignore = true)
-//    @Mapping(target = "reviews", ignore = true)        // Ignore collections
-//    @Mapping(target = "libraryEntries", ignore = true) // Ignore collections
-    public abstract Book toEntity(BookRequestDto dto);
+    public Book toEntity(BookRequestDto dto) {
+
+        Book book = new Book();
+
+        book.setTitle(dto.getTitle());
+        book.setDescription(dto.getDescription());
+        book.setLanguage(dto.getLanguage());
+        book.setAgeRangeMin(dto.getAgeRangeMin());
+        book.setAgeRangeMax(dto.getAgeRangeMax());
+        book.setPageCount(dto.getPageCount());
+        book.setHasAudio(dto.getHasAudio());
+        book.setStatus(dto.getStatus());
+
+        book.setMainGenre(
+                mainGenreRepository.findById(dto.getMainGenreId())
+                        .orElseThrow(() -> new EntityNotFoundException("Main genre not found"))
+        );
+
+        book.setSubGenre(
+                subGenreRepository.findById(dto.getSubGenreId())
+                        .orElseThrow(() -> new EntityNotFoundException("Sub genre not found"))
+        );
+
+        return book;
+    }
 
     /**
-     * Updates an existing Book entity from a BookRequestDto.
-     *
-     * @param dto  The source DTO.
-     * @param book The target existing entity.
+     * DTO → Entity (UPDATE)
      */
     @Mapping(target = "author", ignore = true)
-    @Mapping(target = "id", ignore = true) // Never overwrite the ID on update
-    @Mapping(target = "audit.createdAt", ignore = true) // Never overwrite audit fields
-    @Mapping(target = "audit.updatedAt", ignore = true)
-    @Mapping(target = "averageRating", ignore = true) // Ratings are calculated, not updated manually
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "averageRating", ignore = true)
     @Mapping(target = "totalReviews", ignore = true)
-    @Mapping(target = "hasAudio", ignore = true) // Handled separately
-    @Mapping(target = "pageCount", ignore = true) // Handled separately
-    public abstract void updateBookFromDto(BookRequestDto dto, @MappingTarget Book book);
+    public void updateBookFromDto(BookRequestDto dto, @MappingTarget Book book) {
 
+        if (dto.getTitle() != null) book.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) book.setDescription(dto.getDescription());
+        if (dto.getLanguage() != null) book.setLanguage(dto.getLanguage());
+        if (dto.getAgeRangeMin() != null) book.setAgeRangeMin(dto.getAgeRangeMin());
+        if (dto.getAgeRangeMax() != null) book.setAgeRangeMax(dto.getAgeRangeMax());
+        if (dto.getPageCount() != null) book.setPageCount(dto.getPageCount());
+        if (dto.getHasAudio() != null) book.setHasAudio(dto.getHasAudio());
+        if (dto.getStatus() != null) book.setStatus(dto.getStatus());
+
+        if (dto.getMainGenreId() != null) {
+            book.setMainGenre(
+                    mainGenreRepository.findById(dto.getMainGenreId())
+                            .orElseThrow(() -> new EntityNotFoundException("Main genre not found"))
+            );
+        }
+
+        if (dto.getSubGenreId() != null) {
+            book.setSubGenre(
+                    subGenreRepository.findById(dto.getSubGenreId())
+                            .orElseThrow(() -> new EntityNotFoundException("Sub genre not found"))
+            );
+        }
+    }
 }

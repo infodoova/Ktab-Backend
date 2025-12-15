@@ -1,10 +1,7 @@
 package com.doova.ktab.model.configuration;
 
 import com.doova.ktab.model.base.BaseEntity;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,7 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "tbl_main_genres")
+@Table(name = "tbl_main_genres", uniqueConstraints = {@UniqueConstraint(name = "uq_main_genre_name_ar", columnNames = "name_ar"), @UniqueConstraint(name = "uq_main_genre_name_en", columnNames = "name_en")})
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,6 +26,17 @@ public class MainGenre extends BaseEntity {
 
     @OneToMany(mappedBy = "mainGenre", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SubGenre> subGenres = new ArrayList<>();
+
+    @PrePersist
+    @PreUpdate
+    private void normalize() {
+        if (nameAr != null) {
+            nameAr = nameAr.trim();
+        }
+        if (nameEn != null) {
+            nameEn = nameEn.trim();
+        }
+    }
 
     public void addSubGenre(SubGenre subGenre) {
         subGenres.add(subGenre);

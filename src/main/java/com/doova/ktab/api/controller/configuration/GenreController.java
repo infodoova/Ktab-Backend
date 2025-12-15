@@ -37,7 +37,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Get all genres", description = "Retrieves paginated list of all genres.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Genres retrieved", content = @Content(schema = @Schema(implementation = PageResponse.class)))
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'AUTHOR')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'AUTHOR', 'READER')")
     @GetMapping("/getAllGenres")
     public ResponseEntity<ContentWrapper<MainGenreDTO>> getAllGenres() {
         List<MainGenreDTO> genres = genreQueryService.getAllGenres();
@@ -49,7 +49,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Get genre by ID", description = "Retrieves a specific genre by its ID.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Genre retrieved", content = @Content(schema = @Schema(implementation = MainGenreDTO.class)))
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'AUTHOR')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'AUTHOR','READER')")
     @GetMapping("/getGenreById/{id}")
     public ResponseEntity<ApiResponse<MainGenreDTO>> getGenreById(@PathVariable Long id) {
         try {

@@ -4,6 +4,7 @@ import com.doova.ktab.api.dto.request.BookSearchRequestDto;
 import com.doova.ktab.api.dto.response.BookResponseDto;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.service.book.BookService;
+import com.doova.ktab.service.book.BookSimilarityService;
 import com.doova.ktab.utils.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class BookDiscoveryController {
 
     private final BookService bookService;
+    private final BookSimilarityService similarityService;
 
     // ============================================================================================
     // GET ALL BOOKS (PAGINATED)
@@ -69,6 +71,21 @@ public class BookDiscoveryController {
             return ResponseUtils.response(bookDto);
         } catch (EntityNotFoundException ex) {
             throw ResponseUtils.notFound("Book not found with ID: " + id);
+        }
+    }
+
+    // ============================================================================================
+    // GET SIMILAR BOOKS
+    // ============================================================================================
+    @Operation(summary = "Get similar books", description = "Returns smart recommendations based on genre similarity, age overlap, and collaborative signals.")
+    @GetMapping("/similar/{bookId}")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(@PathVariable Long bookId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "6") int size) {
+        try {
+            PageResponse<BookResponseDto> result = similarityService.getSmartSimilarBooks(bookId, page, size);
+
+            return ResponseUtils.response(result);
+        } catch (EntityNotFoundException ex) {
+            throw ResponseUtils.notFound(ex.getMessage());
         }
     }
 

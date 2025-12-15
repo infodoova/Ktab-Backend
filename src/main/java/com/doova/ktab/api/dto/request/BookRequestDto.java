@@ -26,8 +26,11 @@ public class BookRequestDto {
 
     private String description;
 
-    @Size(max = 50, message = "Genre cannot exceed 50 characters", groups = CreateBook.class)
-    private String genre;
+    @NotNull(groups = CreateBook.class)
+    private Long mainGenreId;
+
+    @NotNull(groups = CreateBook.class)
+    private Long subGenreId;
 
     @Size(max = 50, message = "Language cannot exceed 50 characters", groups = CreateBook.class)
     private String language;

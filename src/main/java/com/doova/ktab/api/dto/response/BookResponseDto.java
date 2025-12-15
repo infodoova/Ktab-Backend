@@ -16,7 +16,6 @@ public class BookResponseDto {
 
     private String title;
     private String description;
-    private String genre;
     private String language;
 
     private Integer ageRangeMin;
@@ -32,5 +31,11 @@ public class BookResponseDto {
     private String pdfFileName;
 
     private BookStatus status;
+
+    private Long mainGenreId;
+    private String mainGenreName;
+
+    private Long subGenreId;
+    private String subGenreName;
 
 }

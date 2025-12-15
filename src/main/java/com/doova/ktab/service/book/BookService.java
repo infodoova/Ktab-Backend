@@ -41,17 +41,14 @@ public class BookService {
     // FILTER HELPER
     // =========================================================
     private void enablePublishedFilter() {
-        entityManager.unwrap(Session.class)
-                .enableFilter("publishedFilter")
-                .setParameter("status", BookStatus.PUBLISHED.name());
+        entityManager.unwrap(Session.class).enableFilter("publishedFilter").setParameter("status", BookStatus.PUBLISHED.name());
     }
 
     // =========================================================
     // CREATE (AUTHOR)
     // =========================================================
     @Transactional
-    public BookResponseDto createBook(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author)
-            throws IOException {
+    public BookResponseDto createBook(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) throws IOException {
 
         Book book = bookMapper.toEntity(dto);
         book.setAuthor(author);
@@ -66,11 +63,9 @@ public class BookService {
     // UPDATE (AUTHOR)
     // =========================================================
     @Transactional
-    public BookResponseDto updateBook(Long id, BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author)
-            throws IOException {
+    public BookResponseDto updateBook(Long id, BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) throws IOException {
 
-        Book book = bookRepository.findByIdAndAuthor(id, author)
-                .orElseThrow(() -> new AccessDeniedException("Not owner"));
+        Book book = bookRepository.findByIdAndAuthor(id, author).orElseThrow(() -> new AccessDeniedException("Not owner"));
 
         if (book.getStatus() == BookStatus.PUBLISHED) {
             throw new IllegalStateException("Published books cannot be updated");
@@ -89,8 +84,7 @@ public class BookService {
     public BookResponseDto getBookById(Long id) {
         enablePublishedFilter();
 
-        Book book = bookRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Book not found"));
+        Book book = bookRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Book not found"));
 
         return responseBuilder.build(book);
     }
@@ -106,6 +100,14 @@ public class BookService {
         return mapBookPage(books);
     }
 
+    @Transactional(readOnly = true)
+    public BookResponseDto getBookByIdForAuthor(Long id, User author) {
+
+        Book book = bookRepository.findByIdAndAuthor(id, author).orElseThrow(() -> new EntityNotFoundException("Book not found"));
+
+        return responseBuilder.build(book);
+    }
+
     // =========================================================
     // AUTHOR – GET BY AUTHOR (NO FILTER)
     // =========================================================
@@ -116,11 +118,7 @@ public class BookService {
         Page<Book> pageResult;
 
         if (StringUtils.hasText(status)) {
-            pageResult = bookRepository.findAllByAuthorIdAndStatus(
-                    authorId,
-                    BookStatus.valueOf(status.toUpperCase()),
-                    pageable
-            );
+            pageResult = bookRepository.findAllByAuthorIdAndStatus(authorId, BookStatus.valueOf(status.toUpperCase()), pageable);
         } else {
             pageResult = bookRepository.findAllByAuthorId(authorId, pageable);
         }
@@ -146,8 +144,13 @@ public class BookService {
             predicates.add(cb.like(cb.lower(root.get("title")), "%" + req.title().toLowerCase() + "%"));
         }
 
-        if (req.genres() != null && !req.genres().isEmpty()) {
-            predicates.add(root.get("genre").in(req.genres()));
+        if (req.mainGenreIds() != null && !req.mainGenreIds().isEmpty()) {
+            predicates.add(root.get("mainGenre").get("id").in(req.mainGenreIds()));
+        }
+
+        // SUB GENRE FILTER
+        if (req.subGenreIds() != null && !req.subGenreIds().isEmpty()) {
+            predicates.add(root.get("subGenre").get("id").in(req.subGenreIds()));
         }
 
         if (req.age() != null) {
@@ -178,8 +181,7 @@ public class BookService {
     @Transactional
     public void deleteBook(Long id, User author) {
 
-        Book book = bookRepository.findByIdAndAuthor(id, author)
-                .orElseThrow(() -> new AccessDeniedException("Not owner"));
+        Book book = bookRepository.findByIdAndAuthor(id, author).orElseThrow(() -> new AccessDeniedException("Not owner"));
 
         bookFileService.handleDeleteFiles(book);
         bookRepository.delete(book);
@@ -189,13 +191,6 @@ public class BookService {
     // HELPER
     // =========================================================
     private PageResponse<BookResponseDto> mapBookPage(Page<Book> page) {
-        return new PageResponse<>(
-                page.getContent().stream().map(responseBuilder::build).toList(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isLast()
-        );
+        return new PageResponse<>(page.getContent().stream().map(responseBuilder::build).toList(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isLast());
     }
 }

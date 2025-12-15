@@ -51,6 +51,22 @@ public class AuthorBookController {
     }
 
     // ============================================================================================
+    // GET BOOK BY ID (AUTHOR)
+    // ============================================================================================
+    @Operation(summary = "Get book by ID (author)", description = "Retrieves a single book by ID for the author (any status).")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Book retrieved", content = @Content(schema = @Schema(implementation = BookResponseDto.class)))
+    @PreAuthorize("hasAnyAuthority('AUTHOR')")
+    @GetMapping("/book/{id}")
+    public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id, @CurrentUser User author) {
+        try {
+            BookResponseDto book = bookService.getBookByIdForAuthor(id, author);
+            return ResponseUtils.response(book);
+        } catch (EntityNotFoundException ex) {
+            throw ResponseUtils.notFound(ex.getMessage());
+        }
+    }
+
+    // ============================================================================================
     // CREATE BOOK (MULTIPART)
     // ============================================================================================
     @Operation(summary = "Create a new book", description = "Uploads cover image + PDF to S3 and creates a new book.")
@@ -82,7 +98,7 @@ public class AuthorBookController {
             BookResponseDto updated = bookService.updateBook(id, bookDto, coverImage, pdfFile, author);
             return ResponseUtils.response(updated, "Book updated successfully");
         } catch (EntityNotFoundException ex) {
-            throw ResponseUtils.notFound("Book not found");
+            throw ResponseUtils.notFound(ex.getMessage());
         } catch (IOException ex) {
             throw ResponseUtils.errorResponse("File update failed: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }

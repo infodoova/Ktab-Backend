@@ -31,6 +31,12 @@ public class BookResponseBuilderService {
     public BookResponseDto build(Book book) {
         BookResponseDto dto = bookMapper.toResponseDto(book);
 
+        dto.setMainGenreId(book.getMainGenre().getId());
+        dto.setMainGenreName(book.getMainGenre().getNameAr());
+
+        dto.setSubGenreId(book.getSubGenre().getId());
+        dto.setSubGenreName(book.getSubGenre().getNameAr());
+
         // Load cover
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));

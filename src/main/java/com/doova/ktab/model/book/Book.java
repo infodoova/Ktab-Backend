@@ -4,6 +4,7 @@ import com.doova.ktab.enums.BookStatus;
 import com.doova.ktab.model.base.BaseEntity;
 import com.doova.ktab.model.configuration.MainGenre;
 import com.doova.ktab.model.configuration.SubGenre;
+import com.doova.ktab.model.listener.BookPublishDateListener;
 import com.doova.ktab.model.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -15,6 +16,7 @@ import org.hibernate.annotations.ParamDef;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.Set;
 
 @Getter
@@ -39,6 +41,7 @@ import java.util.Set;
         name = "publishedFilter",
         condition = "col_status = :status"
 )
+@EntityListeners(BookPublishDateListener.class)
 public class Book extends BaseEntity {
 
     @NotNull
@@ -52,9 +55,6 @@ public class Book extends BaseEntity {
 
     @Column(name = "col_description", columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "col_genre")
-    private String genre;
 
     @Column(name = "col_language")
     private String language;
@@ -89,7 +89,7 @@ public class Book extends BaseEntity {
     private Instant publishDate;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<BookReview> reviews;
+    private Set<BookReview> reviews = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_genre_id")
