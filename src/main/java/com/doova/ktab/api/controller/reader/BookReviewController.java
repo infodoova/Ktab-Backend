@@ -1,5 +1,6 @@
 package com.doova.ktab.api.controller.reader;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.annotation.UserMatchesOrAdmin;
 import com.doova.ktab.api.dto.request.ReviewRequestDto;
@@ -19,8 +20,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@ApiVersion(1)
 @RestController
-@RequestMapping(path = "/api/v1/reader", produces = "application/json")
+@RequestMapping(path = "/reader", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Reader Book Review API", description = "Endpoints for posting and viewing book reviews.")
 public class BookReviewController {

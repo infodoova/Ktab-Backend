@@ -37,6 +37,8 @@ public class BookResponseBuilderService {
         dto.setSubGenreId(book.getSubGenre().getId());
         dto.setSubGenreName(book.getSubGenre().getNameAr());
 
+        dto.setPublishDate(book.getPublishDate());
+
         // Load cover
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));

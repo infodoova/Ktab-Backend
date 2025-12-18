@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Data
 @AllArgsConstructor
@@ -37,5 +38,7 @@ public class BookResponseDto {
 
     private Long subGenreId;
     private String subGenreName;
+
+    private Instant publishDate;
 
 }

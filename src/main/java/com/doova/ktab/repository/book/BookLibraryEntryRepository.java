@@ -32,4 +32,11 @@ public interface BookLibraryEntryRepository extends JpaRepository<BookLibraryEnt
 """)
     List<Object[]> findCollaborativeScores(@Param("bookId") Long bookId);
 
+    @Query("""
+        select count(e)
+        from BookLibraryEntry e
+        where e.book.author.id = :authorId
+    """)
+    long countAuthorTotalReads(Long authorId);
+
 }

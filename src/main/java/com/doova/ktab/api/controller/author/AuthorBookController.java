@@ -1,5 +1,6 @@
 package com.doova.ktab.api.controller.author;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.annotation.UserMatchesOrAdmin;
 import com.doova.ktab.api.dto.request.BookRequestDto;
@@ -7,7 +8,6 @@ import com.doova.ktab.api.dto.response.BookResponseDto;
 import com.doova.ktab.api.validation.CreateBook;
 import com.doova.ktab.api.validation.UpdateBook;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.enums.BookStatus;
 import com.doova.ktab.exceptions.S3UploadException;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.book.BookService;
@@ -29,8 +29,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
+@ApiVersion(1)
 @RestController
-@RequestMapping(path = "/api/v1/authors", produces = "application/json")
+@RequestMapping(path = "/authors", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Author Book Management API", description = "Author endpoints for managing books, including S3 file handling.")
 public class AuthorBookController {

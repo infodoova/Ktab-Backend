@@ -69,6 +69,19 @@ public class AuthController {
     }
 
     // ============================================================================================
+    // RESEND VERIFICATION CODE
+    // ============================================================================================
+
+    @Operation(summary = "Resend email verification code", description = "Resends a new email verification code if the account is not yet verified.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Verification code resent successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Account already verified or invalid email", content = @Content(schema = @Schema(implementation = ApiResponse.class)))
+    @PostMapping(path = "/send-re-verify", consumes = "application/json")
+    public ResponseEntity<ApiResponse<String>> resendVerificationCode(@Valid @RequestBody ResendVerificationCodeRequest req) {
+        service.sendReVerifyAccountCode(req);
+        return ResponseUtils.response("Verification code resent", "A new verification code has been sent to your email");
+    }
+
+    // ============================================================================================
     // SEND RESET PASSWORD CODE
     // ============================================================================================
 
@@ -99,8 +112,8 @@ public class AuthController {
     }
 
     // ============================================================================================
-// REFRESH TOKEN
-// ============================================================================================
+    // REFRESH TOKEN
+    // ============================================================================================
 
     @Operation(summary = "Refresh JWT token", description = "Generates a new JWT token for a valid user email.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Token refreshed successfully", content = @Content(schema = @Schema(implementation = ApiResponse.class)))

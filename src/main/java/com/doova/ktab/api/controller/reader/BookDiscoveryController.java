@@ -1,5 +1,6 @@
 package com.doova.ktab.api.controller.reader;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.api.dto.request.BookSearchRequestDto;
 import com.doova.ktab.api.dto.response.BookResponseDto;
 import com.doova.ktab.dto.ApiResponse;
@@ -21,8 +22,9 @@ import org.springframework.web.bind.annotation.*;
 
 // NOTE: This class was renamed from ReaderBookController to reflect its core responsibility.
 
+@ApiVersion(1)
 @RestController
-@RequestMapping(path = "/api/v1/reader", produces = "application/json")
+@RequestMapping(path = "/reader", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Reader Book Discovery API", description = "Public endpoints for accessing, searching, and discovering books.")
 public class BookDiscoveryController {

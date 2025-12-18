@@ -25,7 +25,7 @@ public class UserCodeService {
         // Invalidate older active code
         codeRepo.findTopByUserAndCodeTypeAndUsedIsFalseOrderByExpiresAtDesc(user, type).ifPresent(old -> {
             old.setUsed(true);
-            codeRepo.save(old);
+            codeRepo.saveAndFlush(old);
         });
 
         UserCode c = UserCode.builder().user(user).code(generateCode()).codeType(type).expiresAt(Instant.now().plusSeconds(validMinutes * 60L)).used(false).build();

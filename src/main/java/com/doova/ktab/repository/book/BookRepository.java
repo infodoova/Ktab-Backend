@@ -1,5 +1,6 @@
 package com.doova.ktab.repository.book;
 
+import com.doova.ktab.api.dto.response.AuthorBookAnalyticsResponse;
 import com.doova.ktab.enums.BookStatus;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
@@ -12,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,22 +49,75 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Page<Book> findAllByAuthorIdAndStatus(Long authorId, BookStatus status, Pageable pageable);
 
     @Query("""
-    SELECT b FROM Book b
-    WHERE b.id <> :bookId
-      AND (b.mainGenre.id = :mainGenreId)
-      AND (
-            b.ageRangeMin <= :ageMax 
-        AND b.ageRangeMax >= :ageMin
-      )
-""")
-    List<Book> findBroadCandidates(
-            @Param("bookId") Long bookId,
-            @Param("mainGenreId") Long mainGenreId,
-            @Param("ageMin") Integer ageMin,
-            @Param("ageMax") Integer ageMax
-    );
+                SELECT b FROM Book b
+                WHERE b.id <> :bookId
+                  AND (b.mainGenre.id = :mainGenreId)
+                  AND (
+                        b.ageRangeMin <= :ageMax 
+                    AND b.ageRangeMax >= :ageMin
+                  )
+            """)
+    List<Book> findBroadCandidates(@Param("bookId") Long bookId, @Param("mainGenreId") Long mainGenreId, @Param("ageMin") Integer ageMin, @Param("ageMax") Integer ageMax);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Book b where b.id = :id")
     Optional<Book> findByIdForUpdate(@Param("id") Long id);
+
+    long countByAuthor_Id(Long authorId);
+
+    @Query("""
+                select coalesce(avg(b.averageRating), 0)
+                from Book b
+                where b.author.id = :authorId
+                  and b.totalReviews > 0
+            """)
+    BigDecimal findAuthorAverageRating(Long authorId);
+
+    @Query("""
+                select coalesce(sum(b.totalReviews), 0)
+                from Book b
+                where b.author.id = :authorId
+            """)
+    long sumAuthorTotalReviews(Long authorId);
+
+    @Query("""
+                select new com.doova.ktab.api.dto.response.AuthorBookAnalyticsResponse(
+                    b.id,
+                    b.title,
+                    b.status,
+                    case 
+                        when b.status = com.doova.ktab.enums.BookStatus.PUBLISHED 
+                        then b.publishDate 
+                        else null 
+                    end,
+                    b.averageRating,
+                    b.totalReviews,
+                    b.mainGenre.nameAr,
+                    count(distinct ble.id),
+                    max(
+                        case 
+                            when a.type = 'IMAGE_COVER' 
+                            then coalesce(a.sourceUrl, a.storagePath)
+                            else null 
+                        end
+                    )
+                )
+                from Book b
+                left join BookLibraryEntry ble on ble.book.id = b.id
+                left join Attachment a
+                    on a.entityId = b.id
+                   and a.entityType = 'BOOK'
+                   and a.type = 'IMAGE_COVER'
+                where b.author.id = :authorId
+                group by
+                    b.id,
+                    b.title,
+                    b.status,
+                    b.publishDate,
+                    b.averageRating,
+                    b.totalReviews,
+                    b.mainGenre.nameAr
+            """)
+    Page<AuthorBookAnalyticsResponse> findAuthorBooksWithAnalytics(Long authorId, Pageable pageable);
+
 }

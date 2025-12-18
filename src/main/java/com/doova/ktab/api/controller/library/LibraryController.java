@@ -1,5 +1,6 @@
 package com.doova.ktab.api.controller.library;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.annotation.UserMatchesOrAdmin;
 import com.doova.ktab.api.dto.response.BookResponseDto;
@@ -20,8 +21,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@ApiVersion(1)
 @RestController
-@RequestMapping(path = "/api/v1/library", produces = "application/json")
+@RequestMapping(path = "/library", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "User Library API", description = "Manage user’s personal book library.")
 public class LibraryController {

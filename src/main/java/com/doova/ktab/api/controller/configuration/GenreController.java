@@ -1,5 +1,6 @@
 package com.doova.ktab.api.controller.configuration;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.api.dto.MainGenreDTO;
 import com.doova.ktab.api.dto.SubGenreDTO;
 import com.doova.ktab.dto.ApiResponse;
@@ -23,8 +24,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@ApiVersion(1)
 @RestController
-@RequestMapping(path = "/api/v1/genres", produces = "application/json")
+@RequestMapping(path = "/genres", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Genre Management API", description = "Endpoints for managing genres, including book-related operations.")
 public class GenreController {

@@ -136,6 +136,27 @@ public class UserService {
     }
 
     // ============================
+    // SEND RESET PASSWORD CODE
+    // ============================
+    public void sendReVerifyAccountCode(ResendVerificationCodeRequest req) {
+
+        User user = userRepository.findByEmail(req.email()).orElseThrow(() -> new BadRequestException("User not found"));
+
+        if (user.getActive().equals(Status.ACTIVE.getCode())) {
+            throw new RuntimeException("Account already active");
+        }
+
+        UserCode code = userCodeService.createCode(user, "EMAIL_VERIFY", 10);
+
+        Map<String, Object> model = Map.of("CODE", code.getCode(), "NAME", user.getFirstName());
+
+        // Send verification email
+        emailService.sendHtml(user.getEmail(), "Ktab — Verify Your Account", "verify-email", model);
+
+        log.info("Password reset code sent to email={}", user.getEmail());
+    }
+
+    // ============================
     // RESET PASSWORD
     // ============================
     public boolean resetPassword(ResetPasswordRequest req) {
