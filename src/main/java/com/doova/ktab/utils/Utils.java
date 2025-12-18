@@ -68,14 +68,14 @@ public class Utils {
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
         return null;
     }
 
     public static String appendWithSpace(String content, String text) {
-        if (!text.equals("")) {
-            if (content.equals("")) {
+        if (!text.isEmpty()) {
+            if (content.isEmpty()) {
                 content = text;
             } else {
                 content += " " + text;
@@ -87,7 +87,7 @@ public class Utils {
     public static String getClientIpAddressIfServletRequestExist(HttpServletRequest request) {
         for (String header : IP_HEADER_CANDIDATES) {
             String ipList = request.getHeader(header);
-            if (ipList != null && ipList.length() != 0 && !"unknown".equalsIgnoreCase(ipList)) {
+            if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
                 String ip = ipList.split(",")[0];
                 return ip;
             }
@@ -150,18 +150,21 @@ public class Utils {
 
     public static Date decrementNDays(Date date, int n) {
         Calendar cal = calendarFromDate(date);
+        assert cal != null;
         cal.add(Calendar.DATE, -n);
         return cal.getTime();
     }
 
     public static Date incrementNDays(Date date, int n) {
         Calendar cal = calendarFromDate(date);
+        assert cal != null;
         cal.add(Calendar.DATE, n);
         return cal.getTime();
     }
 
     public static Date getStartOfDay(Date date) {
         Calendar cal = calendarFromDate(date);
+        assert cal != null;
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.MINUTE, 0);
         cal.set(Calendar.SECOND, 0);
@@ -171,6 +174,7 @@ public class Utils {
 
     public static Date getEndOfDay(Date date) {
         Calendar cal = calendarFromDate(date);
+        assert cal != null;
         cal.set(Calendar.HOUR_OF_DAY, 23);
         cal.set(Calendar.MINUTE, 59);
         cal.set(Calendar.SECOND, 59);

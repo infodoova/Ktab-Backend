@@ -153,7 +153,7 @@ public class UserService {
         // Send verification email
         emailService.sendHtml(user.getEmail(), "Ktab — Verify Your Account", "verify-email", model);
 
-        log.info("Password reset code sent to email={}", user.getEmail());
+        log.info("Password reverify code sent to email={}", user.getEmail());
     }
 
     // ============================

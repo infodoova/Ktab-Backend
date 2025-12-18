@@ -85,29 +85,23 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                     b.id,
                     b.title,
                     b.status,
-                    case 
-                        when b.status = com.doova.ktab.enums.BookStatus.PUBLISHED 
-                        then b.publishDate 
-                        else null 
+                    case\s
+                        when b.status = com.doova.ktab.enums.BookStatus.PUBLISHED\s
+                        then b.publishDate\s
+                        else null\s
                     end,
                     b.averageRating,
                     b.totalReviews,
                     b.mainGenre.nameAr,
                     count(distinct ble.id),
-                    max(
-                        case 
-                            when a.type = 'IMAGE_COVER' 
-                            then coalesce(a.sourceUrl, a.storagePath)
-                            else null 
-                        end
-                    )
+                    max(a.storagePath)
                 )
                 from Book b
                 left join BookLibraryEntry ble on ble.book.id = b.id
                 left join Attachment a
                     on a.entityId = b.id
-                   and a.entityType = 'BOOK'
-                   and a.type = 'IMAGE_COVER'
+                   and a.entityType = 'Book'
+                   and a.type = 'COVER_IMAGE'
                 where b.author.id = :authorId
                 group by
                     b.id,
@@ -117,7 +111,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                     b.averageRating,
                     b.totalReviews,
                     b.mainGenre.nameAr
-            """)
+           \s""")
     Page<AuthorBookAnalyticsResponse> findAuthorBooksWithAnalytics(Long authorId, Pageable pageable);
 
 }

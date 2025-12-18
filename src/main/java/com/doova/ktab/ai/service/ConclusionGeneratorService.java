@@ -51,11 +51,15 @@ public class ConclusionGeneratorService {
 
                     // 2. Missing results (metadata events → skip)
                     var results = response.getResults();
-                    if (results == null || results.isEmpty()) return Flux.empty();
+                    if (results.isEmpty()) return Flux.empty();
 
                     // 3. Take first generation
                     var gen = results.getFirst();
-                    if (gen == null || gen.getOutput() == null) return Flux.empty();
+                    if (gen == null) {
+                        return Flux.empty();
+                    } else {
+                        gen.getOutput();
+                    }
 
                     // 4. Extract text safely
                     String text = gen.getOutput().getText();

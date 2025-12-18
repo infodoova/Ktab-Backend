@@ -162,6 +162,7 @@ public class ResponseUtils {
      * @param <T> The type of the resource.
      * @return The resource if present.
      */
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static <T> T orNotFound(Optional<T> optional, String message) {
         return optional.orElseThrow(() -> notFound(message));
     }
