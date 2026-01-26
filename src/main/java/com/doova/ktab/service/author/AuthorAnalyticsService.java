@@ -1,7 +1,7 @@
 package com.doova.ktab.service.author;
 
-import com.doova.ktab.api.dto.response.AuthorAnalyticsResponse;
-import com.doova.ktab.api.dto.response.AuthorBookAnalyticsResponse;
+import com.doova.ktab.dto.response.AuthorAnalyticsResponse;
+import com.doova.ktab.dto.response.AuthorBookAnalyticsResponse;
 import com.doova.ktab.enums.UrlStrategy;
 import com.doova.ktab.repository.book.BookLibraryEntryRepository;
 import com.doova.ktab.repository.book.BookRepository;

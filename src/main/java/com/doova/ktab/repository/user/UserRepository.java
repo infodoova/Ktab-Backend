@@ -1,6 +1,6 @@
 package com.doova.ktab.repository.user;
 
-import com.doova.ktab.enums.UserRole;
+import com.doova.ktab.enums.user.UserRole;
 import com.doova.ktab.model.user.User;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;

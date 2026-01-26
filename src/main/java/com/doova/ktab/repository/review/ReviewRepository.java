@@ -1,6 +1,8 @@
 package com.doova.ktab.repository.review;
 
 import com.doova.ktab.model.book.BookReview;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -22,5 +24,9 @@ public interface ReviewRepository extends JpaRepository<BookReview, Long> {
 
     // 2. Get all other reviews, ordered by creation date, excluding the user
     List<BookReview> findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(Long bookId, Long userId);
+
+    Page<BookReview> findAllByBookIdOrderByAuditCreatedAtDesc(Long bookId, Pageable pageable);
+
+    Page<BookReview> findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(Long bookId, Long readerId, Pageable pageable);
 
 }

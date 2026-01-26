@@ -1,7 +1,8 @@
 package com.doova.ktab.repository.book;
 
-import com.doova.ktab.api.dto.response.AuthorBookAnalyticsResponse;
-import com.doova.ktab.enums.BookStatus;
+import com.doova.ktab.dto.response.AuthorBookAnalyticsResponse;
+import com.doova.ktab.enums.status.BookStatus;
+import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
 import jakarta.persistence.LockModeType;
@@ -9,9 +10,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -81,12 +84,12 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     long sumAuthorTotalReviews(Long authorId);
 
     @Query("""
-                select new com.doova.ktab.api.dto.response.AuthorBookAnalyticsResponse(
+                select new com.doova.ktab.dto.response.AuthorBookAnalyticsResponse(
                     b.id,
                     b.title,
                     b.status,
                     case\s
-                        when b.status = com.doova.ktab.enums.BookStatus.PUBLISHED\s
+                        when b.status = com.doova.ktab.enums.status.BookStatus.PUBLISHED\s
                         then b.publishDate\s
                         else null\s
                     end,
@@ -113,5 +116,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                     b.mainGenre.nameAr
            \s""")
     Page<AuthorBookAnalyticsResponse> findAuthorBooksWithAnalytics(Long authorId, Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Book b SET b.ocrStatus = :status WHERE b.id = :id")
+    void updateOcrStatus(Long id, OcrStatus status);
 
 }

@@ -1,6 +1,6 @@
 package com.doova.ktab.service.auth;
 
-import com.doova.ktab.enums.UserRole;
+import com.doova.ktab.enums.user.UserRole;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
 import io.jsonwebtoken.Claims;

@@ -1,39 +1,55 @@
 package com.doova.ktab.security.filter;
 
+import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.status.MessageStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
+@Slf4j
 public class FilterResponseWriter {
 
-    private static final Logger log = LoggerFactory.getLogger(FilterResponseWriter.class);
+    private final MessageSource messageSource;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+    public void writeError(
+            HttpServletResponse response,
+            HttpStatus status,
+            ApiMessageKey messageKey
+    ) throws IOException {
+
+        if (response.isCommitted()) {
+            return;
+        }
+
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
 
-        // Standardized error response JSON structure
-        String json = String.format("""
-                {
-                    "success": false,
-                    "status": %d,
-                    "error": "%s",
-                    "message": "%s"
-                }
-                """, status.value(), status.getReasonPhrase(), message);
+        String localizedMessage = messageKey.getMessage(messageSource);
+
+        Map<String, Object> body = Map.of(
+                "success", false,
+                "status", status.value(),
+                "messageStatus", MessageStatus.ERROR,
+                "message", localizedMessage
+        );
 
         try {
-            response.getWriter().write(json);
-            response.getWriter().flush();
-        } catch (IOException e) {
-            log.error("Failed to write error response to client: {}", e.getMessage());
-            throw e;
+            objectMapper.writeValue(response.getWriter(), body);
+        } catch (IOException ex) {
+            log.error("Failed to write security error response", ex);
+            throw ex;
         }
     }
 }

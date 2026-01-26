@@ -1,6 +1,6 @@
 package com.doova.ktab.model.listener;
 
-import com.doova.ktab.enums.BookStatus;
+import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.model.book.Book;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreRemove;

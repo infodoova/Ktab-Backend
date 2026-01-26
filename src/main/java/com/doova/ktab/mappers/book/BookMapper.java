@@ -1,8 +1,8 @@
 package com.doova.ktab.mappers.book;
 
 
-import com.doova.ktab.api.dto.request.BookRequestDto;
-import com.doova.ktab.api.dto.response.BookResponseDto;
+import com.doova.ktab.dto.request.BookRequestDto;
+import com.doova.ktab.dto.response.BookResponseDto;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.configuration.MainGenreRepository;

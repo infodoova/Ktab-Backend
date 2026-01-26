@@ -5,16 +5,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 public record ConclusionRequest(
 
-        @NotBlank
-        String type,
+        @NotBlank String type,
 
-        @Min(50) @Max(500)
-        int wordCount,
+        @Min(50) @Max(500) int wordCount,
 
-        @NotBlank
-        String audience,
+        @NotBlank String audience,
 
-        @NotNull
-        MultipartFile file
+        @NotNull MultipartFile file
 
-) {}
+) {
+}

@@ -1,6 +1,6 @@
 package com.doova.ktab.service.helpers;
 
-import com.doova.ktab.api.dto.response.BookResponseDto;
+import com.doova.ktab.dto.response.BookResponseDto;
 import com.doova.ktab.enums.UrlStrategy;
 import com.doova.ktab.mappers.book.BookMapper;
 import com.doova.ktab.model.attachment.Attachment;
@@ -38,6 +38,8 @@ public class BookResponseBuilderService {
         dto.setSubGenreName(book.getSubGenre().getNameAr());
 
         dto.setPublishDate(book.getPublishDate());
+
+        dto.setAuthorName(book.getAuthor().getFullName());
 
         // Load cover
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);

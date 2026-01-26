@@ -1,7 +1,7 @@
 package com.doova.ktab.mappers.configuration;
 
-import com.doova.ktab.api.dto.MainGenreDTO;
-import com.doova.ktab.api.dto.SubGenreDTO;
+import com.doova.ktab.dto.genre.MainGenreDTO;
+import com.doova.ktab.dto.genre.SubGenreDTO;
 import com.doova.ktab.model.configuration.MainGenre;
 import com.doova.ktab.model.configuration.SubGenre;
 import org.mapstruct.Mapper;

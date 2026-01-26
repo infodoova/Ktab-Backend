@@ -11,13 +11,13 @@ public interface BookFileService {
      * For newly created books: upload files (if any), create attachments,
      * and hook into the current transaction for S3 cleanup on rollback.
      */
-    void handleCreateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) throws IOException;
+    void handleCreateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile);
 
     /**
      * For existing books: replace cover/pdf if new files are provided.
      * Old files are deleted only after commit; new files are deleted on rollback.
      */
-    void handleUpdateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) throws IOException;
+    void handleUpdateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile);
 
     /**
      * For deletion: delete attachment rows and S3 files (after commit).

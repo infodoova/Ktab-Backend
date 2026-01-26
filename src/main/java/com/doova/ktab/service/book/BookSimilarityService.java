@@ -1,7 +1,7 @@
 package com.doova.ktab.service.book;
 
-import com.doova.ktab.api.dto.BookScore;
-import com.doova.ktab.api.dto.response.BookResponseDto;
+import com.doova.ktab.dto.BookScore;
+import com.doova.ktab.dto.response.BookResponseDto;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.configuration.MainGenre;
 import com.doova.ktab.model.configuration.SubGenre;

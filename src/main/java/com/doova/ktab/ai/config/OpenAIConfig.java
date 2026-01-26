@@ -1,6 +1,8 @@
 package com.doova.ktab.ai.config;
 
 import com.doova.ktab.ai.config.factory.OpenAiOptionsFactory;
+import com.doova.ktab.interactivestorytelling.enums.AiModelProfile;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -19,21 +21,15 @@ public class OpenAIConfig {
     private final String modelName; // 💡 OOP: Constant for the model name
 
     // ---------------------------------------------
-    // 注入属性 (Constructor Injection)
+    // (Constructor Injection)
     // ---------------------------------------------
     // 💡 Design Pattern: Dependency Injection (via constructor is preferred)
-    public OpenAIConfig(
-            @Value("${spring.ai.openai.api-key}") String apiKey,
-            @Value("${spring.ai.openai.chat.options.temperature}") double temperature,
-            @Value("${spring.ai.openai.chat.options.top-p}") double topP,
-            @Value("${spring.ai.openai.chat.options.max-tokens}") Integer maxTokens,
-            @Value("${spring.ai.openai.chat.options.model}") String modelName
-    ) {
+    public OpenAIConfig(@Value("${spring.ai.openai.api-key}") String apiKey, @Value("${spring.ai.openai.chat.options.temperature}") double temperature, @Value("${spring.ai.openai.chat.options.top-p}") double topP, @Value("${spring.ai.openai.chat.options.max-tokens}") Integer maxTokens, @Value("${spring.ai.openai.chat.options.model}") String modelName) {
         this.apiKey = apiKey;
         this.temperature = temperature;
         this.topP = topP;
         this.maxTokens = maxTokens;
-        this.modelName= modelName;
+        this.modelName = modelName;
     }
 
     // ---------------------------------------------
@@ -42,9 +38,7 @@ public class OpenAIConfig {
     // 💡 OOP: Encapsulation - apiKey is managed within the bean creation process.
     @Bean
     public OpenAiApi openAiApi() {
-        return OpenAiApi.builder()
-                .apiKey(apiKey)
-                .build();
+        return OpenAiApi.builder().apiKey(apiKey).build();
     }
 
     // --- NON-STREAMING MODEL (GPT-5) ---
@@ -53,18 +47,10 @@ public class OpenAIConfig {
     public OpenAiChatModel openAiNonStreamingModel(OpenAiApi api) {
 
         // 🏭 Use the Factory to create options
-        OpenAiChatOptions opts = OpenAiOptionsFactory.createOptions(
-                modelName,
-                temperature,
-                topP,
-                maxTokens,
-                false // NON-STREAMING
+        OpenAiChatOptions opts = OpenAiOptionsFactory.createOptions(modelName, temperature, topP, maxTokens, false // NON-STREAMING
         );
 
-        return OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(opts)
-                .build();
+        return OpenAiChatModel.builder().openAiApi(api).defaultOptions(opts).build();
     }
 
     // --- STREAMING MODEL (GPT-5) ---
@@ -73,17 +59,44 @@ public class OpenAIConfig {
     public OpenAiChatModel openAiStreamingModel(OpenAiApi api) {
 
         // 🏭 Use the Factory to create options
-        OpenAiChatOptions opts = OpenAiOptionsFactory.createOptions(
-                modelName,
-                temperature,
-                topP,
-                maxTokens,
-                true // STREAMING
+        OpenAiChatOptions opts = OpenAiOptionsFactory.createOptions(modelName, temperature, topP, maxTokens, true // STREAMING
         );
 
-        return OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(opts)
-                .build();
+        return OpenAiChatModel.builder().openAiApi(api).defaultOptions(opts).build();
+    }
+
+    @Bean
+    @Qualifier("interactiveStoryModel")
+    public OpenAiChatModel interactiveStoryModel(OpenAiApi api) {
+
+        return OpenAiChatModel.builder().openAiApi(api).defaultOptions(AiModelProfile.STORY.options()).build();
+    }
+
+    // ---------------------------------------------
+    // SUMMARY MODEL
+    // ---------------------------------------------
+    @Bean
+    @Qualifier("summaryModel")
+    public OpenAiChatModel summaryModel(OpenAiApi api) {
+
+        return OpenAiChatModel.builder().openAiApi(api).defaultOptions(AiModelProfile.SUMMARY.options()).build();
+    }
+
+    // ---------------------------------------------
+// 🎭 INTERACTIVE STORY ChatClient
+// ---------------------------------------------
+    @Bean
+    @Qualifier("interactiveStoryChatClient")
+    public ChatClient interactiveStoryChatClient(@Qualifier("interactiveStoryModel") OpenAiChatModel model) {
+        return ChatClient.builder(model).build();
+    }
+
+    // ---------------------------------------------
+// 🧠 SUMMARY ChatClient
+// ---------------------------------------------
+    @Bean
+    @Qualifier("summaryChatClient")
+    public ChatClient summaryChatClient(@Qualifier("summaryModel") OpenAiChatModel model) {
+        return ChatClient.builder(model).build();
     }
 }

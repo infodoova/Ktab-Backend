@@ -1,36 +1,45 @@
 package com.doova.ktab.security.exception;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.status.MessageStatus;
+import com.doova.ktab.utils.response.ResponseUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.util.Map;
-
 @Component
+@RequiredArgsConstructor
 public class SecurityExceptionHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final MessageSource messageSource;
 
+    // =========================================================================
+    // UNAUTHORIZED (401)
+    // =========================================================================
     @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response, org.springframework.security.core.AuthenticationException authException) throws IOException {
+    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) {
 
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
+        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.ACCESS_DENIED.getMessage(messageSource), HttpStatus.UNAUTHORIZED);
 
-        mapper.writeValue(response.getOutputStream(), Map.of("error", "Unauthorized", "message", authException.getMessage()));
+        ResponseUtils.send(body, response, HttpStatus.UNAUTHORIZED);
     }
 
+    // =========================================================================
+    // FORBIDDEN (403)
+    // =========================================================================
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException {
+    public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) {
 
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.setContentType("application/json");
+        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.ACCESS_DENIED.getMessage(messageSource), HttpStatus.FORBIDDEN);
 
-        mapper.writeValue(response.getOutputStream(), Map.of("error", "Forbidden", "message", accessDeniedException.getMessage()));
+        ResponseUtils.send(body, response, HttpStatus.FORBIDDEN);
     }
 }

@@ -2,6 +2,7 @@ package com.doova.ktab.security.aop;
 
 import com.doova.ktab.annotation.UserMatchesOrAdmin;
 
+import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.utils.Utils;
 import com.doova.ktab.utils.response.ResponseUtils;
@@ -12,6 +13,7 @@ import org.aspectj.lang.*;
 import org.aspectj.lang.annotation.*;
 import org.aspectj.lang.reflect.MethodSignature;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import org.springframework.expression.*;
@@ -35,47 +37,44 @@ public class UserMatchesOrAdminAspect {
 
         Optional<User> currentUser = Utils.getCurrentLoggedInUser();
 
-        // admin bypass
+        // ADMIN bypass
         if (Utils.hasRole("ADMIN")) {
             return pjp.proceed();
         }
 
-        // extract the userId from path or body
         Long providedId = extractId(pjp, rule);
 
         if (providedId == null) {
-            throw new IllegalStateException("@UserMatchesOrAdmin requires a path or body expression");
+            throw new IllegalStateException("@UserMatchesOrAdmin requires a valid SpEL expression");
         }
 
-        // compare them
-        if (!Objects.equals(currentUser.map(User::getId).orElse(null), providedId)) {
-            return ResponseUtils.forbidden("You cannot access another user's data.");
+        Long currentUserId = currentUser.map(User::getId).orElse(null);
+
+        if (!Objects.equals(currentUserId, providedId)) {
+            throw ResponseUtils.errorResponse(ApiMessageKey.SECURITY_ACCESS_DENIED.getKey(), HttpStatus.FORBIDDEN);
         }
 
         return pjp.proceed();
     }
 
+    // =========================================================
+    // HELPERS
+    // =========================================================
 
     private Long extractId(ProceedingJoinPoint pjp, UserMatchesOrAdmin rule) {
-
         if (!rule.path().isEmpty()) {
             return resolveSpEL(pjp, rule.path());
         }
-
         if (!rule.body().isEmpty()) {
             return resolveSpEL(pjp, rule.body());
         }
-
         return null;
     }
 
-
     private Long resolveSpEL(ProceedingJoinPoint pjp, String expression) {
-
         EvaluationContext ctx = new StandardEvaluationContext();
 
         String[] paramNames = ((MethodSignature) pjp.getSignature()).getParameterNames();
-
         Object[] args = pjp.getArgs();
 
         for (int i = 0; i < paramNames.length; i++) {

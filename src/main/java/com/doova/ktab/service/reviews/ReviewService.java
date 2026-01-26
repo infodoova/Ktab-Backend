@@ -1,9 +1,10 @@
 package com.doova.ktab.service.reviews;
 
 
-import com.doova.ktab.api.dto.request.ReviewRequestDto;
-import com.doova.ktab.api.dto.response.IsReviewedResponseDto;
-import com.doova.ktab.api.dto.response.ReviewResponseDto;
+import com.doova.ktab.dto.request.ReviewRequestDto;
+import com.doova.ktab.dto.response.IsReviewedResponseDto;
+import com.doova.ktab.dto.response.ReviewResponseDto;
+import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.book.BookReview;
 import com.doova.ktab.model.user.User;
@@ -12,6 +13,10 @@ import com.doova.ktab.repository.review.ReviewRepository;
 import com.doova.ktab.repository.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,11 +43,10 @@ public class ReviewService {
     @Transactional
     public void createReview(Long bookId, ReviewRequestDto req, User reader) {
 
-        Book book = bookRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new EntityNotFoundException("Book not found"));
+        Book book = bookRepository.findByIdForUpdate(bookId).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND.getKey()));
 
         if (reviewRepository.existsByReaderIdAndBookId(reader.getId(), bookId)) {
-            throw new IllegalStateException("You have already reviewed this book.");
+            throw new IllegalStateException(ApiMessageKey.REVIEW_ALREADY_EXISTS.getKey());
         }
 
         BookReview review = new BookReview();
@@ -52,8 +56,6 @@ public class ReviewService {
         review.setComment(req.comment());
 
         book.addReview(review);
-
-        // ✅ keep as requested
         updateBookRating(book);
     }
 
@@ -73,35 +75,49 @@ public class ReviewService {
     private final Function<BookReview, ReviewResponseDto> toDto = r -> new ReviewResponseDto(r.getId(), r.getRating(), r.getComment(), r.getReader().getId(), r.getReader().getFullName(), LocalDateTime.ofInstant(r.getAudit().getCreatedAt(), ZoneOffset.UTC));
 
     @Transactional(readOnly = true)
-    public List<ReviewResponseDto> getReviewsByBookPrioritizeUser(Long bookId, Long userId) {
+    public Page<ReviewResponseDto> getReviewsByBookPrioritizeUser(Long bookId, Long userId, Pageable pageable) {
 
-        // --- SECTION 1: Handle Not Logged In (userId == null) ---
+        // ─────────────────────────────────────────────
+        // NOT LOGGED IN → normal pagination
+        // ─────────────────────────────────────────────
         if (userId == null) {
-            return reviewRepository.findAllByBookIdOrderByAuditCreatedAtDesc(bookId).stream().map(toDto) // Use the centralized mapping
-                    .toList();
+            return reviewRepository.findAllByBookIdOrderByAuditCreatedAtDesc(bookId, pageable).map(toDto);
         }
 
-        // --- SECTION 2: Attempt to get User's Review (Query 1) ---
+        // ─────────────────────────────────────────────
+        // USER REVIEW
+        // ─────────────────────────────────────────────
         Optional<BookReview> userReviewOpt = reviewRepository.findByReaderIdAndBookId(userId, bookId);
 
-        // --- SECTION 3: Handle No User Review ---
+        // No user review → normal pagination
         if (userReviewOpt.isEmpty()) {
-            return reviewRepository.findAllByBookIdOrderByAuditCreatedAtDesc(bookId).stream().map(toDto) // Use the centralized mapping
-                    .toList();
+            return reviewRepository.findAllByBookIdOrderByAuditCreatedAtDesc(bookId, pageable).map(toDto);
         }
 
-        // --- SECTION 4: Build Priority List (Query 3) ---
-        // Get all other reviews
-        List<BookReview> otherReviews = reviewRepository.findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(bookId, userId);
+        // ─────────────────────────────────────────────
+        // PAGE 0 → user review + remaining slots
+        // ─────────────────────────────────────────────
+        if (pageable.getPageNumber() == 0) {
 
-        // Build final ordered list
-        List<BookReview> finalList = new ArrayList<>();
-        finalList.add(userReviewOpt.get());
-        finalList.addAll(otherReviews);
+            int remainingSize = pageable.getPageSize() - 1;
 
-        return finalList.stream().map(toDto) // Use the centralized mapping
-                .toList();
+            Page<BookReview> othersPage = reviewRepository.findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(bookId, userId, PageRequest.of(0, Math.max(remainingSize, 0)));
+
+            List<BookReview> combined = new ArrayList<>();
+            combined.add(userReviewOpt.get());
+            combined.addAll(othersPage.getContent());
+
+            return new PageImpl<>(combined.stream().map(toDto).toList(), pageable, othersPage.getTotalElements() + 1);
+        }
+
+        // ─────────────────────────────────────────────
+        // PAGE > 0 → skip user review
+        // ─────────────────────────────────────────────
+        Pageable shiftedPageable = PageRequest.of(pageable.getPageNumber() - 1, pageable.getPageSize());
+
+        return reviewRepository.findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(bookId, userId, shiftedPageable).map(toDto);
     }
+
 
     // ------------------------------------------------------------
     // DELETE REVIEW
@@ -109,21 +125,13 @@ public class ReviewService {
     @Transactional
     public void deleteReview(Long reviewId, Long bookId, Long readerId) {
 
-        BookReview review = reviewRepository.findByReaderIdAndBookIdAndId(readerId, bookId, reviewId).orElseThrow(() -> new EntityNotFoundException("Review not found"));
+        BookReview review = reviewRepository.findByReaderIdAndBookIdAndId(readerId, bookId, reviewId).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND.getKey()));
 
         Book book = review.getBook();
-
-//        // Optional: restrict deleting to review owner
-//        if (!review.getReader().getId().equals(userId)) {
-//            throw new IllegalStateException("You cannot delete someone else's review.");
-//        }
-
-        // Remove it bidirectionally
         book.removeReview(review);
-
-        // Update book rating
         updateBookRating(book);
     }
+
 
     // ------------------------------------------------------------
     // UPDATE BOOK AVERAGE RATING
@@ -164,17 +172,15 @@ public class ReviewService {
     @Transactional
     public void updateReview(Long bookId, ReviewRequestDto req, User reader, Long reviewId) {
 
-        Book book = bookRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new EntityNotFoundException("Book not found"));
+        Book book = bookRepository.findByIdForUpdate(bookId).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND.getKey()));
 
-        BookReview review = reviewRepository
-                .findByReaderIdAndBookIdAndId(reader.getId(), bookId, reviewId)
-                .orElseThrow(() -> new EntityNotFoundException("Review not found"));
+        BookReview review = reviewRepository.findByReaderIdAndBookIdAndId(reader.getId(), bookId, reviewId).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND.getKey()));
 
         review.setRating(req.rating());
         review.setComment(req.comment());
 
         updateBookRating(book);
     }
+
 
 }

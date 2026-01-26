@@ -1,5 +1,7 @@
 package com.doova.ktab.security.config;
 
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.security.exception.SecurityExceptionHandler;
 import com.doova.ktab.security.filter.JwtFilter;
 import jakarta.servlet.DispatcherType;
@@ -7,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -22,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import com.doova.ktab.utils.response.ResponseUtils;
 
 import java.util.List;
 
@@ -33,12 +37,16 @@ public class WebSecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
+    private final org.springframework.context.MessageSource messageSource;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationProvider authProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            AuthenticationProvider authProvider
+    ) throws Exception {
 
         http
-                // Disable CSRF for API
+                // Disable CSRF for APIs
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // Global CORS
@@ -51,60 +59,94 @@ public class WebSecurityConfig {
                     return config;
                 }))
 
-                // Stateless session (JWT)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Stateless JWT
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
-                // ⚠️ CRITICAL FIX — Do NOT re-run Security on ASYNC dispatch and ERROR dispatch
-                .authorizeHttpRequests(auth -> auth.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll().dispatcherTypeMatchers(DispatcherType.ERROR).permitAll())
+                // IMPORTANT: allow ASYNC + ERROR dispatchers (SSE-safe)
+                .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(
+                                DispatcherType.ASYNC,
+                                DispatcherType.ERROR
+                        ).permitAll()
+                )
 
-                // SSE-safe error handling
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, exc) -> {
-                    if (!res.isCommitted()) {
-                        res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                        res.setContentType("application/json; charset=UTF-8");
-                        res.getWriter().write("""
-                                {"success":false,"message":"غير مصرح بالوصول"}
-                                """);
-                    }
-                }).accessDeniedHandler((req, res, exc) -> {
-                    if (!res.isCommitted()) {
-                        res.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                        res.setContentType("application/json; charset=UTF-8");
-                        res.getWriter().write("""
-                                {"success":false,"message":"تم رفض الوصول"}
-                                """);
-                    }
-                }))
+                // Centralized exception handling
+                .exceptionHandling(ex -> ex
 
-                // Authorize routes
+                        // 401 — Not authenticated
+                        .authenticationEntryPoint((req, res, exc) -> {
+                            if (!res.isCommitted()) {
+                                ApiResponse<Void> body = ApiResponse.error(
+                                        ApiMessageKey.SECURITY_UNAUTHORIZED.getMessage(messageSource),
+                                        HttpStatus.UNAUTHORIZED
+                                );
+
+                                ResponseUtils.send(body, res, HttpStatus.UNAUTHORIZED);
+                            }
+                        })
+
+                        // 403 — Authenticated but forbidden
+                        .accessDeniedHandler((req, res, exc) -> {
+                            if (!res.isCommitted()) {
+                                ApiResponse<Void> body = ApiResponse.error(
+                                        ApiMessageKey.SECURITY_ACCESS_DENIED.getMessage(messageSource),
+                                        HttpStatus.FORBIDDEN
+                                );
+
+                                ResponseUtils.send(body, res, HttpStatus.FORBIDDEN);
+                            }
+                        })
+                )
+
+                // Route authorization
                 .authorizeHttpRequests(auth -> auth
 
                         // Public endpoints
-                        .requestMatchers("/api/v1/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/api-docs/**", "/webjars/**", "/error", "/favicon.ico"      // <-- browser default request, MUST be allowed
+                        .requestMatchers(
+                                "/api/v1/auth/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/api-docs/**",
+                                "/webjars/**",
+                                "/error",
+                                "/favicon.ico",
+                                "/ws/**",
+                                "api/ocr/**"
                         ).permitAll()
 
-                        // SSE streaming endpoint — must be authenticated BEFORE the stream starts
+                        // AI endpoints
                         .requestMatchers("/api/v1/conclusion/stream").authenticated()
-
-                        // Non-stream endpoint
                         .requestMatchers("/api/v1/conclusion/generate").authenticated()
 
                         // Everything else
-                        .anyRequest().authenticated())
+                        .anyRequest().authenticated()
+                )
 
-                // JWT authentication filter
-                .authenticationProvider(authProvider).addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // JWT filter
+                .authenticationProvider(authProvider)
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Disable unused auth methods
-                .httpBasic(AbstractHttpConfigurer::disable).formLogin(AbstractHttpConfigurer::disable).logout(AbstractHttpConfigurer::disable);
+                // Disable unused auth mechanisms
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
 
+    // ---------------------------------------------------------------------
+    // AUTH PROVIDER
+    // ---------------------------------------------------------------------
 
     @Bean
     @Deprecated
-    public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    public AuthenticationProvider authenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder);
@@ -112,7 +154,9 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration configuration
+    ) throws Exception {
         return configuration.getAuthenticationManager();
     }
 }

@@ -7,163 +7,110 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.PrintWriter;
-import java.util.Optional;
 
+import static org.springframework.ai.model.ModelOptionsUtils.OBJECT_MAPPER;
 
-public class ResponseUtils {
+public final class ResponseUtils {
 
-    // --- 1. Low-Level Servlet Response Utility (for Filters/Security) ---
+    private ResponseUtils() {
+    }
+
+    // =========================================================================
+    // LOW-LEVEL RESPONSE (FILTERS / SECURITY / SSE-SAFE)
+    // =========================================================================
 
     /**
-     * Sends a response directly using HttpServletResponse, bypassing Spring's MVC handling.
-     * Useful for custom security filters or error handling outside the controller layer.
-     * @param object The response body object (will be serialized to JSON).
-     * @param response The HttpServletResponse to write to.
-     * @param httpStatus The HTTP status to set.
+     * Write a JSON response directly to HttpServletResponse.
+     * Used in filters, security handlers, and places where ResponseEntity
+     * is not available.
      */
-    public static void send(Object object, HttpServletResponse response, HttpStatus httpStatus) {
+    public static void send(Object body, HttpServletResponse response, HttpStatus status) {
         try {
-            PrintWriter out = response.getWriter();
+            if (response.isCommitted()) return;
+
+            response.setStatus(status.value());
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-            response.setStatus(httpStatus.value());
-            out.print(new ObjectMapper().writeValueAsString(object));
-            out.flush();
-        } catch (Exception e) {
-            // Log the exception if needed, but suppress to avoid breaking filter chain
+
+            PrintWriter writer = response.getWriter();
+            writer.write(OBJECT_MAPPER.writeValueAsString(body));
+            writer.flush();
+        } catch (Exception ignored) {
+            // Never throw from filters
         }
     }
 
-    // --- 2. Error Response Utilities ---
+    // =========================================================================
+    // SUCCESS RESPONSES (ApiResponse)
+    // =========================================================================
 
-    /**
-     * Throws a ResponseStatusException for immediate HTTP error responses within a controller.
-     * @param message The error message.
-     * @param status The HTTP status (e.g., HttpStatus.BAD_REQUEST).
-     * @return ResponseStatusException (always thrown).
-     */
-    public static ResponseStatusException errorResponse(String message, HttpStatus status) {
-        return new ResponseStatusException(status, message);
+    public static <T> ResponseEntity<ApiResponse<T>> success(T data, String message, HttpStatus status) {
+        return ResponseEntity.status(status).body(ApiResponse.success(data, message, status));
     }
 
-    public static <T> ResponseEntity<ApiResponse<T>> forbidden(String message) {
-        ApiResponse<T> api = new ApiResponse<>();
-        api.setSuccess(false);
-        api.setMessage(message);
-        api.setData(null);
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(api);
+    public static <T> ResponseEntity<ApiResponse<T>> error(String message, HttpStatus status) {
+        return ResponseEntity.status(status).body(ApiResponse.error(message, status));
     }
 
-    // --- 3. Standard ResponseEntity Success Builders (Using ApiResponse) ---
+    public static <T> ResponseEntity<ApiResponse<T>> created(T data, String message) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data, message, HttpStatus.CREATED));
+    }
+
+    // =========================================================================
+    // ERROR RESPONSES (THROWABLE)
+    // =========================================================================
 
     /**
-     * Standard success response (200 OK) with data and a custom message.
-     * @param object The response data payload.
-     * @param message The custom success message.
-     * @param <T> The type of the data object.
-     * @return ResponseEntity with HttpStatus.OK.
+     * 400 Bad Request (message key expected).
      */
-    public static <T> ResponseEntity<ApiResponse<T>> response(T object, String message) {
-        ApiResponse<T> apiResponse = new ApiResponse<>(object, message);
-        return new ResponseEntity<>(apiResponse, HttpStatus.OK);
+    public static ResponseStatusException badRequest(String messageKey) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, messageKey);
     }
 
     /**
-     * Standard success response (200 OK) with data and a default message.
-     * @param object The response data payload.
-     * @param <T> The type of the data object.
-     * @return ResponseEntity with HttpStatus.OK.
+     * 404 Not Found.
      */
-    public static <T> ResponseEntity<ApiResponse<T>> response(T object) {
-        return response(object, "Request successful");
-    }
-
-    public static <T> ResponseEntity<ApiResponse<T>> badRequest(String message) {
-        ApiResponse<T> api = new ApiResponse<>();
-        api.setSuccess(false);
-        api.setMessage(message);
-        api.setData(null);
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(api);
-    }
-
-    // --- 4. Specialized Success Response Builders ---
-
-    /**
-     * Handles Paged data response (200 OK). Page objects already contain pagination metadata.
-     * @param page The Spring Data Page object.
-     * @param <T> The type of content in the Page.
-     * @return ResponseEntity with HttpStatus.OK containing the Page.
-     */
-    public static <T> ResponseEntity<Page<T>> response(Page<T> page) {
-        return new ResponseEntity<>(page, HttpStatus.OK);
+    public static ResponseStatusException notFound(String messageKey) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, messageKey);
     }
 
     /**
-     * Handles collection response, wrapping the Iterable content for consistency (200 OK).
-     * @param iterable The collection data payload.
-     * @param <T> The type of content in the Iterable.
-     * @return ResponseEntity with HttpStatus.OK wrapping the iterable in a ContentWrapper.
+     * Generic error with custom HTTP status.
      */
-    public static <T> ResponseEntity<ContentWrapper<T>> response(Iterable<T> iterable) {
-        return new ResponseEntity<>(new ContentWrapper<>(iterable), HttpStatus.OK);
+    public static ResponseStatusException errorResponse(String messageKey, HttpStatus status) {
+        return new ResponseStatusException(status, messageKey);
     }
 
-    // --- 5. Status-Specific Builders ---
+    // =========================================================================
+    // PAGINATION / COLLECTION
+    // =========================================================================
 
     /**
-     * Returns an empty 200 OK response.
-     * @return ResponseEntity with HttpStatus.OK.
+     * Return Spring Page<T> directly (contains metadata).
      */
+    public static <T> ResponseEntity<Page<T>> page(Page<T> page) {
+        return ResponseEntity.ok(page);
+    }
+
+    /**
+     * Wrap Iterable<T> inside ContentWrapper.
+     */
+    public static <T> ResponseEntity<ContentWrapper<T>> collection(Iterable<T> iterable) {
+        return ResponseEntity.ok(new ContentWrapper<>(iterable));
+    }
+
+    // =========================================================================
+    // EMPTY RESPONSES
+    // =========================================================================
+
     public static ResponseEntity<Void> ok() {
-        return new ResponseEntity<>(HttpStatus.OK);
+        return ResponseEntity.ok().build();
     }
 
-    /**
-     * Returns an empty 204 No Content response, typically for successful DELETE or PUT operations.
-     * @return ResponseEntity with HttpStatus.NO_CONTENT.
-     */
     public static ResponseEntity<Void> noContent() {
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-    }
-
-    /**
-     * Returns a 201 Created response, typically for successful POST operations.
-     * Includes the created object in the body with a success message.
-     * @param object The newly created resource.
-     * @param <T> The type of the created object.
-     * @return ResponseEntity with HttpStatus.CREATED.
-     */
-    public static <T> ResponseEntity<ApiResponse<T>> created(T object) {
-        ApiResponse<T> apiResponse = new ApiResponse<>(object, "Resource created successfully");
-        return new ResponseEntity<>(apiResponse, HttpStatus.CREATED);
-    }
-
-    /**
-     * Returns a 404 Not Found response when an Optional is empty.
-     * @param message The custom Not Found message.
-     * @return ResponseStatusException (always thrown).
-     */
-    public static ResponseStatusException notFound(String message) {
-        return errorResponse(message, HttpStatus.NOT_FOUND);
-    }
-
-    /**
-     * Helper to retrieve value from Optional or throw a 404 exception.
-     * @param optional The Optional containing the resource.
-     * @param message The error message if the resource is not found.
-     * @param <T> The type of the resource.
-     * @return The resource if present.
-     */
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public static <T> T orNotFound(Optional<T> optional, String message) {
-        return optional.orElseThrow(() -> notFound(message));
+        return ResponseEntity.noContent().build();
     }
 }

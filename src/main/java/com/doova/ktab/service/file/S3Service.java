@@ -2,12 +2,10 @@ package com.doova.ktab.service.file;
 
 import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.*;
+import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.enums.UrlStrategy;
-import com.doova.ktab.exceptions.S3UploadException;
+import com.doova.ktab.exception.S3UploadException;
 import com.doova.ktab.service.interfaces.file.FileStorageService;
 import com.doova.ktab.utils.validator.ImageValidator;
 import com.doova.ktab.utils.validator.PdfValidator;
@@ -38,107 +36,80 @@ public class S3Service implements FileStorageService {
     @Value("${aws.s3.region}")
     private String region;
 
-
     @Value("${aws.s3.url-strategy:SIGNED}")
     private UrlStrategy urlStrategy;
 
     @Value("${aws.s3.presigned.expiration-minutes:10}")
     private long expirationMinutes;
 
-    // ========================== STORE FILE ===============================
-
+    // ======================================================
+    // STORE FILE
+    // ======================================================
     @Override
     public String storeFile(MultipartFile file, String directoryKey) throws IOException {
+
         try {
-            // Content-type detection
             String contentType = file.getContentType();
 
             boolean isImage = contentType != null && (contentType.equals("image/jpeg") || contentType.equals("image/png") || contentType.equals("image/jpg"));
 
             boolean isPdf = contentType != null && (contentType.equals("application/pdf") || contentType.equals("application/x-pdf") || contentType.equals("application/acrobat") || contentType.equals("applications/vnd.pdf") || contentType.equals("text/pdf"));
 
+            if(directoryKey.startsWith("stories/cover/")){
+                imageValidator.validateSquareImage(file);
+            }
             // 1️⃣ VALIDATION
-            if (isImage) {
+            if (isImage && !directoryKey.startsWith("stories/cover/")) {
                 imageValidator.validateCover(file);
             }
+
             if (isPdf) {
                 pdfValidator.validatePdf(file);
             }
 
-            // 2️⃣ Generate S3 key
+            // 2️⃣ BUILD KEY
             String originalFilename = file.getOriginalFilename();
             String extension = "";
-            int lastDot = originalFilename != null ? originalFilename.lastIndexOf('.') : -1;
 
-            if (lastDot > 0) {
-                extension = originalFilename.substring(lastDot);
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
             }
 
-            String fileName = UUID.randomUUID().toString() + extension;
+            String fileName = UUID.randomUUID() + extension;
             String finalKey = directoryKey + "/" + fileName;
-
-            log.info("Uploading file to S3: bucket={}, key={}", bucketName, finalKey);
 
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize());
             metadata.setContentType(contentType);
 
-            PutObjectRequest putRequest = new PutObjectRequest(bucketName, finalKey, file.getInputStream(), metadata);
+            PutObjectRequest request = new PutObjectRequest(bucketName, finalKey, file.getInputStream(), metadata);
 
-            // If you want public-read objects in PUBLIC_READ mode:
-            // if (urlStrategy == UrlStrategy.PUBLIC_READ) {
-            //     putRequest.withCannedAcl(CannedAccessControlList.PublicRead);
-            // }
-//
-//            if (isImage || isPdf) {
-//                putRequest.withCannedAcl(CannedAccessControlList.PublicRead);
-//            }
-
-            s3Client.putObject(putRequest);
+            s3Client.putObject(request);
 
             return finalKey;
 
-        } catch (IllegalArgumentException e) {
-            // Validation errors
-            throw e;
+        } catch (IllegalArgumentException ex) {
+            // ❗ validation errors (image/pdf)
+            throw ex;
+
         } catch (Exception ex) {
-            log.error("❌ Unexpected error while uploading to S3: {}", ex.getMessage());
-            throw new S3UploadException("Unexpected error during file upload", ex);
+            log.error("S3 upload failed", ex);
+            throw new S3UploadException(ApiMessageKey.S3_UPLOAD_UNEXPECTED_ERROR, ex);
         }
     }
 
-    // =========================== GET URL ================================
-
-    /**
-     * Returns a file URL based on configured strategy:
-     * - SIGNED → pre-signed URL with expiration
-     * - PUBLIC_READ → plain HTTPS URL (no expiration)
-     */
+    // ======================================================
+    // GET FILE URL
+    // ======================================================
     @Override
-    public String getFileUrl(String keyName, UrlStrategy urlStrategy) {
-        if (urlStrategy == UrlStrategy.PUBLIC_READ) {
-            // Public object URL (bucket policy or ACL must allow read)
+    public String getFileUrl(String keyName, UrlStrategy strategy) {
+        if (strategy == UrlStrategy.PUBLIC_READ) {
             return buildPublicUrl(keyName);
-        } else {
-            // Default: pre-signed URL
-            return buildPreSignedGetUrl(keyName, Duration.ofMinutes(expirationMinutes));
         }
+        return buildPreSignedGetUrl(keyName, Duration.ofMinutes(expirationMinutes));
     }
-
-    // Explicit method if you ever want to request different expirations programmatically
-    public String getFileUrlWithCustomExpiration(String keyName, Duration duration) {
-        if (urlStrategy == UrlStrategy.PUBLIC_READ) {
-            return buildPublicUrl(keyName);
-        } else {
-            return buildPreSignedGetUrl(keyName, duration);
-        }
-    }
-
-    // ====================== INTERNAL URL BUILDERS =======================
 
     private String buildPublicUrl(String keyName) {
-        // Standard virtual-hosted–style URL
-        // e.g. https://your-bucket.s3.eu-central-1.amazonaws.com/books/cover/42/uuid.jpg
         return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, keyName);
     }
 
@@ -151,19 +122,47 @@ public class S3Service implements FileStorageService {
         return url.toString();
     }
 
-    // =========================== DELETE =================================
-
+    // ======================================================
+    // DELETE FILE
+    // ======================================================
+    @Override
     public void deleteFile(String keyName) {
-        s3Client.deleteObject(bucketName, keyName);
+        try {
+            s3Client.deleteObject(bucketName, keyName);
+        } catch (Exception ex) {
+            log.error("S3 delete failed", ex);
+            throw new S3UploadException(ApiMessageKey.S3_DELETE_UNEXPECTED_ERROR, ex);
+        }
     }
 
-    // OPTIONAL: upload pre-signed URL (client-side PUT)
-    public String generatePreSignedUrlForUpload(String keyName, Duration duration) {
-        Date expiration = new Date(System.currentTimeMillis() + duration.toMillis());
+    public String storeBytes(byte[] content, String contentType, String directoryKey, String extension) {
+        try {
+            String fileName = UUID.randomUUID() + (extension.startsWith(".") ? extension : "." + extension);
+            String finalKey = directoryKey + "/" + fileName;
 
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucketName, keyName).withMethod(HttpMethod.PUT).withExpiration(expiration);
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(content.length);
+            metadata.setContentType(contentType);
 
-        URL url = s3Client.generatePresignedUrl(request);
-        return url.toString();
+            PutObjectRequest request = new PutObjectRequest(bucketName, finalKey, new java.io.ByteArrayInputStream(content), metadata);
+            s3Client.putObject(request);
+
+            return finalKey;
+        } catch (Exception ex) {
+            log.error("S3 upload bytes failed", ex);
+            throw new S3UploadException(ApiMessageKey.S3_UPLOAD_UNEXPECTED_ERROR, ex);
+        }
+    }
+
+    public byte[] getBytes(String key) {
+        try {
+            S3Object s3Object = s3Client.getObject(bucketName, key);
+            try (S3ObjectInputStream inputStream = s3Object.getObjectContent()) {
+                return inputStream.readAllBytes();
+            }
+        } catch (Exception e) {
+            log.error("Failed to download bytes from S3 for key {}: {}", key, e.getMessage());
+            return null;
+        }
     }
 }

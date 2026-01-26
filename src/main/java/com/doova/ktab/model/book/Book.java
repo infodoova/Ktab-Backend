@@ -1,6 +1,7 @@
 package com.doova.ktab.model.book;
 
-import com.doova.ktab.enums.BookStatus;
+import com.doova.ktab.enums.status.BookStatus;
+import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.base.BaseEntity;
 import com.doova.ktab.model.configuration.MainGenre;
 import com.doova.ktab.model.configuration.SubGenre;
@@ -95,9 +96,30 @@ public class Book extends BaseEntity {
     @JoinColumn(name = "main_genre_id")
     private MainGenre mainGenre;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_ocr_status")
+    @ColumnDefault("'PENDING'")
+    private OcrStatus ocrStatus = OcrStatus.PENDING;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_genre_id")
     private SubGenre subGenre;
+
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<BookPage> sections = new HashSet<>();
+
+    public void addSection(BookPage section) {
+        if (section != null) {
+            section.setBook(this);
+            sections.add(section);
+        }
+    }
+
+    public void removeSection(BookPage section) {
+        if (section != null && sections.remove(section)) {
+            section.setBook(null);
+        }
+    }
 
     public void addReview(BookReview review) {
         if (review == null) return;

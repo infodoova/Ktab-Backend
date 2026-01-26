@@ -1,7 +1,8 @@
 package com.doova.ktab.service.library;
 
-import com.doova.ktab.api.dto.request.AssignBookRequest;
-import com.doova.ktab.api.dto.response.BookResponseDto;
+import com.doova.ktab.dto.request.AssignBookRequest;
+import com.doova.ktab.dto.response.BookResponseDto;
+import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.enums.LibrarySort;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.book.BookLibraryEntry;
@@ -13,10 +14,7 @@ import com.doova.ktab.service.helpers.BookResponseBuilderService;
 import com.doova.ktab.utils.PageResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,10 +34,10 @@ public class LibraryService {
     // ------------------------------------------------------------
     public void assignBookToUser(AssignBookRequest request, User reader) {
 
-        Book book = bookRepository.findById(request.bookId()).orElseThrow(() -> new EntityNotFoundException("Book not found"));
+        Book book = bookRepository.findById(request.bookId()).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND.getKey()));
 
         if (libraryRepository.existsByUserIdAndBookId(reader.getId(), book.getId())) {
-            throw new IllegalStateException("Book is already assigned to this user.");
+            throw new IllegalStateException(ApiMessageKey.LIBRARY_BOOK_ALREADY_EXISTS.getKey());
         }
 
         BookLibraryEntry entry = new BookLibraryEntry();
@@ -50,27 +48,32 @@ public class LibraryService {
     }
 
     // ------------------------------------------------------------
-    // GET USER LIBRARY
+    // GET FULL LIBRARY
     // ------------------------------------------------------------
     public List<BookResponseDto> getUserLibrary(Long userId) {
 
-        if (!userRepository.existsById(userId)) throw new EntityNotFoundException("User not found with ID: " + userId);
+        if (!userRepository.existsById(userId)) {
+            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND.getKey());
+        }
 
-        List<BookLibraryEntry> entries = libraryRepository.findAllByUserId(userId);
-
-        return entries.stream().map(entry -> responseBuilder.build(entry.getBook())).toList();
+        return libraryRepository.findAllByUserId(userId).stream().map(e -> responseBuilder.build(e.getBook())).toList();
     }
 
+    // ------------------------------------------------------------
+    // GET PAGINATED LIBRARY
+    // ------------------------------------------------------------
     @Transactional(readOnly = true)
     public PageResponse<BookResponseDto> getUserLibrary(Long userId, int page, int size, LibrarySort sort) {
 
-        if (!userRepository.existsById(userId)) throw new EntityNotFoundException("User not found");
+        if (!userRepository.existsById(userId)) {
+            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND.getKey());
+        }
 
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
 
         Page<BookLibraryEntry> entryPage = libraryRepository.findAllByUserId(userId, pageable);
 
-        List<BookResponseDto> books = entryPage.getContent().stream().map(entry -> responseBuilder.build(entry.getBook())).toList();
+        List<BookResponseDto> books = entryPage.getContent().stream().map(e -> responseBuilder.build(e.getBook())).toList();
 
         return new PageResponse<>(books, entryPage.getNumber(), entryPage.getSize(), entryPage.getTotalElements(), entryPage.getTotalPages(), entryPage.isLast());
     }
@@ -80,15 +83,20 @@ public class LibraryService {
     // ------------------------------------------------------------
     public void removeBookFromLibrary(Long userId, Long bookId) {
 
-        BookLibraryEntry entry = libraryRepository.findByUserIdAndBookId(userId, bookId).orElseThrow(() -> new EntityNotFoundException("Book is not in user's library."));
+        BookLibraryEntry entry = libraryRepository.findByUserIdAndBookId(userId, bookId).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_IN_LIBRARY.getKey()));
 
         libraryRepository.delete(entry);
     }
 
+    // ------------------------------------------------------------
+    // CHECK ASSIGNMENT
+    // ------------------------------------------------------------
     @Transactional(readOnly = true)
     public boolean isAssigned(Long userId, Long bookId) {
 
-        if (!bookRepository.existsById(bookId)) throw new EntityNotFoundException("Book not found");
+        if (!bookRepository.existsById(bookId)) {
+            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND.getKey());
+        }
 
         return libraryRepository.existsByUserIdAndBookId(userId, bookId);
     }

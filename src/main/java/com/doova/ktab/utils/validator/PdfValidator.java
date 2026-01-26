@@ -1,5 +1,6 @@
 package com.doova.ktab.utils.validator;
 
+import com.doova.ktab.enums.ApiMessageKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.RandomAccessReadBuffer;
@@ -14,84 +15,57 @@ import java.io.IOException;
 @Slf4j
 public class PdfValidator {
 
-    private static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
     private static final int MIN_PAGES = 1;
     private static final int MAX_PAGES = 2000;
-    private static final int MIN_SELECTABLE_TEXT_LENGTH = 50; // Minimum text length to qualify as non-scanned
+    private static final int MIN_TEXT_LENGTH = 50;
 
-    /**
-     * Validates a PDF file with extension, MIME type, size, page count,
-     * encryption, and selectable text layer.
-     */
     public void validatePdf(MultipartFile file) throws IOException {
 
-        // 1️⃣ Basic validation (extension, MIME, size)
         String name = file.getOriginalFilename();
         if (name == null) {
-            throw new IllegalArgumentException("ملف PDF غير صالح (اسم الملف مفقود).");
+            throw new IllegalArgumentException(ApiMessageKey.PDF_INVALID_FILENAME.getKey());
         }
 
-        String lowerName = name.toLowerCase();
-
-        // Extension
-        if (!lowerName.endsWith(".pdf")) {
-            throw new IllegalArgumentException("يجب رفع ملف بصيغة PDF فقط.");
+        if (!name.toLowerCase().endsWith(".pdf")) {
+            throw new IllegalArgumentException(ApiMessageKey.PDF_INVALID_EXTENSION.getKey());
         }
 
-        // MIME type
-        String mime = file.getContentType();
-        if (mime == null || !mime.equals("application/pdf")) {
-            throw new IllegalArgumentException("نوع الملف غير صالح. يجب أن يكون PDF.");
+        if (!"application/pdf".equals(file.getContentType())) {
+            throw new IllegalArgumentException(ApiMessageKey.PDF_INVALID_MIME.getKey());
         }
 
-        // Size
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("حجم ملف الـ PDF يجب ألا يتجاوز 50MB.");
+            throw new IllegalArgumentException(ApiMessageKey.PDF_SIZE_EXCEEDED.getKey());
         }
 
-        // 2️⃣ Advanced validation (PDFBox loading)
-        try (PDDocument document =
-                     Loader.loadPDF(new RandomAccessReadBuffer(file.getInputStream()))) {
+        try (PDDocument document = Loader.loadPDF(new RandomAccessReadBuffer(file.getInputStream()))) {
 
-            // Encrypted
             if (document.isEncrypted()) {
-                throw new IllegalArgumentException("لا يمكن رفع ملفات PDF المحمية بكلمة سر.");
+                throw new IllegalArgumentException(ApiMessageKey.PDF_ENCRYPTED.getKey());
             }
 
-            // Page count
             int pages = document.getNumberOfPages();
 
             if (pages < MIN_PAGES) {
-                throw new IllegalArgumentException("ملف PDF فارغ.");
+                throw new IllegalArgumentException(ApiMessageKey.PDF_EMPTY.getKey());
             }
 
             if (pages > MAX_PAGES) {
-                throw new IllegalArgumentException(
-                        "عدد صفحات ملف PDF يتجاوز الحد المسموح (" + MAX_PAGES + ")."
-                );
+                throw new IllegalArgumentException(ApiMessageKey.PDF_PAGES_EXCEEDED.getKey());
             }
 
-            // Selectable text (reject scanned PDFs)
-            PDFTextStripper stripper = new PDFTextStripper();
-            String text = stripper.getText(document);
-
-            boolean hasSelectableText =
-                    text != null &&
-                            text.trim().length() > MIN_SELECTABLE_TEXT_LENGTH;
-
-            if (!hasSelectableText) {
-                throw new IllegalArgumentException(
-                        "الملف يبدو ممسوحًا ضوئيًا ولا يحتوي على نص قابل للنسخ."
-                );
-            }
+//            PDFTextStripper stripper = new PDFTextStripper();
+//            String text = stripper.getText(document);
+//
+//            if (text == null || text.trim().length() < MIN_TEXT_LENGTH) {
+//                throw new IllegalArgumentException(ApiMessageKey.PDF_NO_SELECTABLE_TEXT.getKey());
+//            }
 
         } catch (IllegalArgumentException e) {
-            // Re-throw our own validation errors
             throw e;
-
         } catch (Exception e) {
-            // Catch PDFBox errors → corrupted / non-standard PDFs
-            throw new IllegalArgumentException("ملف PDF تالف أو غير صالح للمعالجة.");
+            throw new IllegalArgumentException(ApiMessageKey.PDF_CORRUPTED.getKey());
         }
     }
 }
