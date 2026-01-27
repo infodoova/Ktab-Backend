@@ -49,6 +49,11 @@ public class JwtFilter extends OncePerRequestFilter {
             return true;
         }
 
+        // Public book covers endpoint
+        if (path.equals("/api/v1/reader/covers")) {
+            return true;
+        }
+
         // WebSocket endpoints - auth handled inside the handler
         if (path.startsWith("/ws/")) {
             return true;

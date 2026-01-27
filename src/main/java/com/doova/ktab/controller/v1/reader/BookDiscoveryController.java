@@ -3,6 +3,7 @@ package com.doova.ktab.controller.v1.reader;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.request.BookSearchRequestDto;
+import com.doova.ktab.dto.response.BookCoverResponse;
 import com.doova.ktab.dto.response.BookResponseDto;
 import com.doova.ktab.enums.ApiMessageKey;
 import com.doova.ktab.service.book.BookService;
@@ -81,5 +82,18 @@ public class BookDiscoveryController {
         PageResponse<BookResponseDto> result = similarityService.getSmartSimilarBooks(bookId, page, size);
 
         return ResponseUtils.success(result, ApiMessageKey.READER_SIMILAR_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // ============================================================================================
+    // GET BOOK COVERS (PUBLIC - NO AUTH REQUIRED)
+    // ============================================================================================
+    @Operation(summary = "Get book covers with titles (public endpoint)")
+    @GetMapping("/covers")
+    public ResponseEntity<ApiResponse<PageResponse<BookCoverResponse>>> getBookCovers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "18") int size) {
+        PageResponse<BookCoverResponse> covers = bookService.getBookCovers(page, size);
+
+        return ResponseUtils.success(covers, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 }

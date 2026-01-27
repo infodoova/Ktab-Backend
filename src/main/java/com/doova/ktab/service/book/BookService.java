@@ -2,9 +2,11 @@ package com.doova.ktab.service.book;
 
 import com.doova.ktab.dto.request.BookRequestDto;
 import com.doova.ktab.dto.request.BookSearchRequestDto;
+import com.doova.ktab.dto.response.BookCoverResponse;
 import com.doova.ktab.dto.response.BookResponseDto;
 import com.doova.ktab.dto.event.BookPublishedEvent;
 import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.UrlStrategy;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.mappers.book.BookMapper;
@@ -15,6 +17,7 @@ import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.service.book.interfaces.BookFileService;
 import com.doova.ktab.service.file.AttachmentService;
 import com.doova.ktab.service.helpers.BookResponseBuilderService;
+import com.doova.ktab.service.interfaces.file.FileStorageService;
 import com.doova.ktab.utils.PageResponse;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -27,14 +30,12 @@ import org.hibernate.Session;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,6 +50,7 @@ public class BookService {
     private final BookResponseBuilderService responseBuilder;
     private final ApplicationEventPublisher eventPublisher;
     private final AttachmentService attachmentService;
+    private final FileStorageService fileStorageService;
 
     // =========================================================
     // FILTER
@@ -249,6 +251,49 @@ public class BookService {
         return predicates;
     }
 
+
+    // =========================================================
+    // PUBLIC – GET BOOK COVERS WITH TITLES (NO AUTH REQUIRED)
+    // =========================================================
+    @Transactional(readOnly = true)
+    public PageResponse<BookCoverResponse> getBookCovers(int page, int size) {
+        enablePublishedFilter();
+
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
+        var booksPage = bookRepository.findAll(pageable);
+
+        List<BookCoverResponse> covers = booksPage.getContent().stream()
+                .map(book -> {
+                    String coverUrl = attachmentService
+                            .getAttachment(book.getId(), BookResponseBuilderService.BOOK_ENTITY_TYPE, BookResponseBuilderService.COVER_IMAGE_TYPE)
+                            .map(attachment -> fileStorageService.getFileUrl(attachment.getStoragePath(), UrlStrategy.SIGNED))
+                            .orElse(null);
+
+                    return BookCoverResponse.builder()
+                            .id(book.getId())
+                            .title(book.getTitle())
+                            .coverImageUrl(coverUrl)
+                            .description(book.getDescription())
+                            .language(book.getLanguage())
+                            .ageRangeMin(book.getAgeRangeMin())
+                            .ageRangeMax(book.getAgeRangeMax())
+                            .pageCount(book.getPageCount())
+                            .publishDate(book.getPublishDate())
+                            .mainGenre(book.getMainGenre() != null ? book.getMainGenre().getNameAr() : null)
+                            .subGenre(book.getSubGenre() != null ? book.getSubGenre().getNameAr() : null)
+                            .build();
+                })
+                .toList();
+
+        return new PageResponse<>(
+                covers,
+                booksPage.getNumber(),
+                booksPage.getSize(),
+                booksPage.getTotalElements(),
+                booksPage.getTotalPages(),
+                booksPage.isLast()
+        );
+    }
 
     // =========================================================
     // HELPER
