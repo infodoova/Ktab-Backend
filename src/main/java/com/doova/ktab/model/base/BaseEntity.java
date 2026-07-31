@@ -24,7 +24,7 @@ public class BaseEntity implements Serializable, AudiInterface {
     private Long id;
 
     @Embedded
-    @AssociationOverrides({@AssociationOverride(name = "audit.createdBy", joinColumns = @JoinColumn(name = "col_created_by")), @AssociationOverride(name = "audit.lastModifiedBy", joinColumns = @JoinColumn(name = "col_last_modified_by"))})
+    @AssociationOverrides({@AssociationOverride(name = "createdBy", joinColumns = @JoinColumn(name = "col_created_by")), @AssociationOverride(name = "lastModifiedBy", joinColumns = @JoinColumn(name = "col_last_modified_by"))})
     @JsonIgnore
     private Audit audit;
 
