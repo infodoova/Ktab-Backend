@@ -115,7 +115,9 @@ public class WebSecurityConfig {
                                 "/error",
                                 "/favicon.ico",
                                 "/ws/**",
-                                "api/ocr/**"
+                                "api/ocr/**",
+                                "/actuator/health",
+                                "/actuator/info"
                         ).permitAll()
 
                         // AI endpoints

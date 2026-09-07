@@ -1,0 +1,13 @@
+target/
+.git/
+.github/
+.idea/
+.vscode/
+.kiro/
+*.iml
+*.log
+docs/
+*.md
+sample-interactive-stories.json
+interactive-story-genres-ar.json
+qodana.yaml

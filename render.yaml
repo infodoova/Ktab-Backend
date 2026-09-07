@@ -1,0 +1,62 @@
+# Render Blueprint Configuration (Infrastructure as Code)
+# Docs: https://render.com/docs/blueprint-spec
+
+version: "1"
+
+services:
+  - type: web
+    name: ktab-backend
+    runtime: docker
+    plan: starter # Starter ($7/mo) recommended for Java 21 Spring Boot + AI; can also use 'free'
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: PORT
+        value: 8080
+      # Automatic database wiring from the managed Render Postgres
+      - key: DB_HOST
+        fromDatabase:
+          name: ktab-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ktab-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ktab-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ktab-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ktab-postgres
+          property: password
+      # Auto-generated secure JWT secret
+      - key: JWT_SECRET
+        generateValue: true
+      # Secrets to be provided in the Render Dashboard upon setup
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY
+        sync: false
+      - key: AWS_SECRET_KEY
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+
+databases:
+  - name: ktab-postgres
+    databaseName: ktab
+    user: ktab_user
+    plan: free # Render Free PostgreSQL (valid for 30 days) or upgrade to 'starter'
+    region: frankfurt
