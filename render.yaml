@@ -7,7 +7,7 @@ services:
   - type: web
     name: ktab-backend
     runtime: docker
-    plan: starter # Starter ($7/mo) recommended for Java 21 Spring Boot + AI; can also use 'free'
+    plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
