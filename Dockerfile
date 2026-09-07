@@ -33,7 +33,7 @@ COPY --from=builder --chown=ktab:ktab /build/target/*.war app.war
 # Container and JVM runtime environment
 ENV PORT=8080 \
     SPRING_PROFILES_ACTIVE=production \
-    JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=65.0 -Djava.awt.headless=true -XX:+ExitOnOutOfMemoryError"
+    JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC -Xss512k -Djava.awt.headless=true"
 
 EXPOSE 8080
 
