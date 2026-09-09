@@ -25,11 +25,15 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
     public BookResponseDto build(Book book) {
         BookResponseDto dto = bookMapper.toResponseDto(book);
 
-        dto.setMainGenreId(book.getMainGenre().getId());
-        dto.setMainGenreName(book.getMainGenre().getNameAr());
+        if (book.getMainGenre() != null) {
+            dto.setMainGenreId(book.getMainGenre().getId());
+            dto.setMainGenreName(book.getMainGenre().getNameAr());
+        }
 
-        dto.setSubGenreId(book.getSubGenre().getId());
-        dto.setSubGenreName(book.getSubGenre().getNameAr());
+        if (book.getSubGenre() != null) {
+            dto.setSubGenreId(book.getSubGenre().getId());
+            dto.setSubGenreName(book.getSubGenre().getNameAr());
+        }
 
         dto.setBookSource(book.getBookSource());
         dto.setCustomAuthorName(book.getCustomAuthorName());
@@ -49,10 +53,12 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));
 
-        // Load PDF
+        // Load PDF (resolve URL and filename in one pass)
         Optional<Attachment> pdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, PDF_SOURCE_TYPE);
-        pdf.ifPresent(att -> dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));
-        pdf.ifPresent(att -> dto.setPdfFileName(att.getFileName()));
+        pdf.ifPresent(att -> {
+            dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED));
+            dto.setPdfFileName(att.getFileName());
+        });
 
         return dto;
     }

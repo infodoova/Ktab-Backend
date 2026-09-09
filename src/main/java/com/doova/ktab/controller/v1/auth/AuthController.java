@@ -44,10 +44,10 @@ public class AuthController {
 
     @Operation(summary = "Register a new user")
     @PostMapping(path = "/register", consumes = "application/json")
-    public ResponseEntity<ApiResponse<User>> register(@Valid @RequestBody UserRegisterRequest req) {
+    public ResponseEntity<ApiResponse<UserResponseDto>> register(@Valid @RequestBody UserRegisterRequest req) {
         User user = service.register(req);
 
-        return ResponseUtils.success(user, ApiMessageKey.AUTH_REGISTER_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
+        return ResponseUtils.success(UserResponseDto.from(user), ApiMessageKey.AUTH_REGISTER_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
     }
 
     // ============================
@@ -153,13 +153,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String token = null;
-        if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
-            token = req.refreshToken();
-        } else {
-            token = cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
-                    .orElse(request.getHeader("X-Refresh-Token"));
-        }
+        String token = resolveRefreshToken(req, request);
 
         AuthTokenResponse tokenResponse = refreshTokenService.rotateRefreshToken(token, request.getHeader("User-Agent"));
 
@@ -180,13 +174,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String token = null;
-        if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
-            token = req.refreshToken();
-        } else {
-            token = cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
-                    .orElse(request.getHeader("X-Refresh-Token"));
-        }
+        String token = resolveRefreshToken(req, request);
 
         if (token != null && !token.isBlank()) {
             refreshTokenService.revokeToken(token);
@@ -195,5 +183,13 @@ public class AuthController {
         cookieUtils.clearAllAuthCookies(response);
 
         return ResponseUtils.success(null, ApiMessageKey.AUTH_LOGOUT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    private String resolveRefreshToken(RefreshTokenRequest req, HttpServletRequest request) {
+        if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
+            return req.refreshToken();
+        }
+        return cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
+                .orElse(request.getHeader("X-Refresh-Token"));
     }
 }

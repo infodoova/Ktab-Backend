@@ -10,7 +10,7 @@ public interface UserService {
 
     UserPrincipal authenticate(UserLoginRequest request);
 
-    String verify(UserLoginRequest request);
+    String authenticateAndGenerateToken(UserLoginRequest request);
 
     void verifyEmail(VerifyCodeRequest req);
 
@@ -19,6 +19,4 @@ public interface UserService {
     void sendReVerifyAccountCode(ResendVerificationCodeRequest req);
 
     void resetPassword(ResetPasswordRequest req);
-
-    String refreshToken(String email);
 }

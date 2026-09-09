@@ -14,7 +14,7 @@ public record UserPrincipal(User user) implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.getActive().equals(Status.ACTIVE.getCode());
+        return Status.ACTIVE.getCode().equals(user.getActive());
     }
 
     @Override

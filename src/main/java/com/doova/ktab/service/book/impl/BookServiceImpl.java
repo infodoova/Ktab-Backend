@@ -73,12 +73,6 @@ public class BookServiceImpl implements BookService {
         // Files must be handled before we try to get the pdfKey
         bookFileService.handleCreateFiles(savedBook, cover, pdf);
 
-        // If created directly as PUBLISHED, trigger OCR
-//        if (savedBook.getStatus() == BookStatus.PUBLISHED) {
-//            String pdfKey = getPdfKey(savedBook.getId());
-//            eventPublisher.publishEvent(new BookPublishedEvent(savedBook.getId(), pdfKey));
-//        }
-
         return responseBuilder.build(savedBook);
     }
 
@@ -134,7 +128,18 @@ public class BookServiceImpl implements BookService {
     public PageResponse<BookResponseDto> getBooksByAuthorId(Long authorId, int page, int size, String status) {
         var pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
-        var pageResult = StringUtils.hasText(status) ? bookRepository.findAllByAuthorIdAndStatus(authorId, BookStatus.valueOf(status.toUpperCase()), pageable) : bookRepository.findAllByAuthorId(authorId, pageable);
+        org.springframework.data.domain.Page<Book> pageResult;
+        if (StringUtils.hasText(status)) {
+            BookStatus bookStatus;
+            try {
+                bookStatus = BookStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException(ApiMessageKey.BOOK_INVALID_STATUS);
+            }
+            pageResult = bookRepository.findAllByAuthorIdAndStatus(authorId, bookStatus, pageable);
+        } else {
+            pageResult = bookRepository.findAllByAuthorId(authorId, pageable);
+        }
 
         return mapBookPage(pageResult);
     }
@@ -224,7 +229,7 @@ public class BookServiceImpl implements BookService {
     private String getPdfKey(Long bookId) {
         return attachmentService.getAttachment(bookId, "Book", "PDF_SOURCE")
                 .map(Attachment::getStoragePath)
-                .orElseThrow(() -> new IllegalStateException("PDF_SOURCE attachment missing for published book: " + bookId));
+                .orElseThrow(() -> new BadRequestException(ApiMessageKey.BOOK_OCR_PDF_MISSING));
     }
 
     private List<Predicate> buildPredicates(BookSearchRequestDto req, CriteriaBuilder cb, Root<Book> root) {

@@ -41,9 +41,10 @@ public class OcrEventListener {
     /**
      * Handle book published event - triggers OCR pipeline.
      * Runs asynchronously after the publishing transaction commits.
+     * Includes fallbackExecution = true to prevent silent event drop if published outside a transaction.
      */
     @Async("ocrTaskExecutor")
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void handleBookPublished(BookPublishedEvent event) {
         Timer.Sample sample = Timer.start(meterRegistry);
         log.info("Received BookPublishedEvent for bookId={}, pdfKey={}", event.bookId(), event.pdfKey());
@@ -65,23 +66,29 @@ public class OcrEventListener {
             // Update book status to PENDING
             bookRepository.updateOcrStatus(event.bookId(), OcrStatus.PENDING);
 
-            // Launch OCR job
-            JobParameters params = new JobParametersBuilder()
-                    .addLong("bookId", event.bookId())
-                    .addString("pdfKey", event.pdfKey())
-                    .addLong("run.id", System.currentTimeMillis())
-                    .toJobParameters();
+            if (sqsWorkerEnabled && queueService != null && queueService.isEnabled()) {
+                log.info("Dispatching OCR pages via SQS queue for bookId={}", event.bookId());
+                int queuedPages = queueService.publishBookPages(event.bookId());
+                log.info("Queued {} pages for OCR processing via SQS for bookId={}", queuedPages, event.bookId());
+            } else {
+                // Launch local Spring Batch job
+                JobParameters params = new JobParametersBuilder()
+                        .addLong("bookId", event.bookId())
+                        .addString("pdfKey", event.pdfKey())
+                        .addLong("run.id", System.currentTimeMillis())
+                        .toJobParameters();
 
-            JobExecution execution = jobLauncher.run(ocrJob, params);
-            
-            log.info("Started OCR job for bookId={}, executionId={}, status={}", 
-                    event.bookId(), execution.getId(), execution.getStatus());
+                JobExecution execution = jobLauncher.run(ocrJob, params);
+                
+                log.info("Started local OCR batch job for bookId={}, executionId={}, status={}", 
+                        event.bookId(), execution.getId(), execution.getStatus());
+            }
             
             meterRegistry.counter("ocr.events.processed", "status", "success").increment();
             sample.stop(meterRegistry.timer("ocr.event.handling.duration", "status", "success"));
 
         } catch (Exception e) {
-            log.error("Failed to start OCR job for bookId={}: {}", event.bookId(), e.getMessage(), e);
+            log.error("Failed to start OCR processing for bookId={}: {}", event.bookId(), e.getMessage(), e);
             
             // Update book OCR status to FAILED
             try {

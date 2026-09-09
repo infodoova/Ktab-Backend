@@ -2,8 +2,10 @@ package com.doova.ktab.service.library.impl;
 
 import com.doova.ktab.dto.library.AssignBookRequest;
 import com.doova.ktab.dto.book.BookResponseDto;
-import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.library.LibrarySort;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.BadRequestException;
+import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.book.BookLibraryEntry;
 import com.doova.ktab.model.user.User;
@@ -13,7 +15,6 @@ import com.doova.ktab.repository.user.UserRepository;
 import com.doova.ktab.service.book.BookResponseBuilderService;
 import com.doova.ktab.service.library.LibraryService;
 import com.doova.ktab.utils.pagination.PageResponse;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -34,13 +35,14 @@ public class LibraryServiceImpl implements LibraryService {
     // ASSIGN BOOK
     // ------------------------------------------------------------
     @Override
+    @Transactional
     public void assignBookToUser(AssignBookRequest request, User reader) {
 
         Book book = bookRepository.findById(request.bookId())
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND));
 
         if (libraryRepository.existsByUserIdAndBookId(reader.getId(), book.getId())) {
-            throw new IllegalStateException(ApiMessageKey.LIBRARY_BOOK_ALREADY_EXISTS.getKey());
+            throw new BadRequestException(ApiMessageKey.LIBRARY_BOOK_ALREADY_EXISTS);
         }
 
         BookLibraryEntry entry = new BookLibraryEntry();
@@ -54,10 +56,11 @@ public class LibraryServiceImpl implements LibraryService {
     // GET FULL LIBRARY
     // ------------------------------------------------------------
     @Override
+    @Transactional(readOnly = true)
     public List<BookResponseDto> getUserLibrary(Long userId) {
 
         if (!userRepository.existsById(userId)) {
-            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND.getKey());
+            throw new ResourceNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND);
         }
 
         return libraryRepository.findAllByUserId(userId)
@@ -74,7 +77,7 @@ public class LibraryServiceImpl implements LibraryService {
     public PageResponse<BookResponseDto> getUserLibrary(Long userId, int page, int size, LibrarySort sort) {
 
         if (!userRepository.existsById(userId)) {
-            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND.getKey());
+            throw new ResourceNotFoundException(ApiMessageKey.LIBRARY_USER_NOT_FOUND);
         }
 
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
@@ -100,10 +103,11 @@ public class LibraryServiceImpl implements LibraryService {
     // REMOVE BOOK
     // ------------------------------------------------------------
     @Override
+    @Transactional
     public void removeBookFromLibrary(Long userId, Long bookId) {
 
         BookLibraryEntry entry = libraryRepository.findByUserIdAndBookId(userId, bookId)
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_IN_LIBRARY.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_IN_LIBRARY));
 
         libraryRepository.delete(entry);
     }
@@ -116,7 +120,7 @@ public class LibraryServiceImpl implements LibraryService {
     public boolean isAssigned(Long userId, Long bookId) {
 
         if (!bookRepository.existsById(bookId)) {
-            throw new EntityNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND.getKey());
+            throw new ResourceNotFoundException(ApiMessageKey.LIBRARY_BOOK_NOT_FOUND);
         }
 
         return libraryRepository.existsByUserIdAndBookId(userId, bookId);

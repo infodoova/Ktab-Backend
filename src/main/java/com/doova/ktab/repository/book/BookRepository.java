@@ -74,40 +74,44 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("select b from Book b where b.id = :id")
     Optional<Book> findByIdForUpdate(@Param("id") Long id);
 
+    long countByAuthorId(Long authorId);
+
     long countByAuthor_Id(Long authorId);
 
     @Query("""
-                select coalesce(avg(b.averageRating), 0)
+                select cast(coalesce(avg(b.averageRating), 0.0) as bigdecimal)
                 from Book b
                 where b.author.id = :authorId
                   and b.totalReviews > 0
             """)
-    BigDecimal findAuthorAverageRating(Long authorId);
+    BigDecimal findAuthorAverageRating(@Param("authorId") Long authorId);
 
     @Query("""
                 select coalesce(sum(b.totalReviews), 0)
                 from Book b
                 where b.author.id = :authorId
             """)
-    long sumAuthorTotalReviews(Long authorId);
+    long sumAuthorTotalReviews(@Param("authorId") Long authorId);
 
-    @Query("""
+    @Query(
+            value = """
                 select new com.doova.ktab.dto.analytics.AuthorBookAnalyticsResponse(
                     b.id,
                     b.title,
                     b.status,
-                    case\s
-                        when b.status = com.doova.ktab.enums.status.BookStatus.PUBLISHED\s
-                        then b.publishDate\s
-                        else null\s
+                    case
+                        when b.status = com.doova.ktab.enums.status.BookStatus.PUBLISHED
+                        then b.publishDate
+                        else null
                     end,
                     b.averageRating,
                     b.totalReviews,
-                    b.mainGenre.nameAr,
+                    mg.nameAr,
                     count(distinct ble.id),
                     max(a.storagePath)
                 )
                 from Book b
+                left join b.mainGenre mg
                 left join BookLibraryEntry ble on ble.book.id = b.id
                 left join Attachment a
                     on a.entityId = b.id
@@ -121,13 +125,19 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                     b.publishDate,
                     b.averageRating,
                     b.totalReviews,
-                    b.mainGenre.nameAr
-           \s""")
-    Page<AuthorBookAnalyticsResponse> findAuthorBooksWithAnalytics(Long authorId, Pageable pageable);
+                    mg.nameAr
+            """,
+            countQuery = """
+                select count(b)
+                from Book b
+                where b.author.id = :authorId
+            """
+    )
+    Page<AuthorBookAnalyticsResponse> findAuthorBooksWithAnalytics(@Param("authorId") Long authorId, Pageable pageable);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("UPDATE Book b SET b.ocrStatus = :status WHERE b.id = :id")
-    void updateOcrStatus(Long id, OcrStatus status);
+    void updateOcrStatus(@Param("id") Long id, @Param("status") OcrStatus status);
 
 }

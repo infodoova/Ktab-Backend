@@ -76,7 +76,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         book.setAgeRangeMin(req.getAgeRangeMin());
         book.setAgeRangeMax(req.getAgeRangeMax());
         book.setPageCount(req.getPageCount());
-        book.setHasAudio(req.getHasAudio() != null ? req.getHasAudio() : false);
+        book.setHasAudio(Boolean.TRUE.equals(req.getHasAudio()));
         book.setStatus(req.getStatus() != null ? req.getStatus() : BookStatus.DRAFT);
 
         book.setMainGenre(
@@ -182,14 +182,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
             pageResult = bookRepository.findAllByLibraryOrganizationId(libraryOrg.getId(), pageable);
         }
 
-        return new PageResponse<>(
-                pageResult.getContent().stream().map(responseBuilder::build).toList(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return PageResponse.fromPage(pageResult.map(responseBuilder::build));
     }
 
     // =========================================================================
@@ -221,13 +214,6 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
                 pageable
         );
 
-        return new PageResponse<>(
-                pageResult.getContent().stream().map(responseBuilder::build).toList(),
-                pageResult.getNumber(),
-                pageResult.getSize(),
-                pageResult.getTotalElements(),
-                pageResult.getTotalPages(),
-                pageResult.isLast()
-        );
+        return PageResponse.fromPage(pageResult.map(responseBuilder::build));
     }
 }

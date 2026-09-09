@@ -34,8 +34,8 @@ public class BookSimilarityServiceImpl implements BookSimilarityService {
 
         return rows.stream()
                 .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (Long) row[1]
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).longValue()
                 ));
     }
 
@@ -80,6 +80,10 @@ public class BookSimilarityServiceImpl implements BookSimilarityService {
     }
 
     private double computeSimilarity(Book target, Book candidate, Map<Long, Long> collabMap, Long maxCollabCount) {
+        // Guard against books with no genre association
+        if (target.getMainGenre() == null || candidate.getMainGenre() == null) {
+            return 0.0;
+        }
         double genreScore = computeGenreScore(target.getMainGenre(), candidate.getMainGenre());
         double ageScore = computeAgeOverlap(target, candidate);
 

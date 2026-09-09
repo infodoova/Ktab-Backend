@@ -6,6 +6,7 @@ import com.doova.ktab.repository.user.UserCodeRepository;
 import com.doova.ktab.service.user.UserCodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -22,6 +23,7 @@ public class UserCodeServiceImpl implements UserCodeService {
     }
 
     @Override
+    @Transactional
     public UserCode createCode(User user, String type, int validMinutes) {
 
         // Invalidate older active code
@@ -42,6 +44,7 @@ public class UserCodeServiceImpl implements UserCodeService {
     }
 
     @Override
+    @Transactional
     public boolean verify(User user, String code, String type) {
         return codeRepo.findByUserAndCodeAndCodeTypeAndUsedIsFalse(user, code, type)
                 .filter(c -> !c.isExpired())

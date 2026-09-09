@@ -4,13 +4,14 @@ import com.doova.ktab.dto.review.IsReviewedResponseDto;
 import com.doova.ktab.dto.review.ReviewRequestDto;
 import com.doova.ktab.dto.review.ReviewResponseDto;
 import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.BadRequestException;
+import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.book.BookReview;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.repository.review.ReviewRepository;
 import com.doova.ktab.service.reviews.ReviewService;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -50,10 +51,10 @@ public class ReviewServiceImpl implements ReviewService {
     public void createReview(Long bookId, ReviewRequestDto req, User reader) {
 
         Book book = bookRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND));
 
         if (reviewRepository.existsByReaderIdAndBookId(reader.getId(), bookId)) {
-            throw new IllegalStateException(ApiMessageKey.REVIEW_ALREADY_EXISTS.getKey());
+            throw new BadRequestException(ApiMessageKey.REVIEW_ALREADY_EXISTS);
         }
 
         BookReview review = new BookReview();
@@ -125,7 +126,7 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long reviewId, Long bookId, Long readerId) {
 
         BookReview review = reviewRepository.findByReaderIdAndBookIdAndId(readerId, bookId, reviewId)
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND));
 
         Book book = review.getBook();
         book.removeReview(review);
@@ -174,10 +175,10 @@ public class ReviewServiceImpl implements ReviewService {
     public void updateReview(Long bookId, ReviewRequestDto req, User reader, Long reviewId) {
 
         Book book = bookRepository.findByIdForUpdate(bookId)
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND));
 
         BookReview review = reviewRepository.findByReaderIdAndBookIdAndId(reader.getId(), bookId, reviewId)
-                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND.getKey()));
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.REVIEW_NOT_FOUND));
 
         review.setRating(req.rating());
         review.setComment(req.comment());

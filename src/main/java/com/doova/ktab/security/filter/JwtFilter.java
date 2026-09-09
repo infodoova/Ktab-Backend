@@ -50,11 +50,6 @@ public class JwtFilter extends OncePerRequestFilter {
             return true;
         }
 
-        // Public book covers endpoint
-        if (path.equals("/api/v1/reader/covers")) {
-            return true;
-        }
-
         // WebSocket endpoints - auth handled inside the handler
         if (path.startsWith("/ws/")) {
             return true;
@@ -87,17 +82,17 @@ public class JwtFilter extends OncePerRequestFilter {
             authenticateUser(request, token);
 
         } catch (ExpiredJwtException ex) {
-            log.warn("JWT expired: {}", request.getRequestURI());
+            log.warn("JWT expired for URI: {}", request.getRequestURI());
             responseWriter.writeError(response, HttpStatus.UNAUTHORIZED, ApiMessageKey.SECURITY_TOKEN_INVALID);
             return;
 
         } catch (UsernameNotFoundException ex) {
-            log.warn("User not found for JWT");
+            log.warn("User not found for JWT: {}", ex.getMessage());
             responseWriter.writeError(response, HttpStatus.UNAUTHORIZED, ApiMessageKey.SECURITY_AUTHENTICATION_FAILED);
             return;
 
         } catch (Exception ex) {
-            log.error("JWT processing error", ex);
+            log.error("JWT processing error on URI: {}", request.getRequestURI(), ex);
             responseWriter.writeError(response, HttpStatus.UNAUTHORIZED, ApiMessageKey.SECURITY_UNAUTHORIZED);
             return;
         }
@@ -110,13 +105,13 @@ public class JwtFilter extends OncePerRequestFilter {
     // -------------------------------------------------------------------------
     private String extractToken(HttpServletRequest request) {
 
-        // 1️⃣ Authorization header
+        // 1. Authorization header
         String authHeader = request.getHeader(AUTH_HEADER);
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             return authHeader.substring(BEARER_PREFIX.length()).trim();
         }
 
-        // 2️⃣ Cookie fallback
+        // 2. Cookie fallback
         if (request.getCookies() != null) {
             return Arrays.stream(request.getCookies())
                     .filter(c -> ACCESS_TOKEN_COOKIE.equals(c.getName()) || LEGACY_JWT_COOKIE.equals(c.getName()))

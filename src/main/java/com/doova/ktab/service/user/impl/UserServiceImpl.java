@@ -14,8 +14,7 @@ import com.doova.ktab.service.email.EmailService;
 import com.doova.ktab.service.user.UserCodeService;
 import com.doova.ktab.service.user.UserService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,9 +25,8 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserServiceImpl implements UserService {
-
-    private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -70,7 +68,7 @@ public class UserServiceImpl implements UserService {
                 .active(Status.INACTIVE.getCode())
                 .build();
 
-        user.setPasswordAndDigest(request.password(), (org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder) encoder);
+        user.setPasswordAndDigest(request.password(), encoder);
 
         User savedUser = userRepository.save(user);
 
@@ -89,6 +87,7 @@ public class UserServiceImpl implements UserService {
     // ============================
 
     @Override
+    @Transactional(readOnly = true)
     public UserPrincipal authenticate(UserLoginRequest request) {
         var authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
@@ -97,8 +96,14 @@ public class UserServiceImpl implements UserService {
         return (UserPrincipal) authentication.getPrincipal();
     }
 
+    /**
+     * Authenticates the user and returns a short-lived JWT access token.
+     * For the full token-pair flow (access + refresh), use AuthController which delegates
+     * to RefreshTokenService.
+     */
     @Override
-    public String verify(UserLoginRequest request) {
+    @Transactional(readOnly = true)
+    public String authenticateAndGenerateToken(UserLoginRequest request) {
         UserPrincipal principal = authenticate(request);
         return jwtService.generateToken(principal);
     }
@@ -177,21 +182,9 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException(ApiMessageKey.AUTH_INVALID_OR_EXPIRED_CODE);
         }
 
-        user.setPasswordAndDigest(req.newPassword(), (org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder) encoder);
+        user.setPasswordAndDigest(req.newPassword(), encoder);
 
         userRepository.save(user);
     }
 
-    // ============================
-    // REFRESH TOKEN
-    // ============================
-
-    @Override
-    public String refreshToken(String email) {
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException(ApiMessageKey.RESOURCE_NOT_FOUND));
-
-        return jwtService.generateToken(new UserPrincipal(user));
-    }
 }

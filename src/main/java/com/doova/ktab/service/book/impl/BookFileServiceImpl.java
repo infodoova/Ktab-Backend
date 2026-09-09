@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,8 +38,8 @@ public class BookFileServiceImpl implements BookFileService {
     @Override
     public void handleCreateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) {
 
-//        validateCoverIfPresent(coverImage);
-//        validatePdfIfPresent(pdfFile);
+        validateCoverIfPresent(coverImage);
+        validatePdfIfPresent(pdfFile);
 
         Long authorId = book.getAuthor().getId();
         String coverDirectory = "books/cover/" + authorId;
@@ -83,8 +82,8 @@ public class BookFileServiceImpl implements BookFileService {
     @Override
     public void handleUpdateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) {
 
-//        validateCoverIfPresent(coverImage);
-//        validatePdfIfPresent(pdfFile);
+        validateCoverIfPresent(coverImage);
+        validatePdfIfPresent(pdfFile);
 
         Optional<Attachment> existingCover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, "COVER_IMAGE");
 
@@ -138,7 +137,7 @@ public class BookFileServiceImpl implements BookFileService {
 
         List<Attachment> attachments = attachmentService.getAllAttachmentsForEntity(book.getId(), BOOK_ENTITY_TYPE);
 
-        List<String> keysToDeleteAfterCommit = attachments.stream().map(Attachment::getStoragePath).filter(Objects::nonNull).filter(path -> !path.isBlank()).collect(Collectors.toList());
+        List<String> keysToDeleteAfterCommit = attachments.stream().map(Attachment::getStoragePath).filter(Objects::nonNull).filter(path -> !path.isBlank()).toList();
 
         registerS3CleanupSynchronization(keysToDeleteAfterCommit, List.of());
 

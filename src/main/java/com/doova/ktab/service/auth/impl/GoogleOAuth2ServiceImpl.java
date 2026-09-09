@@ -14,7 +14,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -93,7 +92,7 @@ public class GoogleOAuth2ServiceImpl implements GoogleOAuth2Service {
                         .active(Status.ACTIVE.getCode())
                         .build();
 
-                newUser.setPasswordAndDigest(UUID.randomUUID().toString(), (BCryptPasswordEncoder) passwordEncoder);
+                newUser.setPasswordAndDigest(UUID.randomUUID().toString(), passwordEncoder);
                 return userRepository.save(newUser);
             });
 

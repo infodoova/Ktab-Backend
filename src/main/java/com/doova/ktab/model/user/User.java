@@ -5,7 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.doova.ktab.model.base.BaseEntity;
 
 @Getter
@@ -34,10 +35,12 @@ public class User extends BaseEntity {
 
     @NotBlank(message = "{validation.password.required}")
     @Column(name = "col_password_digest", nullable = false, length = 100)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String passwordDigest;
 
     @Transient
     @Size(min = 6, message = "{validation.password.min_size}")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @NotNull(message = "{validation.role.required}")
@@ -52,9 +55,9 @@ public class User extends BaseEntity {
     private com.doova.ktab.model.library.LibraryOrganization libraryOrganization;
 
     /**
-     * Store BCrypt digest in passwordDigest; keep raw in transient password.
+     * Store encoded password in passwordDigest; keep raw in transient password field.
      */
-    public void setPasswordAndDigest(String rawPassword, BCryptPasswordEncoder encoder) {
+    public void setPasswordAndDigest(String rawPassword, PasswordEncoder encoder) {
         this.password = rawPassword;
         this.passwordDigest = encoder.encode(rawPassword);
     }
@@ -62,7 +65,7 @@ public class User extends BaseEntity {
     /**
      * Check raw password against stored digest.
      */
-    public boolean isPassword(String rawPassword, BCryptPasswordEncoder encoder) {
+    public boolean isPassword(String rawPassword, PasswordEncoder encoder) {
         return encoder.matches(rawPassword, this.passwordDigest);
     }
 

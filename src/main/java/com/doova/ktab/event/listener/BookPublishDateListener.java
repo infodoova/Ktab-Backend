@@ -5,10 +5,14 @@ import com.doova.ktab.model.book.Book;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreRemove;
 import jakarta.persistence.PreUpdate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
 public class BookPublishDateListener {
+
+    private static final Logger log = LoggerFactory.getLogger(BookPublishDateListener.class);
 
     @PrePersist
     public void onCreate(Book book) {
@@ -22,11 +26,7 @@ public class BookPublishDateListener {
 
     @PreRemove
     public void onDelete(Book book) {
-        // ⚠️ NOTE:
-        // Changes made here are NOT guaranteed to persist
-        // because the entity will be deleted immediately after.
-        // This hook is useful for logging/auditing only.
-        setPublishDateIfPublished(book);
+        log.debug("Book with ID {} is being removed", book.getId());
     }
 
     private void setPublishDateIfPublished(Book book) {

@@ -2,6 +2,8 @@ package com.doova.ktab.service.book.impl;
 
 import com.doova.ktab.dto.book.BookStatsResponse;
 import com.doova.ktab.dto.book.TextRangeResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.model.book.BookPage;
 import com.doova.ktab.repository.book.BookPageRepository;
 import com.doova.ktab.service.book.BookTextService;
@@ -28,11 +30,10 @@ public class BookTextServiceImpl implements BookTextService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public TextRangeResponse getTextByCharacterRange(Long bookId, int start, int end) {
 
         if (start < 0 || end <= start) {
-            throw new IllegalArgumentException("Invalid character range");
+            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
         }
 
         StringBuilder result = new StringBuilder(end - start);
@@ -83,11 +84,10 @@ public class BookTextServiceImpl implements BookTextService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public TextRangeResponse getTextByWordRange(Long bookId, int startWord, int endWord) {
 
         if (startWord < 0 || endWord <= startWord) {
-            throw new IllegalArgumentException("Invalid word range");
+            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
         }
 
         StringBuilder result = new StringBuilder();
@@ -150,7 +150,7 @@ public class BookTextServiceImpl implements BookTextService {
         }
 
         if (rangeStartChar == -1) {
-            throw new IllegalArgumentException("Word range exceeds text length");
+            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
         }
 
         return new TextRangeResponse(result.toString().trim(), rangeStartChar, rangeEndChar, totalWords);
@@ -160,7 +160,7 @@ public class BookTextServiceImpl implements BookTextService {
     @Override
     public String getTextByPageRange(Long bookId, int from, int to) {
         if (from <= 0 || to < from) {
-            throw new IllegalArgumentException("Invalid page range");
+            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
         }
 
         return sectionRepository.findByBookIdAndPageNumberBetweenOrderByPageNumberAsc(bookId, from, to).stream().map(BookPage::getMarkdownContent).collect(Collectors.joining("\n\n"));

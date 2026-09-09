@@ -8,6 +8,7 @@ import com.doova.ktab.dto.analytics.AuthorBookAnalyticsResponse;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.author.AuthorAnalyticsService;
+import com.doova.ktab.utils.pagination.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,8 +24,9 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping("/authors")
+@RequestMapping(path = "/authors", produces = "application/json")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('AUTHOR')")
 @Tag(name = "Author Analytics API", description = "Analytics endpoints for authors, including performance metrics and per-book insights.")
 public class AuthorAnalyticsController {
 
@@ -36,7 +38,6 @@ public class AuthorAnalyticsController {
     // ============================================================================================
 
     @Operation(summary = "Get authenticated author's analytics")
-    @PreAuthorize("hasAnyAuthority('AUTHOR')")
     @GetMapping("/me/analytics")
     public ResponseEntity<ApiResponse<AuthorAnalyticsResponse>> getMyAnalytics(@CurrentUser User author) {
         AuthorAnalyticsResponse analytics = authorAnalyticsService.getAuthorAnalytics(author.getId());
@@ -49,11 +50,17 @@ public class AuthorAnalyticsController {
     // ============================================================================================
 
     @Operation(summary = "Get authenticated author's book analytics")
-    @PreAuthorize("hasAnyAuthority('AUTHOR')")
     @GetMapping("/me/book-analytics")
-    public ResponseEntity<ApiResponse<Page<AuthorBookAnalyticsResponse>>> getMyBookAnalytics(@CurrentUser User author, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        Page<AuthorBookAnalyticsResponse> analytics = authorAnalyticsService.getMyBooksWithAnalytics(author.getId(), PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate")));
+    public ResponseEntity<ApiResponse<PageResponse<AuthorBookAnalyticsResponse>>> getMyBookAnalytics(
+            @CurrentUser User author,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<AuthorBookAnalyticsResponse> analytics = authorAnalyticsService.getMyBooksWithAnalytics(
+                author.getId(),
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"))
+        );
 
-        return ResponseUtils.success(analytics, ApiMessageKey.AUTHOR_BOOK_ANALYTICS_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(PageResponse.fromPage(analytics), ApiMessageKey.AUTHOR_BOOK_ANALYTICS_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 }

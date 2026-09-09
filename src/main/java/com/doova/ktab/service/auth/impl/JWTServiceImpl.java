@@ -21,14 +21,14 @@ import java.util.function.Function;
 @Service
 public class JWTServiceImpl implements JWTService {
 
-    private final String secretKey;
+    private final SecretKey key;
     private final long expirationMillis;
 
     public JWTServiceImpl(
             @Value("${security.jwt.secret}") String secretKey,
             @Value("${security.jwt.expiration-ms:43200000}") long expirationMillis
     ) {
-        this.secretKey = secretKey;
+        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
         this.expirationMillis = expirationMillis;
     }
 
@@ -56,14 +56,10 @@ public class JWTServiceImpl implements JWTService {
                 .subject(userPrincipal.getUsername())
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationMillis))
-                .signWith(getKey())
+                .signWith(key)
                 .compact();
     }
 
-    private SecretKey getKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
-    }
 
     @Override
     public String extractEmail(String token) {
@@ -83,7 +79,7 @@ public class JWTServiceImpl implements JWTService {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token).getPayload();
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }
 
     private boolean isTokenExpired(String token) {

@@ -23,7 +23,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +58,7 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                 .website(req.website())
                 .email(req.email())
                 .phone(req.phone())
-                .status("ACTIVE")
+                .status(Status.ACTIVE.getCode())
                 .build();
 
         LibraryOrganization saved = libraryOrgRepository.save(org);
@@ -121,9 +120,9 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
 
         Page<LibraryOrganization> pageResult;
         if (search != null && !search.isBlank()) {
-            pageResult = libraryOrgRepository.findByNameContainingIgnoreCaseAndStatus(search.trim(), "ACTIVE", pageable);
+            pageResult = libraryOrgRepository.findByNameContainingIgnoreCaseAndStatus(search.trim(), Status.ACTIVE.getCode(), pageable);
         } else {
-            pageResult = libraryOrgRepository.findAllByStatus("ACTIVE", pageable);
+            pageResult = libraryOrgRepository.findAllByStatus(Status.ACTIVE.getCode(), pageable);
         }
 
         return PageResponse.fromPage(pageResult.map(this::toDto));
@@ -159,7 +158,7 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                     .active(Status.ACTIVE.getCode())
                     .build();
 
-            newUser.setPasswordAndDigest(req.password(), (BCryptPasswordEncoder) passwordEncoder);
+            newUser.setPasswordAndDigest(req.password(), passwordEncoder);
             return newUser;
         });
 

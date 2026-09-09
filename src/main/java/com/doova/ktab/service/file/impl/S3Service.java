@@ -76,7 +76,11 @@ public class S3Service implements FileStorageService {
             }
 
             String fileName = UUID.randomUUID() + extension;
-            String finalKey = directoryKey + "/" + fileName;
+            String normalizedDir =
+                    directoryKey.endsWith("/")
+                            ? directoryKey.substring(0, directoryKey.length() - 1)
+                            : directoryKey;
+            String finalKey = normalizedDir + "/" + fileName;
 
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize());
@@ -139,7 +143,11 @@ public class S3Service implements FileStorageService {
     public String storeBytes(byte[] content, String contentType, String directoryKey, String extension) {
         try {
             String fileName = UUID.randomUUID() + (extension.startsWith(".") ? extension : "." + extension);
-            String finalKey = directoryKey + "/" + fileName;
+            String normalizedDir =
+                    directoryKey.endsWith("/")
+                            ? directoryKey.substring(0, directoryKey.length() - 1)
+                            : directoryKey;
+            String finalKey = normalizedDir + "/" + fileName;
 
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(content.length);
@@ -157,7 +165,6 @@ public class S3Service implements FileStorageService {
 
     @Override
     public byte[] getBytes(String key) {
-
         try {
             S3Object s3Object = s3Client.getObject(bucketName, key);
             try (S3ObjectInputStream inputStream = s3Object.getObjectContent()) {
@@ -165,7 +172,7 @@ public class S3Service implements FileStorageService {
             }
         } catch (Exception e) {
             log.error("Failed to download bytes from S3 for key {}: {}", key, e.getMessage());
-            return null;
+            throw new S3UploadException(ApiMessageKey.S3_UPLOAD_UNEXPECTED_ERROR, e);
         }
     }
 }

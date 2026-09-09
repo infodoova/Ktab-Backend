@@ -2,9 +2,9 @@ package com.doova.ktab.controller.v1.reader;
 
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.book.BookSearchRequestDto;
 import com.doova.ktab.dto.book.BookCoverResponse;
 import com.doova.ktab.dto.book.BookResponseDto;
+import com.doova.ktab.dto.book.BookSearchRequestDto;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.service.book.BookService;
 import com.doova.ktab.service.book.BookSimilarityService;
@@ -12,6 +12,7 @@ import com.doova.ktab.utils.pagination.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(path = "/reader", produces = "application/json")
 @RequiredArgsConstructor
-@Tag(name = "Reader Book Discovery API", description = "Public endpoints for accessing, searching, and discovering books.")
+@Tag(name = "Reader Book Discovery API", description = "Endpoints for accessing, searching, and discovering books.")
 public class BookDiscoveryController {
 
     private final BookService bookService;
@@ -36,9 +37,12 @@ public class BookDiscoveryController {
     // GET ALL BOOKS
     // ============================================================================================
     @Operation(summary = "Get all books (paginated)")
-    @GetMapping("/viewBooks")
-    @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getAllBooks(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+    @GetMapping({"/books", "/viewBooks"})
+    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getAllBooks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
         PageResponse<BookResponseDto> books = bookService.getAllBooksPaginated(page, size);
 
         return ResponseUtils.success(books, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
@@ -48,9 +52,9 @@ public class BookDiscoveryController {
     // SEARCH BOOKS
     // ============================================================================================
     @Operation(summary = "Search books")
-    @PostMapping("/search")
-    @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchBooks(@RequestBody BookSearchRequestDto requestDto) {
+    @PostMapping({"/search", "/books/search"})
+    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchBooks(@Valid @RequestBody BookSearchRequestDto requestDto) {
         Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size());
 
         PageResponse<BookResponseDto> result = bookService.searchBooks(requestDto, pageable);
@@ -62,12 +66,10 @@ public class BookDiscoveryController {
     // GET BOOK BY ID
     // ============================================================================================
     @Operation(summary = "Get book by ID")
-    @GetMapping("/viewBook/{id}")
-    @PreAuthorize("hasAnyAuthority('READER')")
+    @GetMapping({"/books/{id}", "/viewBook/{id}"})
+    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id) {
-
         BookResponseDto book = bookService.getBookById(id);
-        // if not found → service throws → GlobalExceptionHandler
 
         return ResponseUtils.success(book, ApiMessageKey.READER_BOOK_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
@@ -76,9 +78,13 @@ public class BookDiscoveryController {
     // GET SIMILAR BOOKS
     // ============================================================================================
     @Operation(summary = "Get similar books")
-    @GetMapping("/similar/{bookId}")
-    @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(@PathVariable Long bookId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "6") int size) {
+    @GetMapping({"/books/{bookId}/similar", "/similar/{bookId}"})
+    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(
+            @PathVariable Long bookId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size
+    ) {
         PageResponse<BookResponseDto> result = similarityService.getSmartSimilarBooks(bookId, page, size);
 
         return ResponseUtils.success(result, ApiMessageKey.READER_SIMILAR_SUCCESS.getMessage(messageSource), HttpStatus.OK);
@@ -88,10 +94,11 @@ public class BookDiscoveryController {
     // GET BOOK COVERS (PUBLIC - NO AUTH REQUIRED)
     // ============================================================================================
     @Operation(summary = "Get book covers with titles (public endpoint)")
-    @GetMapping("/covers")
+    @GetMapping({"/covers", "/books/covers"})
     public ResponseEntity<ApiResponse<PageResponse<BookCoverResponse>>> getBookCovers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "18") int size) {
+            @RequestParam(defaultValue = "18") int size
+    ) {
         PageResponse<BookCoverResponse> covers = bookService.getBookCovers(page, size);
 
         return ResponseUtils.success(covers, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);

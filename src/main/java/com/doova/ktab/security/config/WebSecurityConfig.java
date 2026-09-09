@@ -1,15 +1,12 @@
 package com.doova.ktab.security.config;
 
-import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.security.exception.SecurityExceptionHandler;
 import com.doova.ktab.security.filter.JwtFilter;
 import jakarta.servlet.DispatcherType;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -20,25 +17,23 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
-import com.doova.ktab.utils.response.ResponseUtils;
 
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class WebSecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
 
-    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
     private List<String> allowedOrigins;
 
     @Bean
@@ -48,7 +43,7 @@ public class WebSecurityConfig {
     ) throws Exception {
 
         http
-                // Disable CSRF for APIs
+                // Disable CSRF for REST APIs
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // Global CORS
@@ -66,22 +61,19 @@ public class WebSecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // IMPORTANT: allow ASYNC + ERROR dispatchers (SSE-safe)
-                .authorizeHttpRequests(auth -> auth
-                        .dispatcherTypeMatchers(
-                                DispatcherType.ASYNC,
-                                DispatcherType.ERROR
-                        ).permitAll()
-                )
-
                 // Centralized exception handling
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(securityExceptionHandler)
                         .accessDeniedHandler(securityExceptionHandler)
                 )
 
-                // Route authorization
+                // Route authorization (single unified block)
                 .authorizeHttpRequests(auth -> auth
+                        // SSE & Error dispatchers
+                        .dispatcherTypeMatchers(
+                                DispatcherType.ASYNC,
+                                DispatcherType.ERROR
+                        ).permitAll()
 
                         // Public endpoints
                         .requestMatchers(
@@ -100,19 +92,15 @@ public class WebSecurityConfig {
                                 "/actuator/info"
                         ).permitAll()
 
-                        // AI endpoints
-                        .requestMatchers("/api/v1/conclusion/stream").authenticated()
-                        .requestMatchers("/api/v1/conclusion/generate").authenticated()
-
-                        // Everything else
+                        // All other endpoints require authentication
                         .anyRequest().authenticated()
                 )
 
-                // JWT filter
+                // JWT filter & Auth provider
                 .authenticationProvider(authProvider)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Disable unused auth mechanisms
+                // Disable unused form/basic login
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable);

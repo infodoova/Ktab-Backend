@@ -26,33 +26,4 @@ public record UserRegisterRequest(
         @Pattern(regexp = "(?i)AUTHOR|READER|10|20", message = "{auth.role.registration.forbidden}")
         String role
 ) {
-    @Override
-    public String firstName() {
-        return firstName;
-    }
-
-    @Override
-    public String middleName() {
-        return middleName;
-    }
-
-    @Override
-    public String lastName() {
-        return lastName;
-    }
-
-    @Override
-    public String email() {
-        return email;
-    }
-
-    @Override
-    public String password() {
-        return password;
-    }
-
-    @Override
-    public String role() {
-        return role;
-    }
 }

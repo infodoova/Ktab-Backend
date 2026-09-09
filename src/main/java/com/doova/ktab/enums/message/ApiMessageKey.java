@@ -116,7 +116,11 @@ public enum ApiMessageKey {
     AUTH_GOOGLE_LOGIN_FAILED("auth.google.login.failed"),
     USER_NOT_FOUND("user.not.found"),
     GENRE_MAIN_NOT_FOUND("genre.main.not.found"),
-    GENRE_SUB_NOT_FOUND("genre.sub.not.found");
+    GENRE_SUB_NOT_FOUND("genre.sub.not.found"),
+
+    // ===== BOOK =====
+    BOOK_INVALID_STATUS("book.invalid.status"),
+    BOOK_OCR_PDF_MISSING("book.ocr.pdf.missing");
 
 
     private final String key;
