@@ -1,6 +1,5 @@
 package com.doova.ktab.mappers.book;
 
-
 import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookResponseDto;
 import com.doova.ktab.model.book.Book;
@@ -18,7 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 
 /**
- * Mapper interface for converting between Book Entity and Book DTOs using MapStruct.
+ * Mapper interface for converting between Book Entity and Book DTOs using
+ * MapStruct.
  * Defined as an abstract class to allow dependency injection (UserService) for
  * resolving the foreign key (User author) during DTO-to-Entity mapping.
  */
@@ -57,13 +57,11 @@ public abstract class BookMapper {
 
         book.setMainGenre(
                 mainGenreRepository.findById(dto.getMainGenreId())
-                        .orElseThrow(() -> new EntityNotFoundException("Main genre not found"))
-        );
+                        .orElseThrow(() -> new EntityNotFoundException("Main genre not found")));
 
         book.setSubGenre(
                 subGenreRepository.findById(dto.getSubGenreId())
-                        .orElseThrow(() -> new EntityNotFoundException("Sub genre not found"))
-        );
+                        .orElseThrow(() -> new EntityNotFoundException("Sub genre not found")));
 
         return book;
     }
@@ -77,27 +75,33 @@ public abstract class BookMapper {
     @Mapping(target = "totalReviews", ignore = true)
     public void updateBookFromDto(BookRequestDto dto, @MappingTarget Book book) {
 
-        if (dto.getTitle() != null) book.setTitle(dto.getTitle());
-        if (dto.getDescription() != null) book.setDescription(dto.getDescription());
-        if (dto.getLanguage() != null) book.setLanguage(dto.getLanguage());
-        if (dto.getAgeRangeMin() != null) book.setAgeRangeMin(dto.getAgeRangeMin());
-        if (dto.getAgeRangeMax() != null) book.setAgeRangeMax(dto.getAgeRangeMax());
-        if (dto.getPageCount() != null) book.setPageCount(dto.getPageCount());
-        if (dto.getHasAudio() != null) book.setHasAudio(dto.getHasAudio());
-        if (dto.getStatus() != null) book.setStatus(dto.getStatus());
+        if (dto.getTitle() != null)
+            book.setTitle(dto.getTitle());
+        if (dto.getDescription() != null)
+            book.setDescription(dto.getDescription());
+        if (dto.getLanguage() != null)
+            book.setLanguage(dto.getLanguage());
+        if (dto.getAgeRangeMin() != null)
+            book.setAgeRangeMin(dto.getAgeRangeMin());
+        if (dto.getAgeRangeMax() != null)
+            book.setAgeRangeMax(dto.getAgeRangeMax());
+        if (dto.getPageCount() != null)
+            book.setPageCount(dto.getPageCount());
+        if (dto.getHasAudio() != null)
+            book.setHasAudio(dto.getHasAudio());
+        if (dto.getStatus() != null)
+            book.setStatus(dto.getStatus());
 
         if (dto.getMainGenreId() != null) {
             book.setMainGenre(
                     mainGenreRepository.findById(dto.getMainGenreId())
-                            .orElseThrow(() -> new EntityNotFoundException("Main genre not found"))
-            );
+                            .orElseThrow(() -> new EntityNotFoundException("Main genre not found")));
         }
 
         if (dto.getSubGenreId() != null) {
             book.setSubGenre(
                     subGenreRepository.findById(dto.getSubGenreId())
-                            .orElseThrow(() -> new EntityNotFoundException("Sub genre not found"))
-            );
+                            .orElseThrow(() -> new EntityNotFoundException("Sub genre not found")));
         }
     }
 }
