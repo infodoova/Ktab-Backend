@@ -1,19 +1,21 @@
 package com.doova.ktab.controller.v1.auth;
 
 import com.doova.ktab.annotation.ApiVersion;
-import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.user.*;
 import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.model.user.RefreshToken;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
 import com.doova.ktab.service.auth.GoogleOAuth2Service;
 import com.doova.ktab.service.auth.JWTService;
+import com.doova.ktab.service.auth.RefreshTokenService;
 import com.doova.ktab.service.user.UserService;
 import com.doova.ktab.utils.web.CookieUtils;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class AuthController {
     private final CookieUtils cookieUtils;
     private final GoogleOAuth2Service googleOAuth2Service;
     private final JWTService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     // ============================
     // REGISTER
@@ -53,11 +56,20 @@ public class AuthController {
 
     @Operation(summary = "Login")
     @PostMapping(path = "/login", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Void>> login(@Valid @RequestBody UserLoginRequest req, HttpServletResponse response) {
-        String token = service.verify(req);
-        cookieUtils.setAccessTokenCookie(response, token);
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> login(
+            @Valid @RequestBody UserLoginRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        UserPrincipal principal = service.authenticate(req);
+        String accessToken = jwtService.generateToken(principal);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
 
-        return ResponseUtils.success(null, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        cookieUtils.setAccessTokenCookie(response, accessToken);
+        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
+
+        AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
+        return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
@@ -66,12 +78,20 @@ public class AuthController {
 
     @Operation(summary = "Google OAuth2 login")
     @PostMapping(path = "/google", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Void>> googleLogin(@Valid @RequestBody GoogleTokenRequest req, HttpServletResponse response) {
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> googleLogin(
+            @Valid @RequestBody GoogleTokenRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         UserPrincipal principal = googleOAuth2Service.verifyAndAuthenticate(req.idToken());
-        String token = jwtService.generateToken(principal);
-        cookieUtils.setAccessTokenCookie(response, token);
+        String accessToken = jwtService.generateToken(principal);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
 
-        return ResponseUtils.success(null, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        cookieUtils.setAccessTokenCookie(response, accessToken);
+        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
+
+        AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
+        return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
@@ -128,11 +148,25 @@ public class AuthController {
 
     @Operation(summary = "Refresh token")
     @PostMapping(path = "/refresh-token")
-    public ResponseEntity<ApiResponse<Void>> refreshToken(@CurrentUser User user, HttpServletResponse response) {
-        String token = service.refreshToken(user.getEmail());
-        cookieUtils.setAccessTokenCookie(response, token);
+    public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
+            @RequestBody(required = false) RefreshTokenRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String token = null;
+        if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
+            token = req.refreshToken();
+        } else {
+            token = cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
+                    .orElse(request.getHeader("X-Refresh-Token"));
+        }
 
-        return ResponseUtils.success(null, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        AuthTokenResponse tokenResponse = refreshTokenService.rotateRefreshToken(token, request.getHeader("User-Agent"));
+
+        cookieUtils.setAccessTokenCookie(response, tokenResponse.accessToken());
+        cookieUtils.setRefreshTokenCookie(response, tokenResponse.refreshToken());
+
+        return ResponseUtils.success(tokenResponse, ApiMessageKey.AUTH_TOKEN_REFRESH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
@@ -141,9 +175,25 @@ public class AuthController {
 
     @Operation(summary = "Logout")
     @PostMapping(path = "/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
-        cookieUtils.clearAccessTokenCookie(response);
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestBody(required = false) RefreshTokenRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String token = null;
+        if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
+            token = req.refreshToken();
+        } else {
+            token = cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
+                    .orElse(request.getHeader("X-Refresh-Token"));
+        }
 
-        return ResponseUtils.success(null, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        if (token != null && !token.isBlank()) {
+            refreshTokenService.revokeToken(token);
+        }
+
+        cookieUtils.clearAllAuthCookies(response);
+
+        return ResponseUtils.success(null, ApiMessageKey.AUTH_LOGOUT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 }

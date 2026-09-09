@@ -9,6 +9,7 @@ public enum ApiMessageKey {
 
     // ===== AUTH =====
     AUTH_REGISTER_SUCCESS("auth.register.success"), AUTH_LOGIN_SUCCESS("auth.login.success"), AUTH_EMAIL_VERIFIED("auth.email.verified"), AUTH_INVALID_CREDENTIALS("auth.invalid.credentials"), AUTH_EMAIL_ALREADY_USED("auth.email.already.used"), AUTH_ACCOUNT_ALREADY_ACTIVE("auth.account.already.active"), AUTH_INVALID_OR_EXPIRED_CODE("auth.code.invalid.or.expired"), AUTH_RESET_CODE_SENT("auth.reset.code.sent"), AUTH_PASSWORD_RESET_SUCCESS("auth.password.reset.success"),
+    AUTH_REFRESH_TOKEN_EXPIRED("auth.refresh.token.expired"), AUTH_REFRESH_TOKEN_INVALID("auth.refresh.token.invalid"), AUTH_TOKEN_REFRESH_SUCCESS("auth.token.refresh.success"), AUTH_LOGOUT_SUCCESS("auth.logout.success"),
 
     // ===== AUTHOR =====
     AUTHOR_ANALYTICS_SUCCESS("author.analytics.success"), AUTHOR_BOOK_ANALYTICS_SUCCESS("author.book.analytics.success"),

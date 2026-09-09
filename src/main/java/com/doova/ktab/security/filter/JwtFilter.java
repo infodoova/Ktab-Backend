@@ -45,8 +45,8 @@ public class JwtFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
 
-        // Public auth endpoints (except refresh)
-        if (path.startsWith("/api/v1/auth/") && !path.equals("/api/v1/auth/refresh-token")) {
+        // Public auth endpoints
+        if (path.startsWith("/api/v1/auth/")) {
             return true;
         }
 

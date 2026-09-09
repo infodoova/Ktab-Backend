@@ -89,13 +89,17 @@ public class UserServiceImpl implements UserService {
     // ============================
 
     @Override
-    public String verify(UserLoginRequest request) {
-
+    public UserPrincipal authenticate(UserLoginRequest request) {
         var authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
 
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        return (UserPrincipal) authentication.getPrincipal();
+    }
+
+    @Override
+    public String verify(UserLoginRequest request) {
+        UserPrincipal principal = authenticate(request);
         return jwtService.generateToken(principal);
     }
 
