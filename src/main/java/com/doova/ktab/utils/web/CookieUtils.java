@@ -10,13 +10,18 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class CookieUtils {
 
     public static final String ACCESS_TOKEN_COOKIE_NAME = "ACCESS_TOKEN";
     public static final String REFRESH_TOKEN_COOKIE_NAME = "REFRESH_TOKEN";
+
+    private static final Set<String> VALID_SAME_SITE_VALUES = Set.of("Strict", "Lax", "None");
 
     private final boolean secure;
     private final String sameSite;
@@ -30,65 +35,37 @@ public class CookieUtils {
             @Value("${app.cookie.refresh-max-age-seconds:604800}") long refreshMaxAgeSeconds
     ) {
         this.secure = secure;
-        this.sameSite = sameSite;
-        this.maxAgeSeconds = maxAgeSeconds;
-        this.refreshMaxAgeSeconds = refreshMaxAgeSeconds;
+        this.sameSite = normalizeSameSite(sameSite);
+        this.maxAgeSeconds = validateMaxAge(maxAgeSeconds, "maxAgeSeconds");
+        this.refreshMaxAgeSeconds = validateMaxAge(refreshMaxAgeSeconds, "refreshMaxAgeSeconds");
+
+        if ("None".equals(this.sameSite) && !secure) {
+            throw new IllegalArgumentException("SameSite=None requires secure cookies");
+        }
     }
 
     public void setAccessTokenCookie(HttpServletResponse response, String token) {
-        setAccessTokenCookie(response, token, this.maxAgeSeconds);
+        setAccessTokenCookie(response, token, maxAgeSeconds);
     }
 
     public void setAccessTokenCookie(HttpServletResponse response, String token, long maxAge) {
-        ResponseCookie cookie = ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, token)
-                .httpOnly(true)
-                .secure(this.secure)
-                .path("/")
-                .maxAge(Duration.ofSeconds(maxAge))
-                .sameSite(this.sameSite)
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        addTokenCookie(response, ACCESS_TOKEN_COOKIE_NAME, token, maxAge);
     }
 
     public void setRefreshTokenCookie(HttpServletResponse response, String token) {
-        setRefreshTokenCookie(response, token, this.refreshMaxAgeSeconds);
+        setRefreshTokenCookie(response, token, refreshMaxAgeSeconds);
     }
 
     public void setRefreshTokenCookie(HttpServletResponse response, String token, long maxAge) {
-        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, token)
-                .httpOnly(true)
-                .secure(this.secure)
-                .path("/")
-                .maxAge(Duration.ofSeconds(maxAge))
-                .sameSite(this.sameSite)
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        addTokenCookie(response, REFRESH_TOKEN_COOKIE_NAME, token, maxAge);
     }
 
     public void clearAccessTokenCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, "")
-                .httpOnly(true)
-                .secure(this.secure)
-                .path("/")
-                .maxAge(Duration.ZERO)
-                .sameSite(this.sameSite)
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        clearCookie(response, ACCESS_TOKEN_COOKIE_NAME);
     }
 
     public void clearRefreshTokenCookie(HttpServletResponse response) {
-        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
-                .httpOnly(true)
-                .secure(this.secure)
-                .path("/")
-                .maxAge(Duration.ZERO)
-                .sameSite(this.sameSite)
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        clearCookie(response, REFRESH_TOKEN_COOKIE_NAME);
     }
 
     public void clearAllAuthCookies(HttpServletResponse response) {
@@ -97,12 +74,72 @@ public class CookieUtils {
     }
 
     public Optional<String> extractCookieValue(HttpServletRequest request, String cookieName) {
-        if (request == null || request.getCookies() == null) {
+        if (request == null || cookieName == null || cookieName.isBlank() || request.getCookies() == null) {
             return Optional.empty();
         }
+
         return Arrays.stream(request.getCookies())
-                .filter(c -> cookieName.equals(c.getName()))
+                .filter(cookie -> cookieName.equals(cookie.getName()))
                 .map(Cookie::getValue)
+                .filter(value -> value != null && !value.isBlank())
                 .findFirst();
+    }
+
+    private void addTokenCookie(
+            HttpServletResponse response,
+            String cookieName,
+            String token,
+            long maxAge
+    ) {
+        Objects.requireNonNull(response, "response must not be null");
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("token must not be blank");
+        }
+
+        ResponseCookie cookie = ResponseCookie.from(cookieName, token)
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(Duration.ofSeconds(validateMaxAge(maxAge, "maxAge")))
+                .sameSite(sameSite)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private void clearCookie(HttpServletResponse response, String cookieName) {
+        Objects.requireNonNull(response, "response must not be null");
+
+        ResponseCookie cookie = ResponseCookie.from(cookieName, "")
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(Duration.ZERO)
+                .sameSite(sameSite)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private static long validateMaxAge(long maxAge, String fieldName) {
+        if (maxAge < 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than or equal to 0");
+        }
+        return maxAge;
+    }
+
+    private static String normalizeSameSite(String sameSite) {
+        if (sameSite == null || sameSite.isBlank()) {
+            return "Lax";
+        }
+
+        String normalized = sameSite.substring(0, 1).toUpperCase(Locale.ROOT)
+                + sameSite.substring(1).toLowerCase(Locale.ROOT);
+
+        if (!VALID_SAME_SITE_VALUES.contains(normalized)) {
+            throw new IllegalArgumentException("Invalid SameSite value: " + sameSite);
+        }
+
+        return normalized;
     }
 }

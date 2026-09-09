@@ -1,9 +1,7 @@
 package com.doova.ktab.utils.security;
 
-
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
-import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -20,304 +18,350 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
-public class Utils {
+public final class Utils {
 
-    private static final String[] IP_HEADER_CANDIDATES = {
-            "X-Forwarded-For",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_X_FORWARDED_FOR",
-            "HTTP_X_FORWARDED",
-            "HTTP_X_CLUSTER_CLIENT_IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_FORWARDED_FOR",
-            "HTTP_FORWARDED",
-            "HTTP_VIA",
-            "REMOTE_ADDR"
-    };
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String ALPHA_NUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final DateTimeFormatter LEGACY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/uuuu");
+    private static final DateTimeFormatter COMPACT_DATE_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
+
+    private Utils() {
+    }
 
     public static Optional<User> getCurrentLoggedInUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null) {
-            Object principal = authentication.getPrincipal();
-            if (principal instanceof UserPrincipal) {
-                User user = ((UserPrincipal) principal).user();
-                return Optional.of(user);
-            }
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Optional.empty();
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserPrincipal userPrincipal) {
+            return Optional.ofNullable(userPrincipal.user());
         }
 
         return Optional.empty();
     }
 
-    public static String md5(String text) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashInBytes = md.digest(text.getBytes(StandardCharsets.UTF_8));
+    /**
+     * Prefer SHA-256 for deterministic hashing. Do not use this for password hashing;
+     * passwords should use an adaptive password encoder such as BCrypt/Argon2.
+     */
+    public static String sha256(String text) {
+        Objects.requireNonNull(text, "text must not be null");
+        return digest("SHA-256", text);
+    }
 
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hashInBytes) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception ignored) {
+    /**
+     * Kept only for backward compatibility. MD5 must not be used for security-sensitive hashing.
+     */
+    @Deprecated(forRemoval = false)
+    public static String md5(String text) {
+        Objects.requireNonNull(text, "text must not be null");
+        return digest("MD5", text);
+    }
+
+    private static String digest(String algorithm, String text) {
+        try {
+            MessageDigest messageDigest = MessageDigest.getInstance(algorithm);
+            return HexFormat.of().formatHex(messageDigest.digest(text.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Required hashing algorithm is unavailable: " + algorithm, e);
         }
-        return null;
     }
 
     public static String appendWithSpace(String content, String text) {
-        if (!text.isEmpty()) {
-            if (content.isEmpty()) {
-                content = text;
-            } else {
-                content += " " + text;
-            }
+        String current = content == null ? "" : content.trim();
+        String addition = text == null ? "" : text.trim();
+
+        if (addition.isEmpty()) {
+            return current;
         }
-        return content;
+        if (current.isEmpty()) {
+            return addition;
+        }
+        return current + " " + addition;
     }
 
+    /**
+     * Returns the address supplied by the servlet container.
+     *
+     * Do not trust X-Forwarded-For or similar headers directly here because clients can spoof them.
+     * If the application runs behind a trusted proxy, configure Spring/Tomcat forwarded-header
+     * handling so request.getRemoteAddr() is rewritten only by trusted infrastructure.
+     */
     public static String getClientIpAddressIfServletRequestExist(HttpServletRequest request) {
-        for (String header : IP_HEADER_CANDIDATES) {
-            String ipList = request.getHeader(header);
-            if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
-                String ip = ipList.split(",")[0];
-                return ip;
-            }
-        }
+        Objects.requireNonNull(request, "request must not be null");
 
         String remoteAddr = request.getRemoteAddr();
-        if (remoteAddr.equals("0:0:0:0:0:0:0:1")) {
-            remoteAddr = "127.0.0.1";
+        if ("0:0:0:0:0:0:0:1".equals(remoteAddr) || "::1".equals(remoteAddr)) {
+            return "127.0.0.1";
         }
         return remoteAddr;
     }
 
-
+    /**
+     * Sanitizes a user-provided value for use as a single filename/path segment.
+     */
     public static String convertToFilename(String text) {
-        return text.replaceAll("[^a-zA-Z0-9_.]", "");
+        if (text == null || text.isBlank()) {
+            return "file";
+        }
+
+        String sanitized = Normalizer.normalize(text, Normalizer.Form.NFKC)
+                .replaceAll("[\\\\/\\p{Cntrl}]", "_")
+                .replaceAll("\\s+", "_")
+                .replaceAll("[^\\p{L}\\p{N}._-]", "")
+                .replaceAll("_{2,}", "_")
+                .replaceAll("^\\.+", "")
+                .replaceAll("\\.+$", "");
+
+        if (sanitized.isBlank() || ".".equals(sanitized) || "..".equals(sanitized)) {
+            return "file";
+        }
+
+        return sanitized;
     }
 
     public static String getResourceContent(String resourceName) {
-        String content = "";
-
-        try {
-            Resource resource = new ClassPathResource(resourceName);
-            InputStream inputStream = resource.getInputStream();
-            byte[] bdata = FileCopyUtils.copyToByteArray(inputStream);
-            content = new String(bdata, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (resourceName == null || resourceName.isBlank()) {
+            throw new IllegalArgumentException("resourceName must not be blank");
         }
-        return content;
+
+        Resource resource = new ClassPathResource(resourceName);
+        try (InputStream inputStream = resource.getInputStream()) {
+            return new String(FileCopyUtils.copyToByteArray(inputStream), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to read classpath resource: " + resourceName, e);
+        }
     }
 
+    public static List<Date> getDaysBetweenDates(Date startDate, Date endDate) {
+        Objects.requireNonNull(startDate, "startDate must not be null");
+        Objects.requireNonNull(endDate, "endDate must not be null");
 
-    public static List<Date> getDaysBetweenDates(Date startdate, Date enddate) {
+        if (!startDate.before(endDate)) {
+            return List.of();
+        }
 
-        List<Date> dates = new ArrayList<Date>();
+        List<Date> dates = new ArrayList<>();
         Calendar calendar = new GregorianCalendar();
-        calendar.setTime(startdate);
+        calendar.setTime(startDate);
 
-        while (calendar.getTime().before(enddate)) {
-            Date result = calendar.getTime();
-            dates.add(getStartOfDay(result));
+        while (calendar.getTime().before(endDate)) {
+            dates.add(getStartOfDay(calendar.getTime()));
             calendar.add(Calendar.DATE, 1);
         }
+
         return dates;
     }
 
     public static Calendar calendarFromDate(Date date) {
+        Objects.requireNonNull(date, "date must not be null");
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        return calendar;
+    }
+
+    public static Date decrementNDays(Date date, int n) {
+        Calendar calendar = calendarFromDate(date);
+        calendar.add(Calendar.DATE, -n);
+        return calendar.getTime();
+    }
+
+    public static Date incrementNDays(Date date, int n) {
+        Calendar calendar = calendarFromDate(date);
+        calendar.add(Calendar.DATE, n);
+        return calendar.getTime();
+    }
+
+    public static Date getStartOfDay(Date date) {
+        Calendar calendar = calendarFromDate(date);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return calendar.getTime();
+    }
+
+    public static Date getEndOfDay(Date date) {
+        Calendar calendar = calendarFromDate(date);
+        calendar.set(Calendar.HOUR_OF_DAY, 23);
+        calendar.set(Calendar.MINUTE, 59);
+        calendar.set(Calendar.SECOND, 59);
+        calendar.set(Calendar.MILLISECOND, 999);
+        return calendar.getTime();
+    }
+
+    public static Date convertStringToDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) {
+            return null;
+        }
+
         try {
-            if (date == null) {
-                return null;
-            }
-            Calendar c = Calendar.getInstance();
-            c.setTime(date);
-            return c;
-        } catch (Exception e) {
-            e.printStackTrace();
+            LocalDate date = LocalDate.parse(dateStr.trim(), LEGACY_DATE_FORMAT);
+            return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        } catch (DateTimeParseException e) {
             return null;
         }
     }
 
-    public static Date decrementNDays(Date date, int n) {
-        Calendar cal = calendarFromDate(date);
-        assert cal != null;
-        cal.add(Calendar.DATE, -n);
-        return cal.getTime();
-    }
-
-    public static Date incrementNDays(Date date, int n) {
-        Calendar cal = calendarFromDate(date);
-        assert cal != null;
-        cal.add(Calendar.DATE, n);
-        return cal.getTime();
-    }
-
-    public static Date getStartOfDay(Date date) {
-        Calendar cal = calendarFromDate(date);
-        assert cal != null;
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        return cal.getTime();
-    }
-
-    public static Date getEndOfDay(Date date) {
-        Calendar cal = calendarFromDate(date);
-        assert cal != null;
-        cal.set(Calendar.HOUR_OF_DAY, 23);
-        cal.set(Calendar.MINUTE, 59);
-        cal.set(Calendar.SECOND, 59);
-        cal.set(Calendar.MILLISECOND, 999);
-        return cal.getTime();
-    }
-
-    public static Date convertStringToDate(String dateStr) {
-        Date date;
-        try {
-            DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
-            date = df.parse(dateStr);
-            return date;
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     public static int daysBetween(Date d1, Date d2) {
-        return (int) ((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+        Objects.requireNonNull(d1, "d1 must not be null");
+        Objects.requireNonNull(d2, "d2 must not be null");
+
+        ZoneId zone = ZoneId.systemDefault();
+        LocalDate first = d1.toInstant().atZone(zone).toLocalDate();
+        LocalDate second = d2.toInstant().atZone(zone).toLocalDate();
+        return Math.toIntExact(ChronoUnit.DAYS.between(first, second));
     }
 
-    public static String toHex(String arg) {
-        return String.format("%040x", new BigInteger(1, arg.getBytes()));
+    public static String toHex(String value) {
+        Objects.requireNonNull(value, "value must not be null");
+        return HexFormat.of().formatHex(value.getBytes(StandardCharsets.UTF_8));
     }
 
     public static String generateHexColor(String input) {
-        String hex = toHex(input);
-        return hex.substring(hex.length() - 6);
+        return sha256(Objects.requireNonNull(input, "input must not be null"))
+                .substring(0, 6);
     }
 
     public static boolean isEmpty(String text) {
-        return text == null || "".equals(text.trim());
+        return text == null || text.isBlank();
     }
 
     public static BigInteger getRandomChars() {
-        Random rand = new Random();
-        BigInteger result = new BigInteger(27, rand); // (2^4-1) = 15 is the maximum value
-        return result;
+        return new BigInteger(27, SECURE_RANDOM);
     }
 
     public static Integer generateInteger(int length) {
-        Random rnd = new Random();
-        return (int) Math.pow(10, length - 1) + rnd.nextInt((int) Math.pow(9, length - 1));
+        if (length < 1 || length > 9) {
+            throw new IllegalArgumentException("length must be between 1 and 9");
+        }
+
+        int lowerBound = (int) Math.pow(10, length - 1);
+        int range = 9 * lowerBound;
+        return lowerBound + SECURE_RANDOM.nextInt(range);
     }
 
     public static String generateString(int count) {
-        String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-        StringBuilder sb = new StringBuilder();
-        while (count-- != 0) {
-            int charactar = (int) (Math.random() * ALPHA_NUMERIC_STRING.length());
-            sb.append(ALPHA_NUMERIC_STRING.charAt(charactar));
+        if (count < 0) {
+            throw new IllegalArgumentException("count must not be negative");
         }
-        return sb.toString();
+
+        StringBuilder builder = new StringBuilder(count);
+        for (int i = 0; i < count; i++) {
+            builder.append(ALPHA_NUMERIC.charAt(SECURE_RANDOM.nextInt(ALPHA_NUMERIC.length())));
+        }
+        return builder.toString();
     }
 
-    public static Pageable generatePageable(int page, int size, List<String> sortBy, List<String> sortDirection){
-        if (sortBy == null) {
-            sortBy = new ArrayList<>();
+    public static Pageable generatePageable(
+            int page,
+            int size,
+            List<String> sortBy,
+            List<String> sortDirection
+    ) {
+        if (page < 0) {
+            throw new IllegalArgumentException("page must be greater than or equal to 0");
         }
-        if (sortDirection == null) {
-            sortDirection = new ArrayList<>();
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be greater than 0");
         }
-        if (sortBy.size() != sortDirection.size()) {
-            throw new IllegalArgumentException("The number of sorting fields must match the number of sorting directions.");
-        }
-        List<Sort.Order> orders = new ArrayList<>();
-        for (int i = 0; i < sortBy.size(); i++) {
-            Sort.Direction direction = sortDirection.get(i).equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
-            orders.add(new Sort.Order(direction, sortBy.get(i)));
-        }
-        return         PageRequest.of(page, size, Sort.by(orders));
 
+        List<String> fields = sortBy == null ? List.of() : sortBy;
+        List<String> directions = sortDirection == null ? List.of() : sortDirection;
+
+        if (fields.size() != directions.size()) {
+            throw new IllegalArgumentException(
+                    "The number of sorting fields must match the number of sorting directions."
+            );
+        }
+
+        List<Sort.Order> orders = new ArrayList<>(fields.size());
+        for (int i = 0; i < fields.size(); i++) {
+            String field = fields.get(i);
+            String direction = directions.get(i);
+
+            if (field == null || field.isBlank()) {
+                throw new IllegalArgumentException("Sort field must not be blank");
+            }
+            if (direction == null || direction.isBlank()) {
+                throw new IllegalArgumentException("Sort direction must not be blank");
+            }
+
+            orders.add(new Sort.Order(
+                    Sort.Direction.fromString(direction.trim()),
+                    field.trim()
+            ));
+        }
+
+        return orders.isEmpty()
+                ? PageRequest.of(page, size)
+                : PageRequest.of(page, size, Sort.by(orders));
     }
-
-//    public static <T> T filterRecordFields(T record, List<String> userRoles) {
-//        for (Field field : record.getClass().getDeclaredFields()) {
-//            if (field.isAnnotationPresent(SecuredField.class)) {
-//                SecuredField securedField = field.getAnnotation(SecuredField.class);
-//                // Check if the user has access to the field
-//                boolean hasAccess = userRoles.stream().anyMatch(role ->
-//                        List.of(securedField.allowedRoles()).contains(role)
-//                );
-//                if (!hasAccess) {
-//                    try {
-//                        field.setAccessible(true);
-//                        field.set(record, null); // Set the field to null if access is denied
-//                    } catch (IllegalAccessException e) {
-//                        e.printStackTrace(); // Handle the exception according to your needs
-//                    }
-//                }
-//            }
-//        }
-//        return record;
-//    }
-
 
     public static BigDecimal safeConvertToBigDecimal(String value) {
-        if (value == null ||  StringUtils.isBlank(value)) {
-            return BigDecimal.ZERO; // Or return null, depending on your needs
+        if (value == null || value.isBlank()) {
+            return BigDecimal.ZERO;
         }
         try {
             return new BigDecimal(value.trim());
         } catch (NumberFormatException e) {
-            e.printStackTrace(); // Log the error or handle it as needed
-            return BigDecimal.ZERO; // Or handle accordingly
+            return BigDecimal.ZERO;
         }
     }
 
-    // Utility method for safely converting to Integer
     public static Integer safeConvertToInteger(String value) {
-        if (value == null || StringUtils.isBlank(value) ) {
-            return null; // Or return 0, depending on your needs
+        if (value == null || value.isBlank()) {
+            return null;
         }
         try {
             return Integer.valueOf(value.trim());
         } catch (NumberFormatException e) {
-            e.printStackTrace(); // Log the error or handle it as needed
-            return null; // Or handle accordingly
+            return null;
         }
     }
 
-    public static  LocalDate safeConvertToLocalDate(String dateString) {
-        if (dateString == null || StringUtils.isBlank(dateString)) {
-            return null; // Or return LocalDate.MIN, depending on your needs
+    public static LocalDate safeConvertToLocalDate(String dateString) {
+        if (dateString == null || dateString.isBlank()) {
+            return null;
         }
         try {
-            // Specify the expected date format, e.g., "yyyy-MM-dd"
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-            return LocalDate.parse(dateString.trim(), formatter);
+            return LocalDate.parse(dateString.trim(), COMPACT_DATE_FORMAT);
         } catch (DateTimeParseException e) {
-            e.printStackTrace(); // Log the error or handle it as needed
-            return null; // Or handle accordingly, e.g., return LocalDate.MIN
+            return null;
         }
     }
 
     public static boolean hasRole(String roleName) {
-        return SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getAuthorities()
-                .stream()
-                .anyMatch(a -> a.getAuthority().equals(roleName));
+        if (roleName == null || roleName.isBlank()) {
+            return false;
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> roleName.equals(authority.getAuthority()));
     }
 }

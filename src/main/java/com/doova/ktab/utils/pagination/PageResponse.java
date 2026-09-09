@@ -3,9 +3,11 @@ package com.doova.ktab.utils.pagination;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.domain.Page;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @AllArgsConstructor
@@ -19,16 +21,9 @@ public class PageResponse<T> {
     private int totalPages;
     private boolean last;
 
-    /**
-     * Creates an empty PageResponse for a given requested page and size.
-     * This is useful when the requested page number is out of bounds
-     * or no results were found for the query.
-     *
-     * @param pageNumber The requested page number.
-     * @param pageSize   The requested page size.
-     * @return A PageResponse object with empty content and zero total elements/pages.
-     */
-    public static <T> PageResponse<T> fromPage(org.springframework.data.domain.Page<T> page) {
+    public static <T> PageResponse<T> fromPage(Page<T> page) {
+        Objects.requireNonNull(page, "page must not be null");
+
         return new PageResponse<>(
                 page.getContent(),
                 page.getNumber(),
@@ -40,13 +35,20 @@ public class PageResponse<T> {
     }
 
     public static <T> PageResponse<T> empty(int pageNumber, int pageSize) {
+        if (pageNumber < 0) {
+            throw new IllegalArgumentException("pageNumber must be greater than or equal to 0");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("pageSize must be greater than 0");
+        }
+
         return new PageResponse<>(
-                Collections.emptyList(), // Content is an empty list
-                pageNumber,              // Use the requested page number
-                pageSize,                // Use the requested page size
-                0,                       // totalElements is 0
-                0,                       // totalPages is 0
-                true                     // Always the last page when empty
+                Collections.emptyList(),
+                pageNumber,
+                pageSize,
+                0,
+                0,
+                true
         );
     }
 }

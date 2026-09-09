@@ -6,6 +6,5 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class ContentWrapper<T> {
-    Iterable<T> content;
-
+    private Iterable<T> content;
 }

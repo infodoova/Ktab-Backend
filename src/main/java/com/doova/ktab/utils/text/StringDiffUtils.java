@@ -1,43 +1,93 @@
 package com.doova.ktab.utils.text;
 
-public class StringDiffUtils {
-    public static String correctOverlapFuzzy(String context, String chunk, int minOverlap, double ratioThreshold) {
-        if (context == null || context.isEmpty()) return chunk;
-        int n = context.length();
-        int m = chunk.length();
+import java.util.Objects;
 
-        // Search for the longest suffix of context that matches a prefix of chunk
-        for (int len = Math.min(n, m); len >= minOverlap; len--) {
-            String suffix = context.substring(n - len);
-            String prefix = chunk.substring(0, len);
+public final class StringDiffUtils {
 
-            double ratio = calculateSimilarity(suffix, prefix);
-            if (ratio >= ratioThreshold) {
-                System.out.println("Fuzzy overlap detected! Trimming " + len + " chars.");
-                return chunk.substring(len);
+    private StringDiffUtils() {
+    }
+
+    public static String correctOverlapFuzzy(
+            String context,
+            String chunk,
+            int minOverlap,
+            double ratioThreshold
+    ) {
+        Objects.requireNonNull(chunk, "chunk must not be null");
+
+        if (context == null || context.isEmpty() || chunk.isEmpty()) {
+            return chunk;
+        }
+        if (minOverlap < 1) {
+            throw new IllegalArgumentException("minOverlap must be greater than 0");
+        }
+        if (ratioThreshold < 0.0 || ratioThreshold > 1.0) {
+            throw new IllegalArgumentException("ratioThreshold must be between 0.0 and 1.0");
+        }
+
+        int contextLength = context.length();
+        int chunkLength = chunk.length();
+        int maxOverlap = Math.min(contextLength, chunkLength);
+
+        if (minOverlap > maxOverlap) {
+            return chunk;
+        }
+
+        for (int length = maxOverlap; length >= minOverlap; length--) {
+            String suffix = context.substring(contextLength - length);
+            String prefix = chunk.substring(0, length);
+
+            if (calculateSimilarity(suffix, prefix) >= ratioThreshold) {
+                return chunk.substring(length);
             }
         }
+
         return chunk;
     }
 
-    private static double calculateSimilarity(String s1, String s2) {
-        if (s1.equals(s2)) return 1.0;
-        int distance = levenshteinDistance(s1, s2);
-        return 1.0 - ((double) distance / Math.max(s1.length(), s2.length()));
+    private static double calculateSimilarity(String first, String second) {
+        if (first.equals(second)) {
+            return 1.0;
+        }
+
+        int maxLength = Math.max(first.length(), second.length());
+        if (maxLength == 0) {
+            return 1.0;
+        }
+
+        int distance = levenshteinDistance(first, second);
+        return 1.0 - ((double) distance / maxLength);
     }
 
-    private static int levenshteinDistance(String a, String b) {
-        int[] costs = new int[b.length() + 1];
-        for (int j = 0; j < costs.length; j++) costs[j] = j;
-        for (int i = 1; i <= a.length(); i++) {
-            costs[0] = i;
-            int nw = i - 1;
-            for (int j = 1; j <= b.length(); j++) {
-                int cj = Math.min(1 + Math.min(costs[j], costs[j - 1]), a.charAt(i - 1) == b.charAt(j - 1) ? nw : nw + 1);
-                nw = costs[j];
-                costs[j] = cj;
-            }
+    private static int levenshteinDistance(String first, String second) {
+        if (first.length() < second.length()) {
+            return levenshteinDistance(second, first);
         }
-        return costs[b.length()];
+
+        int[] previous = new int[second.length() + 1];
+        int[] current = new int[second.length() + 1];
+
+        for (int j = 0; j <= second.length(); j++) {
+            previous[j] = j;
+        }
+
+        for (int i = 1; i <= first.length(); i++) {
+            current[0] = i;
+
+            for (int j = 1; j <= second.length(); j++) {
+                int substitutionCost = first.charAt(i - 1) == second.charAt(j - 1) ? 0 : 1;
+
+                current[j] = Math.min(
+                        Math.min(current[j - 1] + 1, previous[j] + 1),
+                        previous[j - 1] + substitutionCost
+                );
+            }
+
+            int[] temp = previous;
+            previous = current;
+            current = temp;
+        }
+
+        return previous[second.length()];
     }
 }
