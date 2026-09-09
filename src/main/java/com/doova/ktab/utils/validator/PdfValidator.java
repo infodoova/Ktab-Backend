@@ -1,6 +1,6 @@
 package com.doova.ktab.utils.validator;
 
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.RandomAccessReadBuffer;

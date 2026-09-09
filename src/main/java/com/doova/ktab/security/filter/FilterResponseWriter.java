@@ -1,6 +1,6 @@
 package com.doova.ktab.security.filter;
 
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.status.MessageStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;

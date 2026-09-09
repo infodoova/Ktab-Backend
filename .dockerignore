@@ -8,6 +8,6 @@ target/
 *.log
 docs/
 *.md
-sample-interactive-stories.json
-interactive-story-genres-ar.json
+docs/sample-interactive-stories.json
+docs/interactive-story-genres-ar.json
 qodana.yaml

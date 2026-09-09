@@ -1,6 +1,6 @@
 package com.doova.ktab.repository.book;
 
-import com.doova.ktab.dto.response.AuthorBookAnalyticsResponse;
+import com.doova.ktab.dto.analytics.AuthorBookAnalyticsResponse;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.book.Book;
@@ -51,6 +51,14 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     Page<Book> findAllByAuthorIdAndStatus(Long authorId, BookStatus status, Pageable pageable);
 
+    Page<Book> findAllByLibraryOrganizationId(Long libraryOrgId, Pageable pageable);
+
+    Page<Book> findAllByLibraryOrganizationIdAndStatus(Long libraryOrgId, BookStatus status, Pageable pageable);
+
+    Optional<Book> findByIdAndLibraryOrganizationId(Long bookId, Long libraryOrgId);
+
+    long countByLibraryOrganizationId(Long libraryOrgId);
+
     @Query("""
                 SELECT b FROM Book b
                 WHERE b.id <> :bookId
@@ -84,7 +92,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     long sumAuthorTotalReviews(Long authorId);
 
     @Query("""
-                select new com.doova.ktab.dto.response.AuthorBookAnalyticsResponse(
+                select new com.doova.ktab.dto.analytics.AuthorBookAnalyticsResponse(
                     b.id,
                     b.title,
                     b.status,

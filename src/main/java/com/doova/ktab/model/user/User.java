@@ -8,7 +8,6 @@ import lombok.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.doova.ktab.model.base.BaseEntity;
 
-@EqualsAndHashCode(callSuper = true)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,35 +17,39 @@ import com.doova.ktab.model.base.BaseEntity;
 @Table(name = "tbl_users", uniqueConstraints = {@UniqueConstraint(name = "uq_users_email", columnNames = "col_email")})
 public class User extends BaseEntity {
 
-    @NotBlank
+    @NotBlank(message = "{validation.email.required}")
     @Column(name = "col_email", nullable = false)
     private String email;
 
-    @NotBlank
+    @NotBlank(message = "{validation.first_name.required}")
     @Column(name = "col_first_name", nullable = false)
     private String firstName;
 
     @Column(name = "col_middle_name")
     private String middleName;
 
-    @NotBlank
+    @NotBlank(message = "{validation.last_name.required}")
     @Column(name = "col_last_name", nullable = false)
     private String lastName;
 
-    @NotBlank
+    @NotBlank(message = "{validation.password.required}")
     @Column(name = "col_password_digest", nullable = false, length = 100)
     private String passwordDigest;
 
     @Transient
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Size(min = 6, message = "{validation.password.min_size}")
     private String password;
 
-    @NotNull(message = "Role must not be Null")
+    @NotNull(message = "{validation.role.required}")
     @Column(name = "col_role")
     private String role;
 
     @Column(name = "col_is_active")
     private String active;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "col_library_organization_id")
+    private com.doova.ktab.model.library.LibraryOrganization libraryOrganization;
 
     /**
      * Store BCrypt digest in passwordDigest; keep raw in transient password.

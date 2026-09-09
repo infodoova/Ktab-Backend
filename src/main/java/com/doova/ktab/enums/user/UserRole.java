@@ -7,7 +7,7 @@ import java.util.List;
 
 @Getter
 public enum UserRole {
-    ADMIN("00"), AUTHOR("10"), READER("20");
+    ADMIN("00"), AUTHOR("10"), READER("20"), LIBRARIAN("30"), ADMIN_LIBRARIAN("35");
 
     private final String code;
 
@@ -22,16 +22,15 @@ public enum UserRole {
     }
 
     public static UserRole fromCode(String code) {
-        switch (code) {
-            case "00":
-                return ADMIN;
-            case "10":
-                return AUTHOR;
-            case "20":
-                return READER;
-            default:
-                throw new IllegalArgumentException("Unknown code: " + code);
+        if (code == null) {
+            return null;
         }
+        for (UserRole role : values()) {
+            if (role.code.equalsIgnoreCase(code) || role.name().equalsIgnoreCase(code)) {
+                return role;
+            }
+        }
+        return null;
     }
 }
 

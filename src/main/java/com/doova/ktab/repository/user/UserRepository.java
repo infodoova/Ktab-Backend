@@ -16,7 +16,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     //    Page<User> findByIdContainingAndNameContaining(String id, String fullName, Pageable pageable);
     Optional<User> findByEmail(String email);
 
-    List<User> findByRole(@NotNull(message = "Role must not be Null") String role);
+    List<User> findByRole(@NotNull(message = "{validation.role.required}") String role);
 
     boolean existsByEmail(String email);
+
+    List<User> findAllByLibraryOrganizationId(Long libraryOrgId);
+
+    long countByLibraryOrganizationId(Long libraryOrgId);
 }

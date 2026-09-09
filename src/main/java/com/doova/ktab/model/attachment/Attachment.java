@@ -12,7 +12,6 @@ import lombok.*;
  * 1. Specific Many-to-One relationship to User (for strong integrity).
  * 2. Generic Association (Entity/ID) for linking to any other entity (Post, Product, etc.).
  */
-@EqualsAndHashCode(callSuper = true)
 @Getter
 @Setter
 @NoArgsConstructor

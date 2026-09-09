@@ -1,7 +1,7 @@
 package com.doova.ktab.security.config;
 
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.security.exception.SecurityExceptionHandler;
 import com.doova.ktab.security.filter.JwtFilter;
 import jakarta.servlet.DispatcherType;
@@ -37,7 +37,9 @@ public class WebSecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
-    private final org.springframework.context.MessageSource messageSource;
+
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
+    private List<String> allowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -52,10 +54,10 @@ public class WebSecurityConfig {
                 // Global CORS
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(List.of("*"));
-                    config.setAllowedMethods(List.of("*"));
+                    config.setAllowedOrigins(allowedOrigins);
+                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
-                    config.setAllowCredentials(false);
+                    config.setAllowCredentials(true);
                     return config;
                 }))
 
@@ -74,30 +76,8 @@ public class WebSecurityConfig {
 
                 // Centralized exception handling
                 .exceptionHandling(ex -> ex
-
-                        // 401 — Not authenticated
-                        .authenticationEntryPoint((req, res, exc) -> {
-                            if (!res.isCommitted()) {
-                                ApiResponse<Void> body = ApiResponse.error(
-                                        ApiMessageKey.SECURITY_UNAUTHORIZED.getMessage(messageSource),
-                                        HttpStatus.UNAUTHORIZED
-                                );
-
-                                ResponseUtils.send(body, res, HttpStatus.UNAUTHORIZED);
-                            }
-                        })
-
-                        // 403 — Authenticated but forbidden
-                        .accessDeniedHandler((req, res, exc) -> {
-                            if (!res.isCommitted()) {
-                                ApiResponse<Void> body = ApiResponse.error(
-                                        ApiMessageKey.SECURITY_ACCESS_DENIED.getMessage(messageSource),
-                                        HttpStatus.FORBIDDEN
-                                );
-
-                                ResponseUtils.send(body, res, HttpStatus.FORBIDDEN);
-                            }
-                        })
+                        .authenticationEntryPoint(securityExceptionHandler)
+                        .accessDeniedHandler(securityExceptionHandler)
                 )
 
                 // Route authorization
@@ -115,7 +95,7 @@ public class WebSecurityConfig {
                                 "/error",
                                 "/favicon.ico",
                                 "/ws/**",
-                                "api/ocr/**",
+                                "/api/v1/reader/organizations/**",
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
@@ -145,7 +125,6 @@ public class WebSecurityConfig {
     // ---------------------------------------------------------------------
 
     @Bean
-    @Deprecated
     public AuthenticationProvider authenticationProvider(
             UserDetailsService userDetailsService,
             PasswordEncoder passwordEncoder

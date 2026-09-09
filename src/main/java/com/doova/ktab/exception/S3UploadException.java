@@ -1,6 +1,6 @@
 package com.doova.ktab.exception;
 
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 
 public class S3UploadException extends KtabException {
 

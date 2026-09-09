@@ -3,14 +3,15 @@ package com.doova.ktab.controller.v1.library;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.request.AssignBookRequest;
-import com.doova.ktab.enums.ApiMessageKey;
-import com.doova.ktab.enums.LibrarySort;
+import com.doova.ktab.dto.library.AssignBookRequest;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.enums.library.LibrarySort;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.library.LibraryService;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -71,7 +72,7 @@ public class LibraryController {
     @Operation(summary = "Assign a book to user's library")
     @PostMapping("/assignBook")
     @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<Void>> assignBookToUser(@RequestBody AssignBookRequest request, @CurrentUser User reader) {
+    public ResponseEntity<ApiResponse<Void>> assignBookToUser(@Valid @RequestBody AssignBookRequest request, @CurrentUser User reader) {
         libraryService.assignBookToUser(request, reader);
 
         return ResponseUtils.success(null, ApiMessageKey.LIBRARY_BOOK_ADDED.getMessage(messageSource), HttpStatus.CREATED);

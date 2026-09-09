@@ -20,6 +20,9 @@ public record UserPrincipal(User user) implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         UserRole userRole = UserRole.fromCode(user.getRole());
+        if (userRole == null) {
+            return Collections.emptyList();
+        }
         return Collections.singletonList(new SimpleGrantedAuthority(userRole.name()));
     }
 

@@ -2,13 +2,13 @@ package com.doova.ktab.controller.v1.reader;
 
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.request.BookSearchRequestDto;
-import com.doova.ktab.dto.response.BookCoverResponse;
-import com.doova.ktab.dto.response.BookResponseDto;
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.dto.book.BookSearchRequestDto;
+import com.doova.ktab.dto.book.BookCoverResponse;
+import com.doova.ktab.dto.book.BookResponseDto;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.service.book.BookService;
 import com.doova.ktab.service.book.BookSimilarityService;
-import com.doova.ktab.utils.PageResponse;
+import com.doova.ktab.utils.pagination.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

@@ -2,14 +2,14 @@ package com.doova.ktab.controller.v1.author;
 
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
-import com.doova.ktab.annotation.UserMatchesOrAdmin;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.request.BookRequestDto;
-import com.doova.ktab.dto.response.BookResponseDto;
-import com.doova.ktab.enums.ApiMessageKey;
+
+import com.doova.ktab.dto.book.BookRequestDto;
+import com.doova.ktab.dto.book.BookResponseDto;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.book.BookService;
-import com.doova.ktab.utils.PageResponse;
+import com.doova.ktab.utils.pagination.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import com.doova.ktab.validation.CreateBook;
 import com.doova.ktab.validation.UpdateBook;
@@ -41,10 +41,15 @@ public class AuthorBookController {
     // GET BOOKS BY AUTHOR
     // =========================================================
     @PreAuthorize("hasAnyAuthority('AUTHOR')")
-    @UserMatchesOrAdmin(path = "#authorId")
-    @GetMapping("/getBooksByAuthor/{authorId}")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getBooksByAuthor(@PathVariable Long authorId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "6") int size, @RequestParam(required = false) String status) {
-        PageResponse<BookResponseDto> books = bookService.getBooksByAuthorId(authorId, page, size, status);
+    @GetMapping({"/getBooksByAuthor", "/getBooksByAuthor/{authorId}"})
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getBooksByAuthor(
+            @CurrentUser User author,
+            @PathVariable(required = false) Long authorId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size,
+            @RequestParam(required = false) String status) {
+
+        PageResponse<BookResponseDto> books = bookService.getBooksByAuthorId(author, page, size, status);
 
         return ResponseUtils.success(books, ApiMessageKey.AUTHOR_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }

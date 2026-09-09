@@ -13,7 +13,6 @@ import java.time.Instant;
  * Represents a user's entry in their "My Library" or favorites list for a book.
  * This entity tracks personal reader state for a book.
  */
-@EqualsAndHashCode(callSuper = true, exclude = {"book", "user"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,20 +24,20 @@ import java.time.Instant;
 public class BookLibraryEntry extends BaseEntity {
 
     // --- Foreign Key: Reader (User) ---
-    @NotNull
+    @NotNull(message = "{validation.user.required}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_user_id", nullable = false)
     private User user;
 
     // --- Foreign Key: Book ---
-    @NotNull
+    @NotNull(message = "{validation.book.required}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_book_id", nullable = false)
     private Book book;
 
     // --- Core Library Fields ---
 
-    @NotNull
+    @NotNull(message = "{validation.library.favorite.required}")
     @Column(name = "col_is_favorite", nullable = false)
     @ColumnDefault("false")
     private Boolean isFavorite = false;
@@ -48,7 +47,7 @@ public class BookLibraryEntry extends BaseEntity {
      * This may often be the same as BaseEntity's createdAt field, but is included
      * for explicit schema matching.
      */
-    @NotNull
+    @NotNull(message = "{validation.library.added_at.required}")
     @Column(name = "col_added_at", nullable = false)
     private Instant addedAt = Instant.now();
 }

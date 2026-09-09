@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface ReviewRepository extends JpaRepository<BookReview, Long> {
 
-    List<BookReview> findAllByBookIdOrderByAuditCreatedAtDesc(Long bookId);
+    List<BookReview> findAllByBookIdOrderByCreatedAtDesc(Long bookId);
 
     boolean existsByReaderIdAndBookId(Long readerId, Long bookId);
 
@@ -23,10 +23,9 @@ public interface ReviewRepository extends JpaRepository<BookReview, Long> {
     Optional<BookReview> findByReaderIdAndBookId(Long readerId, Long bookId);
 
     // 2. Get all other reviews, ordered by creation date, excluding the user
-    List<BookReview> findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(Long bookId, Long userId);
+    List<BookReview> findAllByBookIdAndReaderIdNotOrderByCreatedAtDesc(Long bookId, Long userId);
 
-    Page<BookReview> findAllByBookIdOrderByAuditCreatedAtDesc(Long bookId, Pageable pageable);
+    Page<BookReview> findAllByBookIdOrderByCreatedAtDesc(Long bookId, Pageable pageable);
 
-    Page<BookReview> findAllByBookIdAndReaderIdNotOrderByAuditCreatedAtDesc(Long bookId, Long readerId, Pageable pageable);
-
+    Page<BookReview> findAllByBookIdAndReaderIdNotOrderByCreatedAtDesc(Long bookId, Long readerId, Pageable pageable);
 }

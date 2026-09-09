@@ -2,10 +2,10 @@ package com.doova.ktab.controller.v1.reader;
 
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.response.BookStatsResponse;
-import com.doova.ktab.dto.response.TextRangeResponse;
-import com.doova.ktab.enums.ApiMessageKey;
-import com.doova.ktab.service.interfaces.book.BookTextService;
+import com.doova.ktab.dto.book.BookStatsResponse;
+import com.doova.ktab.dto.book.TextRangeResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.service.book.BookTextService;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

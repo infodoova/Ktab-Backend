@@ -1,12 +1,12 @@
 package com.doova.ktab.mappers.book;
 
 
-import com.doova.ktab.dto.request.BookRequestDto;
-import com.doova.ktab.dto.response.BookResponseDto;
+import com.doova.ktab.dto.book.BookRequestDto;
+import com.doova.ktab.dto.book.BookResponseDto;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
-import com.doova.ktab.repository.configuration.MainGenreRepository;
-import com.doova.ktab.repository.configuration.SubGenreRepository;
+import com.doova.ktab.repository.genre.MainGenreRepository;
+import com.doova.ktab.repository.genre.SubGenreRepository;
 import com.doova.ktab.service.user.UserService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;

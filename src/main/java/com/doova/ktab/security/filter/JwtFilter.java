@@ -1,6 +1,6 @@
 package com.doova.ktab.security.filter;
 
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.service.auth.JWTService;
 import com.doova.ktab.service.auth.MyUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -31,7 +31,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String JWT_COOKIE_NAME = "JWT_TOKEN";
+    public static final String ACCESS_TOKEN_COOKIE = "ACCESS_TOKEN";
+    private static final String LEGACY_JWT_COOKIE = "JWT_TOKEN";
 
     private final JWTService jwtService;
     private final MyUserDetailsService userDetailsService;
@@ -117,7 +118,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // 2️⃣ Cookie fallback
         if (request.getCookies() != null) {
-            return Arrays.stream(request.getCookies()).filter(c -> JWT_COOKIE_NAME.equals(c.getName())).map(Cookie::getValue).findFirst().orElse(null);
+            return Arrays.stream(request.getCookies())
+                    .filter(c -> ACCESS_TOKEN_COOKIE.equals(c.getName()) || LEGACY_JWT_COOKIE.equals(c.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
         }
 
         return null;

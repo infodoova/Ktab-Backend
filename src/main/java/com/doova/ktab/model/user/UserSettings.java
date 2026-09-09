@@ -12,7 +12,6 @@ import org.hibernate.annotations.ColumnDefault;
  * This entity has a Many-to-One relationship back to User and is typically
  * managed via a One-to-One relationship from the User side.
  */
-@EqualsAndHashCode(callSuper = true)
 @Getter
 @Setter
 @NoArgsConstructor

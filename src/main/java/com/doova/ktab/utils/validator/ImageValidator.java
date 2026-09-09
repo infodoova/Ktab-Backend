@@ -1,6 +1,6 @@
 package com.doova.ktab.utils.validator;
 
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 

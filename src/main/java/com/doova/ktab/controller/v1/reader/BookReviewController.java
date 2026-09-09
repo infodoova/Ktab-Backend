@@ -3,16 +3,17 @@ package com.doova.ktab.controller.v1.reader;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.request.ReviewRequestDto;
-import com.doova.ktab.dto.response.IsReviewedResponseDto;
-import com.doova.ktab.dto.response.ReviewResponseDto;
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.dto.review.IsReviewedResponseDto;
+import com.doova.ktab.dto.review.ReviewRequestDto;
+import com.doova.ktab.dto.review.ReviewResponseDto;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.reviews.ReviewService;
 import com.doova.ktab.utils.response.ResponseUtils;
 import com.doova.ktab.utils.wrapper.ContentWrapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +38,7 @@ public class BookReviewController {
     // ============================================================================================
     @PostMapping("/books/{bookId}/reviews")
     @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<String>> postReview(@PathVariable Long bookId, @RequestBody ReviewRequestDto request, @CurrentUser User reader) {
+    public ResponseEntity<ApiResponse<String>> postReview(@PathVariable Long bookId, @Valid @RequestBody ReviewRequestDto request, @CurrentUser User reader) {
         reviewService.createReview(bookId, request, reader);
 
         return ResponseUtils.success(null, ApiMessageKey.REVIEW_CREATE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
@@ -70,7 +71,7 @@ public class BookReviewController {
     // ============================================================================================
     @PatchMapping("/books/{bookId}/reviews/{reviewId}")
     @PreAuthorize("hasAnyAuthority('READER')")
-    public ResponseEntity<ApiResponse<String>> updateReview(@PathVariable Long bookId, @PathVariable Long reviewId, @RequestBody ReviewRequestDto request, @CurrentUser User reader) {
+    public ResponseEntity<ApiResponse<String>> updateReview(@PathVariable Long bookId, @PathVariable Long reviewId, @Valid @RequestBody ReviewRequestDto request, @CurrentUser User reader) {
         reviewService.updateReview(bookId, request, reader, reviewId);
 
         return ResponseUtils.success(null, ApiMessageKey.REVIEW_UPDATE_SUCCESS.getMessage(messageSource), HttpStatus.OK);

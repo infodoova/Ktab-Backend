@@ -1,7 +1,7 @@
 package com.doova.ktab.security.exception;
 
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.enums.ApiMessageKey;
+import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.status.MessageStatus;
 import com.doova.ktab.utils.response.ResponseUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,7 +27,7 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) {
 
-        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.ACCESS_DENIED.getMessage(messageSource), HttpStatus.UNAUTHORIZED);
+        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.SECURITY_UNAUTHORIZED.getMessage(messageSource), HttpStatus.UNAUTHORIZED);
 
         ResponseUtils.send(body, response, HttpStatus.UNAUTHORIZED);
     }
@@ -38,7 +38,7 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) {
 
-        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.ACCESS_DENIED.getMessage(messageSource), HttpStatus.FORBIDDEN);
+        ApiResponse<Void> body = ApiResponse.error(ApiMessageKey.SECURITY_ACCESS_DENIED.getMessage(messageSource), HttpStatus.FORBIDDEN);
 
         ResponseUtils.send(body, response, HttpStatus.FORBIDDEN);
     }

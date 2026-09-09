@@ -1,11 +1,13 @@
 package com.doova.ktab.model.book;
 
+import com.doova.ktab.enums.book.BookSource;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.base.BaseEntity;
-import com.doova.ktab.model.configuration.MainGenre;
-import com.doova.ktab.model.configuration.SubGenre;
-import com.doova.ktab.model.listener.BookPublishDateListener;
+import com.doova.ktab.model.genre.MainGenre;
+import com.doova.ktab.model.genre.SubGenre;
+import com.doova.ktab.model.library.LibraryOrganization;
+import com.doova.ktab.event.listener.BookPublishDateListener;
 import com.doova.ktab.model.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -25,15 +27,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "tbl_books",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uq_books_author_title",
-                        columnNames = {"col_author_id", "col_title"}
-                )
-        }
-)
+@Table(name = "tbl_books")
 @FilterDef(
         name = "publishedFilter",
         parameters = @ParamDef(name = "status", type = String.class)
@@ -45,12 +39,27 @@ import java.util.Set;
 @EntityListeners(BookPublishDateListener.class)
 public class Book extends BaseEntity {
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "col_author_id", nullable = false)
+    @JoinColumn(name = "col_author_id")
     private User author;
 
-    @NotBlank
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_book_source", nullable = false)
+    private BookSource bookSource = BookSource.AUTHOR;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "col_library_organization_id")
+    private LibraryOrganization libraryOrganization;
+
+    @Column(name = "col_custom_author_name")
+    private String customAuthorName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "col_uploader_id")
+    private User uploader;
+
+    @NotBlank(message = "{validation.book.title.required}")
+    @Size(max = 255, message = "{validation.book.title.size}")
     @Column(name = "col_title", nullable = false)
     private String title;
 
