@@ -32,7 +32,10 @@ public class QStashClient {
     private String baseUrl;
 
     public QStashClient(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.build();
+        org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(15));
+        this.restClient = restClientBuilder.requestFactory(requestFactory).build();
     }
 
     public boolean isConfigured() {

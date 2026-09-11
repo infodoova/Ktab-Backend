@@ -123,7 +123,10 @@ public enum ApiMessageKey {
     BOOK_OCR_PDF_MISSING("book.ocr.pdf.missing"),
 
     // ===== RATE LIMIT =====
-    RATE_LIMIT_EXCEEDED("rate.limit.exceeded");
+    RATE_LIMIT_EXCEEDED("rate.limit.exceeded"),
+
+    // ===== TIMEOUT =====
+    REQUEST_TIMEOUT("request.timeout");
 
 
     private final String key;

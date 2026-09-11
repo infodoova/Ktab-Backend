@@ -131,6 +131,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.notFound().build();
     }
 
+    @ExceptionHandler({
+            java.util.concurrent.TimeoutException.class,
+            java.net.SocketTimeoutException.class,
+            org.springframework.web.context.request.async.AsyncRequestTimeoutException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleTimeout(Exception ex) {
+        log.warn("Request timed out: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(ApiResponse.error(ApiMessageKey.REQUEST_TIMEOUT.getMessage(messageSource), HttpStatus.GATEWAY_TIMEOUT));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         String message = resolveMessageOrDefault(ex.getMessage(), ApiMessageKey.VALIDATION_FAILED);

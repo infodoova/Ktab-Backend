@@ -55,12 +55,20 @@ public class S3Config {
                 : Region.of(region);
     }
 
+    private software.amazon.awssdk.core.client.config.ClientOverrideConfiguration getOverrideConfiguration() {
+        return software.amazon.awssdk.core.client.config.ClientOverrideConfiguration.builder()
+                .apiCallTimeout(java.time.Duration.ofSeconds(30))
+                .apiCallAttemptTimeout(java.time.Duration.ofSeconds(10))
+                .build();
+    }
+
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
                 .endpointOverride(resolveEndpoint())
                 .credentialsProvider(getCredentialsProvider())
                 .region(getRegion())
+                .overrideConfiguration(getOverrideConfiguration())
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
                         .build())
