@@ -2,41 +2,81 @@
 # GitGuardian Pre-Commit Secret Scanner Hook
 # Prevents accidental commits of secrets, tokens, and credentials.
 
+# ─────────────────────────────────────────────────────────────────────────────
 # 1. If GitGuardian CLI (ggshield) is installed, delegate to it
+# ─────────────────────────────────────────────────────────────────────────────
 if command -v ggshield >/dev/null 2>&1; then
     echo "[GitGuardian] Running ggshield pre-commit secret scan..."
     exec ggshield secret scan pre-commit "$@"
 fi
 
-# 2. Fallback lightweight secret scanner for environments without ggshield
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. Fallback lightweight secret scanner (no ggshield installed)
+# ─────────────────────────────────────────────────────────────────────────────
 echo "[GitGuardian Hook] Scanning staged files for accidental secrets..."
 
+# Known high-risk literal patterns (real credential formats)
 FORBIDDEN_PATTERNS='(sk-[a-zA-Z0-9_-]{32,}|sk_live_[a-zA-Z0-9]+|eyJVc2VySU[a-zA-Z0-9+/=]+|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----|AIza[0-9A-Za-z\-_]{35})'
+
+# Known dummy/placeholder values that must NOT appear in committed code.
+# These are non-functional but high-entropy-looking strings that would
+# cause GitGuardian false positives AND risk being mistaken for real keys.
+DUMMY_PATTERNS='(ZGV2LWR1bW15LWp3dC1zZWNyZXQtbm90LWZvci1wcm9kdWN0aW9uLW1pbi0yNTYtYml0cw==)'
+
+# Base64 value hardcoded as a default in a jwt.secret property line
+JWT_HARDCODED_PATTERN='security\.jwt\.secret=.*:\s*[A-Za-z0-9+/]{20,}={0,2}\}'
 
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -vE '(\.env\.example|\.env\.schema|docs/|\.gitguardian\.yaml)$')
 
+FOUND=0
+
 if [ -n "$STAGED_FILES" ]; then
-    MATCHES=$(git diff --cached -S"sk-" -S"AIza" -S"eyJVc2VySU" -S"PRIVATE KEY" $STAGED_FILES 2>/dev/null)
-    
-    # Check staged content against forbidden patterns
-    FOUND=0
     for file in $STAGED_FILES; do
-        if git show ":$file" 2>/dev/null | grep -E -q "$FORBIDDEN_PATTERNS"; then
-            echo "❌ [GitGuardian ERROR] Potential secret detected in staged file: $file"
+        CONTENT=$(git show ":$file" 2>/dev/null)
+
+        # Check for real credential patterns
+        if echo "$CONTENT" | grep -E -q "$FORBIDDEN_PATTERNS"; then
+            echo "❌ [GitGuardian ERROR] Real credential pattern detected in: $file"
+            FOUND=1
+        fi
+
+        # Check for known dummy/placeholder values that look like secrets
+        # (skip the hook file itself — it legitimately contains the pattern as a rule)
+        case "$file" in
+            .githooks/*) ;;
+            *)
+                if echo "$CONTENT" | grep -E -q "$DUMMY_PATTERNS"; then
+                    echo ""
+                    echo "⚠️  [GitGuardian WARNING] Known dummy secret value detected in: $file"
+                    echo "   The string 'ZGV2LWR1bW15...' is a dummy JWT secret placeholder."
+                    echo "   It must NOT be committed — it can trigger GitGuardian false-positive"
+                    echo "   alerts and could be mistaken for a real credential in git history."
+                    echo "   Fix: use \${JWT_SECRET:} (blank fallback) and let JWTServiceImpl"
+                    echo "   generate an ephemeral key automatically when JWT_SECRET is unset."
+                    FOUND=1
+                fi
+            ;;
+        esac
+
+        # Check for hardcoded Base64 as a jwt.secret default value
+        if echo "$CONTENT" | grep -E -q "$JWT_HARDCODED_PATTERN"; then
+            echo ""
+            echo "⚠️  [GitGuardian WARNING] Hardcoded Base64 default in jwt.secret property in: $file"
+            echo "   Use \${JWT_SECRET:} without a Base64 inline fallback."
             FOUND=1
         fi
     done
+fi
 
-    if [ "$FOUND" -eq 1 ]; then
-        echo ""
-        echo "================================================================================"
-        echo "🛑 COMMIT REJECTED BY GITGUARDIAN POLICY"
-        echo "High-entropy secrets or private keys were detected in your staged files."
-        echo "Please remove the secrets, move them to .env.development / .env.production,"
-        echo "and stage only sanitized code before committing."
-        echo "================================================================================"
-        exit 1
-    fi
+if [ "$FOUND" -eq 1 ]; then
+    echo ""
+    echo "================================================================================"
+    echo "🛑 COMMIT REJECTED BY GITGUARDIAN POLICY"
+    echo "Secrets, dummy credential values, or hardcoded Base64 keys were detected."
+    echo "Move real secrets to .env.development (gitignored)."
+    echo "Remove dummy Base64 fallbacks from .properties files."
+    echo "================================================================================"
+    exit 1
 fi
 
 echo "✅ [GitGuardian] Secret pre-commit scan passed."
