@@ -4,11 +4,8 @@
 version: 2
 
 secret:
-  # Minimum severity threshold to fail checks (low, medium, high, critical)
-  minimum-severity: medium
-
   # Paths to exclude from secret scanning
-  ignored-paths:
+  ignored_paths:
     - "**/.git/**"
     - "**/target/**"
     - "**/build/**"
@@ -19,7 +16,4 @@ secret:
     - ".env.schema"
 
   # Do not print plain-text secrets in CLI/CI outputs
-  show-secrets: false
-
-  # Exit code 1 when secrets are detected to block commits/CI
-  exit-zero: false
+  show_secrets: false
