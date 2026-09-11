@@ -53,22 +53,37 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
-                .map(org.springframework.context.support.DefaultMessageSourceResolvable::getDefaultMessage)
-                .filter(msg -> msg != null && !msg.isBlank())
+        java.util.Map<String, String> fieldErrors = new java.util.LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            String field = error.getField();
+            String defaultMsg = error.getDefaultMessage();
+            if (field != null && defaultMsg != null) {
+                fieldErrors.putIfAbsent(field, defaultMsg);
+            }
+        });
+
+        String message = fieldErrors.values().stream()
+                .filter(msg -> !msg.isBlank())
                 .findFirst()
                 .orElse(ApiMessageKey.VALIDATION_FAILED.getMessage(messageSource));
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, HttpStatus.BAD_REQUEST));
+
+        return ResponseEntity.badRequest().body(ApiResponse.validationError(message, fieldErrors, HttpStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
-        String message = ex.getConstraintViolations().stream()
-                .map(jakarta.validation.ConstraintViolation::getMessage)
-                .filter(msg -> msg != null && !msg.isBlank())
+        java.util.Map<String, String> violationErrors = new java.util.LinkedHashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String propertyPath = violation.getPropertyPath() != null ? violation.getPropertyPath().toString() : "field";
+            violationErrors.putIfAbsent(propertyPath, violation.getMessage());
+        });
+
+        String message = violationErrors.values().stream()
+                .filter(msg -> !msg.isBlank())
                 .findFirst()
                 .orElse(ApiMessageKey.VALIDATION_FAILED.getMessage(messageSource));
-        return ResponseEntity.badRequest().body(ApiResponse.error(message, HttpStatus.BAD_REQUEST));
+
+        return ResponseEntity.badRequest().body(ApiResponse.validationError(message, violationErrors, HttpStatus.BAD_REQUEST));
     }
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MissingPathVariableException.class, HttpMessageNotReadableException.class})

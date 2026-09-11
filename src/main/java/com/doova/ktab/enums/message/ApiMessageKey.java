@@ -120,7 +120,10 @@ public enum ApiMessageKey {
 
     // ===== BOOK =====
     BOOK_INVALID_STATUS("book.invalid.status"),
-    BOOK_OCR_PDF_MISSING("book.ocr.pdf.missing");
+    BOOK_OCR_PDF_MISSING("book.ocr.pdf.missing"),
+
+    // ===== RATE LIMIT =====
+    RATE_LIMIT_EXCEEDED("rate.limit.exceeded");
 
 
     private final String key;

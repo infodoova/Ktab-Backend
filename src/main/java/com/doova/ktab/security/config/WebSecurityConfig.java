@@ -1,7 +1,9 @@
 package com.doova.ktab.security.config;
 
 import com.doova.ktab.security.exception.SecurityExceptionHandler;
+import com.doova.ktab.security.filter.CorrelationIdFilter;
 import com.doova.ktab.security.filter.JwtFilter;
+import com.doova.ktab.security.filter.RateLimitingFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,16 +12,19 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
@@ -30,6 +35,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebSecurityConfig {
 
+    private final CorrelationIdFilter correlationIdFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
 
@@ -52,9 +59,36 @@ public class WebSecurityConfig {
                     config.setAllowedOrigins(allowedOrigins);
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
+                    config.setExposedHeaders(List.of(
+                            "X-Correlation-Id",
+                            "X-RateLimit-Limit",
+                            "X-RateLimit-Remaining",
+                            "X-RateLimit-Reset",
+                            "Retry-After",
+                            "Content-Disposition"
+                    ));
                     config.setAllowCredentials(true);
                     return config;
                 }))
+
+                // OWASP Recommended Security Headers
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' ws: wss:; frame-ancestors 'none';")
+                        )
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000)
+                        )
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                        )
+                        .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                                "Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()"
+                        ))
+                )
 
                 // Stateless JWT
                 .sessionManagement(session ->
@@ -98,9 +132,12 @@ public class WebSecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // JWT filter & Auth provider
+                // Filter Chain Ordering:
+                // CorrelationIdFilter -> RateLimitingFilter -> JwtFilter -> UsernamePasswordAuthenticationFilter
                 .authenticationProvider(authProvider)
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitingFilter, CorrelationIdFilter.class)
+                .addFilterAfter(jwtFilter, RateLimitingFilter.class)
 
                 // Disable unused form/basic login
                 .httpBasic(AbstractHttpConfigurer::disable)

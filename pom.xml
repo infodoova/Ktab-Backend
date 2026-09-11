@@ -206,6 +206,13 @@
             <version>2.1.0</version>
         </dependency>
 
+        <!-- Bucket4j for token-bucket rate limiting -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
