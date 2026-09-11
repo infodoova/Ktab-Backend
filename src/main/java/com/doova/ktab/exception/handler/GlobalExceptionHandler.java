@@ -110,6 +110,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(message, HttpStatus.NOT_FOUND));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Void> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        log.debug("Static resource not found: {}", ex.getResourcePath());
+        return ResponseEntity.notFound().build();
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         String message = resolveMessageOrDefault(ex.getMessage(), ApiMessageKey.VALIDATION_FAILED);
