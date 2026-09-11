@@ -11,7 +11,7 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI customOpenAPI() {
-        return new OpenAPI().info(new Info().title("Ktab API").version("0.0.1").description("Ktab REST API documentation"));
+        return new OpenAPI().info(new Info().title("Ktab").version("0.0.1").description("Ktab REST API documentation"));
     }
 
     @Bean
