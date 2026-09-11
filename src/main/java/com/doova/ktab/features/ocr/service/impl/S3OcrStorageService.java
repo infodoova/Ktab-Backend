@@ -1,37 +1,40 @@
 package com.doova.ktab.features.ocr.service.impl;
 
-import com.amazonaws.HttpMethod;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.*;
 import com.doova.ktab.features.ocr.batch.PageItem;
 import com.doova.ktab.features.ocr.service.OcrStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class S3OcrStorageService implements OcrStorageService {
 
-    private final AmazonS3 s3;
+    private final S3Client s3;
+    private final S3Presigner s3Presigner;
 
-    @Value("${aws.s3.bucketName}")
+    @Value("${cloudflare.r2.bucketName:${aws.s3.bucketName}}")
     private String bucket;
 
-    @Value("${aws.s3.pdfPrefix}")
+    @Value("${cloudflare.r2.pdfPrefix:${aws.s3.pdfPrefix:books}}")
     private String pdfPrefix;
 
-    @Value("${aws.s3.pagesPrefix}")
+    @Value("${cloudflare.r2.pagesPrefix:${aws.s3.pagesPrefix:books}}")
     private String pagesPrefix;
 
-    @Value("${aws.s3.deadLetterPrefix}")
+    @Value("${cloudflare.r2.deadLetterPrefix:${aws.s3.deadLetterPrefix:dead-letter/books}}")
     private String deadLetterPrefix;
 
     @Value("${ktab.ocr.presigned.expiration-minutes:30}")
@@ -45,17 +48,24 @@ public class S3OcrStorageService implements OcrStorageService {
     public String putBookPdf(Long bookId, InputStream pdf, long size) {
         String key = "%s/%d/source.pdf".formatted(pdfPrefix, bookId);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentType("application/pdf");
-        metadata.setContentLength(size);
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType("application/pdf")
+                .contentLength(size)
+                .build();
 
-        s3.putObject(bucket, key, pdf, metadata);
+        s3.putObject(request, RequestBody.fromInputStream(pdf, size));
         return key;
     }
 
     @Override
     public InputStream getStream(String key) {
-        return s3.getObject(bucket, key).getObjectContent();
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        return s3.getObject(request);
     }
 
     // ======================================================
@@ -63,18 +73,21 @@ public class S3OcrStorageService implements OcrStorageService {
     // ======================================================
 
     /**
-     * Generate a presigned URL for reading an S3 object.
+     * Generate a presigned URL for reading an S3/R2 object.
      * Used by OCR processor to avoid loading images into heap.
      */
     public String generatePresignedUrl(String key, Duration expiration) {
-        Date expirationDate = new Date(System.currentTimeMillis() + expiration.toMillis());
-        
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, key)
-                .withMethod(HttpMethod.GET)
-                .withExpiration(expirationDate);
-        
-        URL url = s3.generatePresignedUrl(request);
-        return url.toString();
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(expiration)
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
     /**
@@ -92,42 +105,41 @@ public class S3OcrStorageService implements OcrStorageService {
     public void uploadPagePng(Long bookId, int page, byte[] bytes) {
         String key = "%s/%d/pages/page-%04d.png".formatted(pagesPrefix, bookId, page);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentType("image/png");
-        metadata.setContentLength(bytes.length);
+        PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .contentType("image/png")
+                .contentLength((long) bytes.length)
+                .build();
 
-        s3.putObject(
-                bucket,
-                key,
-                new ByteArrayInputStream(bytes),
-                metadata
-        );
+        s3.putObject(request, RequestBody.fromBytes(bytes));
     }
 
     @Override
     public List<String> listPageKeys(Long bookId) {
         String prefix = "%s/%d/pages/".formatted(pagesPrefix, bookId);
         List<String> keys = new ArrayList<>();
-
-        ListObjectsV2Request request = new ListObjectsV2Request()
-                .withBucketName(bucket)
-                .withPrefix(prefix);
-
-        ListObjectsV2Result result;
+        String continuationToken = null;
 
         do {
-            result = s3.listObjectsV2(request);
+            ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
+                    .bucket(bucket)
+                    .prefix(prefix);
+            if (continuationToken != null) {
+                reqBuilder.continuationToken(continuationToken);
+            }
 
-            for (S3ObjectSummary summary : result.getObjectSummaries()) {
-                String key = summary.getKey();
+            ListObjectsV2Response result = s3.listObjectsV2(reqBuilder.build());
+
+            for (S3Object summary : result.contents()) {
+                String key = summary.key();
                 if (isImageKey(key)) {
                     keys.add(key);
                 }
             }
 
-            request.setContinuationToken(result.getNextContinuationToken());
-        }
-        while (result.isTruncated());
+            continuationToken = result.isTruncated() ? result.nextContinuationToken() : null;
+        } while (continuationToken != null);
 
         // Deterministic order: page-0001.png → page-0034.png
         keys.sort(String::compareTo);
@@ -146,7 +158,7 @@ public class S3OcrStorageService implements OcrStorageService {
         for (String key : keys) {
             String mime = resolveMimeFromKey(key);
             String presignedUrl = generatePresignedUrl(key);
-            
+
             pages.add(new PageItem(
                     bookId,
                     extractPageNumber(key),
@@ -160,13 +172,17 @@ public class S3OcrStorageService implements OcrStorageService {
     }
 
     /**
-     * Get page bytes directly from S3 (use sparingly - prefer presigned URLs).
+     * Get page bytes directly from S3/R2 (use sparingly - prefer presigned URLs).
      */
     public byte[] getPageBytes(String key) {
-        try (InputStream in = s3.getObject(bucket, key).getObjectContent()) {
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build();
+        try (InputStream in = s3.getObject(request)) {
             return in.readAllBytes();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to read page from S3: " + key, e);
+            throw new IllegalStateException("Failed to read page from S3/R2: " + key, e);
         }
     }
 
@@ -178,14 +194,15 @@ public class S3OcrStorageService implements OcrStorageService {
     public void moveToDeadLetter(String sourceKey, Long bookId, int page, String reason) {
         String targetKey = "%s/%d/page-%04d.png".formatted(deadLetterPrefix, bookId, page);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setUserMetadata(
-                Map.of("dlq-reason", sanitize(reason))
-        );
+        String encodedSource = URLEncoder.encode(bucket + "/" + sourceKey, StandardCharsets.UTF_8).replace("+", "%20");
 
-        CopyObjectRequest copyRequest =
-                new CopyObjectRequest(bucket, sourceKey, bucket, targetKey)
-                        .withNewObjectMetadata(metadata);
+        CopyObjectRequest copyRequest = CopyObjectRequest.builder()
+                .copySource(encodedSource)
+                .destinationBucket(bucket)
+                .destinationKey(targetKey)
+                .metadata(Map.of("dlq-reason", sanitize(reason)))
+                .metadataDirective(MetadataDirective.REPLACE)
+                .build();
 
         s3.copyObject(copyRequest);
     }
@@ -208,13 +225,6 @@ public class S3OcrStorageService implements OcrStorageService {
         return lower.endsWith(".png")
                 || lower.endsWith(".jpg")
                 || lower.endsWith(".jpeg");
-    }
-
-    private String resolveMime(ObjectMetadata meta, String key) {
-        if (meta != null && meta.getContentType() != null) {
-            return meta.getContentType();
-        }
-        return resolveMimeFromKey(key);
     }
 
     private String resolveMimeFromKey(String key) {
@@ -240,28 +250,28 @@ public class S3OcrStorageService implements OcrStorageService {
         String continuationToken = null;
 
         do {
-            ListObjectsV2Request request = new ListObjectsV2Request()
-                    .withBucketName(bucket)
-                    .withPrefix(prefix)
-                    .withContinuationToken(continuationToken);
-
-            ListObjectsV2Result result = s3.listObjectsV2(request);
-
-            List<DeleteObjectsRequest.KeyVersion> keys =
-                    result.getObjectSummaries()
-                            .stream()
-                            .map(o -> new DeleteObjectsRequest.KeyVersion(o.getKey()))
-                            .collect(Collectors.toList());
-
-            if (!keys.isEmpty()) {
-                s3.deleteObjects(
-                        new DeleteObjectsRequest(bucket).withKeys(keys)
-                );
+            ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
+                    .bucket(bucket)
+                    .prefix(prefix);
+            if (continuationToken != null) {
+                reqBuilder.continuationToken(continuationToken);
             }
 
-            continuationToken = result.getNextContinuationToken();
-        }
-        while (continuationToken != null);
+            ListObjectsV2Response result = s3.listObjectsV2(reqBuilder.build());
+
+            List<ObjectIdentifier> keys = result.contents().stream()
+                    .map(o -> ObjectIdentifier.builder().key(o.key()).build())
+                    .toList();
+
+            if (!keys.isEmpty()) {
+                s3.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(bucket)
+                        .delete(Delete.builder().objects(keys).build())
+                        .build());
+            }
+
+            continuationToken = result.isTruncated() ? result.nextContinuationToken() : null;
+        } while (continuationToken != null);
     }
 
     private String sanitize(String s) {
@@ -270,3 +280,4 @@ public class S3OcrStorageService implements OcrStorageService {
                 : s.substring(0, Math.min(180, s.length()));
     }
 }
+

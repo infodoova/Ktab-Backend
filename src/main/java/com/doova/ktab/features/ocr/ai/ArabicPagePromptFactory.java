@@ -16,15 +16,22 @@ import java.util.Map;
 @Component
 public class ArabicPagePromptFactory {
 
-    @Value("${ktab.ocr.system-prompt}")
+    @Value("${ktab.ocr.system-prompt:#{null}}")
     private String systemPrompt;
+
+    public String getSystemPrompt() {
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            return systemPrompt;
+        }
+        return OcrSystemPrompt.SYSTEM_PROMPT;
+    }
 
     public Prompt buildPrompt(byte[] imageBytes, String mime) {
 
         // 1) Render system prompt (kept identical to your pattern)
         PromptTemplate template = new PromptTemplate("{SYSTEM_PROMPT}");
         String rendered = template.render(
-                Map.of("SYSTEM_PROMPT", this.systemPrompt)
+                Map.of("SYSTEM_PROMPT", getSystemPrompt())
         );
 
         // 2) Wrap bytes into a Resource (REQUIRED in Spring AI 1.1.0)

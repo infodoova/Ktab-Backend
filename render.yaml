@@ -45,6 +45,22 @@ services:
         sync: false
       - key: ELEVENLABS_API_KEY
         sync: false
+      - key: CF_ACCOUNT_ID
+        sync: false
+      - key: CF_R2_ACCESS_KEY
+        sync: false
+      - key: CF_R2_SECRET_KEY
+        sync: false
+      - key: CF_R2_BUCKET_NAME
+        sync: false
+      - key: QSTASH_URL
+        value: https://qstash-eu-central-1.upstash.io
+      - key: QSTASH_TOKEN
+        sync: false
+      - key: QSTASH_CURRENT_SIGNING_KEY
+        sync: false
+      - key: QSTASH_NEXT_SIGNING_KEY
+        sync: false
       - key: AWS_ACCESS_KEY
         sync: false
       - key: AWS_SECRET_KEY

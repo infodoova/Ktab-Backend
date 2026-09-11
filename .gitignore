@@ -31,3 +31,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment files ###
+.env
+.env.development
+.env.production
+!.env.example
+!.env.schema
+

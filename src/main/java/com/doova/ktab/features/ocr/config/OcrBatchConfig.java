@@ -1,6 +1,7 @@
 package com.doova.ktab.features.ocr.config;
 
 import com.doova.ktab.features.ocr.ai.GeminiOcrService;
+import com.doova.ktab.features.ocr.ai.OcrSystemPrompt;
 import com.doova.ktab.features.ocr.batch.BookSectionWriter;
 import com.doova.ktab.features.ocr.batch.GeminiOcrProcessor;
 import com.doova.ktab.features.ocr.batch.OcrCleanUpListener;
@@ -62,7 +63,7 @@ public class OcrBatchConfig {
     @Value("${ktab.ocr.retryLimit:3}")
     private int retryLimit;
 
-    @Value("${ktab.ocr.systemPrompt}")
+    @Value("${ktab.ocr.systemPrompt:#{null}}")
     private String systemPrompt;
 
     @Value("${ktab.ocr.dpi:300}")
@@ -195,10 +196,13 @@ public class OcrBatchConfig {
 
     @Bean
     public GeminiOcrProcessor ocrProcessor() {
+        String prompt = (systemPrompt != null && !systemPrompt.isBlank())
+                ? systemPrompt
+                : OcrSystemPrompt.SYSTEM_PROMPT;
         return new GeminiOcrProcessor(
                 gemini,
                 gate,
-                systemPrompt,
+                prompt,
                 meterRegistry,
                 failureRateThreshold,
                 slowCallRateThreshold,

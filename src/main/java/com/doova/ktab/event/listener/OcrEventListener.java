@@ -35,8 +35,8 @@ public class OcrEventListener {
     private final OcrQueueService queueService;
     private final MeterRegistry meterRegistry;
 
-    @Value("${aws.sqs.ocr.worker-enabled:false}")
-    private boolean sqsWorkerEnabled;
+    @Value("${qstash.ocr.worker-enabled:${aws.sqs.ocr.worker-enabled:false}}")
+    private boolean queueWorkerEnabled;
 
     /**
      * Handle book published event - triggers OCR pipeline.
@@ -66,10 +66,10 @@ public class OcrEventListener {
             // Update book status to PENDING
             bookRepository.updateOcrStatus(event.bookId(), OcrStatus.PENDING);
 
-            if (sqsWorkerEnabled && queueService != null && queueService.isEnabled()) {
-                log.info("Dispatching OCR pages via SQS queue for bookId={}", event.bookId());
+            if (queueWorkerEnabled && queueService != null && queueService.isEnabled()) {
+                log.info("Dispatching OCR pages via queue for bookId={}", event.bookId());
                 int queuedPages = queueService.publishBookPages(event.bookId());
-                log.info("Queued {} pages for OCR processing via SQS for bookId={}", queuedPages, event.bookId());
+                log.info("Queued {} pages for OCR processing via queue for bookId={}", queuedPages, event.bookId());
             } else {
                 // Launch local Spring Batch job
                 JobParameters params = new JobParametersBuilder()

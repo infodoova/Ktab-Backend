@@ -88,6 +88,8 @@ public class WebSecurityConfig {
                                 "/favicon.ico",
                                 "/ws/**",
                                 "/api/v1/reader/organizations/**",
+                                "/api/v1/internal/ocr/**",
+                                "/internal/ocr/**",
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
