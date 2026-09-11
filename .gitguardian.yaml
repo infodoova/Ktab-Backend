@@ -1,0 +1,25 @@
+# GitGuardian Configuration (.gitguardian.yaml)
+# Documentation: https://docs.gitguardian.com/ggshield-docs/configuration/overview
+
+version: 2
+
+secret:
+  # Minimum severity threshold to fail checks (low, medium, high, critical)
+  minimum-severity: medium
+
+  # Paths to exclude from secret scanning
+  ignored-paths:
+    - "**/.git/**"
+    - "**/target/**"
+    - "**/build/**"
+    - "**/.mvn/**"
+    - "docs/**"
+    - "src/test/resources/**"
+    - ".env.example"
+    - ".env.schema"
+
+  # Do not print plain-text secrets in CLI/CI outputs
+  show-secrets: false
+
+  # Exit code 1 when secrets are detected to block commits/CI
+  exit-zero: false

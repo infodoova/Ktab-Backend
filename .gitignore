@@ -32,10 +32,37 @@ build/
 ### VS Code ###
 .vscode/
 
-### Environment files ###
-.env
-.env.development
-.env.production
+### GitGuardian & Secrets Security Policy ###
+# Environment and credential files
+.env*
 !.env.example
 !.env.schema
+*.env
 
+# Certificates, Keys & Keystores
+*.pem
+*.key
+*.pkcs12
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Cloud and Service Credentials
+*credentials*.json
+*service-account*.json
+client_secret*.json
+gcp-key*.json
+*token*.txt
+*secret*.txt
+
+# GitGuardian local ignores
+.gitguardian.local.yaml
+.gitguardian.yaml.local
+
+# Logs, Heap Dumps & Crash Reports
+*.log
+*.dump
+*.hprof
+hs_err_pid*
+replay_pid*

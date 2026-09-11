@@ -41,7 +41,10 @@ public class S3Config {
         return URI.create("https://s3." + region + ".amazonaws.com");
     }
 
-    private StaticCredentialsProvider getCredentialsProvider() {
+    private software.amazon.awssdk.auth.credentials.AwsCredentialsProvider getCredentialsProvider() {
+        if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
+            return StaticCredentialsProvider.create(AwsBasicCredentials.create("dummy-access-key", "dummy-secret-key"));
+        }
         AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
         return StaticCredentialsProvider.create(credentials);
     }

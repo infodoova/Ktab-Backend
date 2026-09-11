@@ -14,10 +14,13 @@ class QStashLivePublishTest {
     @Test
     @DisplayName("Publish live test message to Upstash QStash")
     void testPublishSingleMessageToQStash() {
+        String token = System.getenv().getOrDefault("QSTASH_TOKEN", "dummy-test-token");
+        String callbackUrl = System.getenv().getOrDefault("APP_BASE_URL", "http://localhost:8080") + "/api/v1/internal/ocr/process";
+
         QStashClient client = new QStashClient(RestClient.builder());
         ReflectionTestUtils.setField(client, "baseUrl", "https://qstash-eu-central-1.upstash.io");
-        ReflectionTestUtils.setField(client, "token", "eyJVc2VySUQiOiI5OTAzZGFmOS1hYjlmLTRiNDctOGVmMi0xYmVhMDYxMmNjMDciLCJQYXNzd29yZCI6IjA4NGVkM2U2Y2QyYjRmNWFiZDlkMGUyM2QxNTIwZTJlIn0=");
-        ReflectionTestUtils.setField(client, "callbackUrl", "https://melisa-balsamiferous-aubrie.ngrok-free.dev/api/v1/internal/ocr/process");
+        ReflectionTestUtils.setField(client, "token", token);
+        ReflectionTestUtils.setField(client, "callbackUrl", callbackUrl);
         ReflectionTestUtils.setField(client, "retries", 3);
 
         String payload = "{\"test\":\"ktab-live-publish-test\",\"timestamp\":\"" + System.currentTimeMillis() + "\"}";
