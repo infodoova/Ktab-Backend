@@ -37,7 +37,7 @@ public class BookDiscoveryController {
     // GET ALL BOOKS
     // ============================================================================================
     @Operation(summary = "Get all books (paginated)")
-    @GetMapping({"/books", "/viewBooks"})
+    @GetMapping("/books")
     @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getAllBooks(
             @RequestParam(defaultValue = "0") int page,
@@ -52,7 +52,7 @@ public class BookDiscoveryController {
     // SEARCH BOOKS
     // ============================================================================================
     @Operation(summary = "Search books")
-    @PostMapping({"/search", "/books/search"})
+    @PostMapping("/books/search")
     @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchBooks(@Valid @RequestBody BookSearchRequestDto requestDto) {
         Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size());
@@ -66,7 +66,7 @@ public class BookDiscoveryController {
     // GET BOOK BY ID
     // ============================================================================================
     @Operation(summary = "Get book by ID")
-    @GetMapping({"/books/{id}", "/viewBook/{id}"})
+    @GetMapping("/books/{id}")
     @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id) {
         BookResponseDto book = bookService.getBookById(id);
@@ -78,7 +78,7 @@ public class BookDiscoveryController {
     // GET SIMILAR BOOKS
     // ============================================================================================
     @Operation(summary = "Get similar books")
-    @GetMapping({"/books/{bookId}/similar", "/similar/{bookId}"})
+    @GetMapping("/books/{bookId}/similar")
     @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(
             @PathVariable Long bookId,
@@ -94,7 +94,7 @@ public class BookDiscoveryController {
     // GET BOOK COVERS (PUBLIC - NO AUTH REQUIRED)
     // ============================================================================================
     @Operation(summary = "Get book covers with titles (public endpoint)")
-    @GetMapping({"/covers", "/books/covers"})
+    @GetMapping("/covers")
     public ResponseEntity<ApiResponse<PageResponse<BookCoverResponse>>> getBookCovers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "18") int size

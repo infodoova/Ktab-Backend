@@ -35,7 +35,7 @@ public class LibrarianBookController {
     private final MessageSource messageSource;
 
     @Operation(summary = "Upload a book for the librarian's library organization")
-    @PostMapping(path = {"", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Valid @RequestPart("bookDto") LibrarianBookUploadRequest bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
@@ -47,7 +47,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Update a library book")
-    @PatchMapping(path = {"/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Valid @RequestPart(value = "bookDto", required = false) UpdateLibrarianBookRequest bookDto,
@@ -61,7 +61,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Get a single library book by ID")
-    @GetMapping(path = {"/{id}", "/book/{id}"})
+    @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(
             @PathVariable Long id,
             @CurrentUser User librarian
@@ -71,7 +71,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "List all books belonging to the librarian's organization")
-    @GetMapping(path = {"", "/myBooks"})
+    @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getMyLibraryBooks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -83,7 +83,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Delete a book from the library organization")
-    @DeleteMapping(path = {"/{id}", "/deleteBook/{id}"})
+    @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBook(
             @PathVariable Long id,
             @CurrentUser User librarian

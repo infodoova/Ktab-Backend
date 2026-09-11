@@ -35,7 +35,7 @@ public class LibraryAdminManagementController {
     private final MessageSource messageSource;
 
     @Operation(summary = "Get current administrator's library organization profile")
-    @GetMapping({"/my-organization", "/myOrganization", "/profile", ""})
+    @GetMapping("/organization")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> getMyOrganization(
             @CurrentUser User adminLibrarian
     ) {
@@ -44,7 +44,7 @@ public class LibraryAdminManagementController {
     }
 
     @Operation(summary = "Update current administrator's library organization profile")
-    @PatchMapping(path = {"/my-organization", "/myOrganization", "/profile", ""}, consumes = "application/json")
+    @PatchMapping(path = "/organization", consumes = "application/json")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> updateMyOrganization(
             @CurrentUser User adminLibrarian,
             @Valid @RequestBody UpdateLibraryOrganizationRequest req

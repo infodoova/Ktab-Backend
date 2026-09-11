@@ -1,5 +1,6 @@
 package com.doova.ktab.controller.v1.internal;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.features.ocr.dto.OcrCallbackResult;
 import com.doova.ktab.features.ocr.service.OcrCallbackService;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +15,9 @@ import org.springframework.web.bind.annotation.*;
  * Adheres strictly to Separation of Concerns: delegates all verification, parsing, metrics,
  * and processing logic to {@link OcrCallbackService}.
  */
+@ApiVersion(1)
 @RestController
-@RequestMapping({"/api/v1/internal/ocr", "/internal/ocr"})
+@RequestMapping(path = "/internal/ocr", produces = "application/json")
 @RequiredArgsConstructor
 @Slf4j
 public class OcrCallbackController {

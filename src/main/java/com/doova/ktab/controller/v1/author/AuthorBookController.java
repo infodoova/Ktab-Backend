@@ -38,11 +38,11 @@ public class AuthorBookController {
     // =========================================================
     // GET BOOKS BY AUTHOR
     // =========================================================
-    @Operation(summary = "Get books by author (current author or by author ID)")
-    @GetMapping({"/books", "/me/books", "/getBooksByAuthor", "/getBooksByAuthor/{authorId}", "/{authorId}/books"})
+    @Operation(summary = "Get books for current author (or filter by author ID)")
+    @GetMapping("/books")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getBooksByAuthor(
             @CurrentUser User author,
-            @PathVariable(required = false) Long authorId,
+            @RequestParam(required = false) Long authorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size,
             @RequestParam(required = false) String status) {
@@ -58,7 +58,7 @@ public class AuthorBookController {
     // GET BOOK BY ID (AUTHOR)
     // =========================================================
     @Operation(summary = "Get book by ID for current author")
-    @GetMapping({"/books/{id}", "/book/{id}"})
+    @GetMapping("/books/{id}")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id, @CurrentUser User author) {
         BookResponseDto book = bookService.getBookByIdForAuthor(id, author);
 
@@ -69,7 +69,7 @@ public class AuthorBookController {
     // CREATE BOOK
     // =========================================================
     @Operation(summary = "Create and publish a new book")
-    @PostMapping(path = {"/books", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "/books", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Validated(CreateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
@@ -85,7 +85,7 @@ public class AuthorBookController {
     // UPDATE BOOK
     // =========================================================
     @Operation(summary = "Update an existing book")
-    @PatchMapping(path = {"/books/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = "/books/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Validated(UpdateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
@@ -102,7 +102,7 @@ public class AuthorBookController {
     // DELETE BOOK
     // =========================================================
     @Operation(summary = "Delete an author book")
-    @DeleteMapping({"/books/{id}", "/deleteBook/{id}"})
+    @DeleteMapping("/books/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBook(@PathVariable Long id, @CurrentUser User author) {
         bookService.deleteBook(id, author);
 
