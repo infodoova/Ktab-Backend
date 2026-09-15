@@ -34,7 +34,7 @@ This guide walks you through deploying the **Ktab Backend** to an online **Conta
 ## 📋 Prerequisites
 
 1. A **Contabo VPS** running **Ubuntu 22.04 LTS** or **Ubuntu 24.04 LTS**.
-2. Your Contabo VPS **IP Address** and **Root Password** (found in your Contabo Customer Control Panel email).
+2. Your Contabo VPS **IP Address** and **Root/Admin Password** (found in your Contabo Customer Control Panel email).
 3. A terminal / SSH client (Terminal on macOS/Linux, PowerShell or PuTTY on Windows).
 
 ---
@@ -44,9 +44,9 @@ This guide walks you through deploying the **Ktab Backend** to an online **Conta
 Open your terminal or PowerShell and run:
 
 ```bash
-ssh root@<YOUR_CONTABO_VPS_IP>
+ssh ktabadmin@<YOUR_CONTABO_VPS_IP>
 ```
-*(Enter your root password when prompted)*
+*(Enter your password when prompted. Replace `ktabadmin` with your actual VPS username.)*
 
 ---
 
@@ -55,7 +55,7 @@ ssh root@<YOUR_CONTABO_VPS_IP>
 ### Option A: Via Git (Recommended)
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Ktab-Backend.git
+git clone https://github.com/infodoova/Ktab-Backend.git
 
 # Enter project directory
 cd Ktab-Backend
@@ -64,7 +64,7 @@ cd Ktab-Backend
 ### Option B: Via SCP from your local machine
 ```bash
 # Run this on your local Windows PowerShell:
-scp -r "c:\Users\PC\IdeaProjects\Ktab-Backend" root@<YOUR_CONTABO_VPS_IP>:/root/Ktab-Backend
+scp -r "c:\Users\PC\IdeaProjects\Ktab-Backend" ktabadmin@<YOUR_CONTABO_VPS_IP>:~/Ktab-Backend
 ```
 
 ---
@@ -84,6 +84,13 @@ Run:
 sudo bash scripts/vps_setup.sh
 ```
 
+### Allow running Docker without `sudo` (Recommended)
+After the setup script finishes, add your user to the docker group so you don't need `sudo` for every Docker command:
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
 ---
 
 ## Step 4: Configure Your Environment Variables
@@ -91,7 +98,7 @@ sudo bash scripts/vps_setup.sh
 Create or edit your `.env.production` file on the VPS:
 
 ```bash
-nano .env.production
+nano ~/Ktab-Backend/.env.production
 ```
 
 Ensure the following critical variables are set:
@@ -104,6 +111,10 @@ DB_PASSWORD=choose_a_strong_password_here
 
 # Application security
 JWT_SECRET=your_high_entropy_256bit_base64_secret
+
+# Mail (SMTP)
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_gmail_app_password
 
 # AI & external services
 OPENAI_API_KEY=your_openai_key
@@ -129,9 +140,8 @@ QSTASH_VERIFY_SIGNATURE=true
 
 ## Step 5: Deploy the Application
 
-Run the automated deployment script:
-
 ```bash
+cd ~/Ktab-Backend
 bash scripts/deploy.sh
 ```
 
@@ -141,6 +151,8 @@ This script will:
 3. Launch `ktab-app`, execute Flyway migrations (`V1` through `V4` including all genres and subgenres).
 4. Launch `ktab-nginx` reverse proxy.
 5. Prune dangling Docker build artifacts.
+
+> **Permission denied on Docker?** Run `sudo bash scripts/deploy.sh` or add your user to the docker group (see Step 3).
 
 ---
 
@@ -160,11 +172,11 @@ You should see:
 ### Test Endpoints via Public IP:
 In your browser or curl:
 ```bash
-# Test Nginx status:
-curl http://<YOUR_CONTABO_VPS_IP>/health
+# Test application health (unauthenticated):
+curl http://<YOUR_CONTABO_VPS_IP>/actuator/health
 
-# Test Ktab Genres API:
-curl http://<YOUR_CONTABO_VPS_IP>/api/v1/genres
+# Test via Nginx reverse proxy:
+curl http://<YOUR_CONTABO_VPS_IP>/actuator/health
 ```
 
 ---
@@ -190,20 +202,26 @@ docker compose --env-file .env.production restart
 
 ### 3. Deploy Updates / Rebuild After Code Changes
 ```bash
+cd ~/Ktab-Backend
 git pull origin master
 bash scripts/deploy.sh
 ```
 
 ### 4. Database Backups
+First, ensure the backups directory exists:
+```bash
+mkdir -p ~/Ktab-Backend/backups
+```
+
 To take an instant gzipped PostgreSQL backup on the VPS:
 ```bash
-bash scripts/backup_db.sh
+bash ~/Ktab-Backend/scripts/backup_db.sh
 ```
-*Backups are saved to `./backups/` and automatically rotated (retaining the last 7 days).*
+*Backups are saved to `~/Ktab-Backend/backups/` and automatically rotated (retaining the last 7 days).*
 
 To schedule **daily automated backups at 3:00 AM**, add this to crontab (`crontab -e`):
 ```cron
-0 3 * * * /bin/bash /root/Ktab-Backend/scripts/backup_db.sh >> /var/log/ktab_backup.log 2>&1
+0 3 * * * /bin/bash /home/ktabadmin/Ktab-Backend/scripts/backup_db.sh >> /var/log/ktab_backup.log 2>&1
 ```
 
 ### 5. Migrating / Restoring Local Database to Contabo VPS
@@ -211,12 +229,17 @@ To schedule **daily automated backups at 3:00 AM**, add this to crontab (`cronta
    ```powershell
    powershell -File scripts/backup_local_db.ps1
    ```
-2. **Transfer the dump file to the VPS**:
-   ```powershell
-   scp backups/ktab_backup.sql root@<YOUR_CONTABO_VPS_IP>:/root/Ktab-Backend/backups/
-   ```
-3. **On your Contabo VPS**, run the restore script:
+2. **Create the backups directory on the VPS** (first time only):
    ```bash
+   ssh ktabadmin@<YOUR_CONTABO_VPS_IP> "mkdir -p ~/Ktab-Backend/backups"
+   ```
+3. **Transfer the dump file to the VPS**:
+   ```powershell
+   scp backups\ktab_backup.sql ktabadmin@<YOUR_CONTABO_VPS_IP>:~/Ktab-Backend/backups/
+   ```
+4. **On your Contabo VPS**, run the restore script:
+   ```bash
+   cd ~/Ktab-Backend
    bash scripts/restore_db.sh backups/ktab_backup.sql
    ```
    *The script restores all tables/data into `ktab-db` and automatically restarts `ktab-app` to refresh connections.*
@@ -231,6 +254,6 @@ When you are ready to link a domain (e.g., `api.ktab.app` or `backend.yourdomain
 2. Wait 2–5 minutes for DNS propagation.
 3. Run the automated SSL setup script on the VPS:
    ```bash
-   sudo bash scripts/setup_ssl.sh api.yourdomain.com admin@yourdomain.com
+   sudo bash ~/Ktab-Backend/scripts/setup_ssl.sh api.yourdomain.com admin@yourdomain.com
    ```
 4. Done! Your backend is now serving on `https://api.yourdomain.com` with automatic HTTP-to-HTTPS redirection and auto-renewing SSL certificates.
