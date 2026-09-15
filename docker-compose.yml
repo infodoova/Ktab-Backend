@@ -47,7 +47,7 @@ services:
     networks:
       - ktab-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/genres || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

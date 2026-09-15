@@ -66,5 +66,5 @@ echo "============================================================"
 docker compose --env-file .env.production ps
 echo "============================================================"
 echo "  ✅ Ktab Backend is up and running!"
-echo "  You can test it by visiting: http://$(curl -s https://api.ipify.org || echo '<YOUR_VPS_IP>')/api/v1/genres"
+echo "  You can test it by visiting: http://$(curl -s https://api.ipify.org || echo '<YOUR_VPS_IP>')/actuator/health"
 echo "============================================================"
