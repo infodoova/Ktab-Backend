@@ -83,12 +83,37 @@ services:
         max-size: "20m"
         max-file: "5"
 
+  ktab-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ktab-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@ktab.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-changeme}
+      PGADMIN_CONFIG_SERVER_MODE: "True"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - ktab-network
+    depends_on:
+      - ktab-db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   postgres_data:
     driver: local
   certbot_conf:
     driver: local
   certbot_www:
+    driver: local
+  pgadmin_data:
     driver: local
 
 networks:
