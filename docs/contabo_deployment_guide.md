@@ -246,14 +246,57 @@ To schedule **daily automated backups at 3:00 AM**, add this to crontab (`cronta
 
 ---
 
-## 🌐 Attaching a Domain & Free SSL (Certbot)
+## 🌐 Attaching Subdomain (`api.ktab.app`) & Free SSL (Let's Encrypt)
 
-When you are ready to link a domain (e.g., `api.ktab.app` or `backend.yourdomain.com`):
+To connect `api.ktab.app` to your Contabo VPS and enable HTTPS for your Vercel frontend:
 
-1. **Point your domain's DNS A-Record** to `<YOUR_CONTABO_VPS_IP>` in your domain registrar (e.g. Cloudflare, Namecheap, GoDaddy).
-2. Wait 2–5 minutes for DNS propagation.
-3. Run the automated SSL setup script on the VPS:
+### Step 7.1: Add DNS A Record in your Domain Registrar (Cloudflare, Namecheap, GoDaddy, etc.)
+1. Log in to your DNS provider for **ktab.app**.
+2. Add a new **A Record**:
+   - **Type**: `A`
+   - **Name / Host**: `api`
+   - **IPv4 Address**: `31.220.94.53` (Your Contabo VPS IP)
+   - **TTL**: Auto or 1–5 minutes
+   - *(If using Cloudflare: Set Proxy status to **DNS only** (Grey Cloud) during initial certificate issuance).*
+3. Verify DNS is pointing to the VPS (from your terminal):
    ```bash
-   sudo bash ~/Ktab-Backend/scripts/setup_ssl.sh api.yourdomain.com admin@yourdomain.com
+   ping api.ktab.app
+   # or
+   nslookup api.ktab.app
    ```
-4. Done! Your backend is now serving on `https://api.yourdomain.com` with automatic HTTP-to-HTTPS redirection and auto-renewing SSL certificates.
+   *(It must return `31.220.94.53` before continuing).*
+
+---
+
+### Step 7.2: Generate SSL & Enable HTTPS on VPS
+Run this single command on your Contabo VPS:
+```bash
+sudo bash ~/Ktab-Backend/scripts/setup_ssl.sh api.ktab.app admin@ktab.app
+```
+*(Replace `admin@ktab.app` with your real email address for renewal notices).*
+
+This automated script:
+- Requests a verified Let's Encrypt certificate for `api.ktab.app`
+- Configures Nginx with HTTP-to-HTTPS redirect (301)
+- Enables HTTP/2, modern TLS 1.2/1.3 ciphers, and 100M upload limits
+- Sets up an automatic certificate renewal hook
+- Restarts `ktab-nginx`
+
+---
+
+### Step 7.3: Verify HTTPS Endpoint
+```bash
+curl -I https://api.ktab.app/actuator/health
+```
+You should see `HTTP/2 200` with `{"status":"UP"}`.
+
+---
+
+### Step 7.4: Connect Frontend (Vercel)
+In your **Vercel Dashboard** $\rightarrow$ **ktab-rho** $\rightarrow$ **Settings** $\rightarrow$ **Environment Variables**:
+- Update your API base URL to:
+  ```
+  https://api.ktab.app
+  ```
+- Trigger a redeployment on Vercel. Now your frontend talks to your backend securely over HTTPS with zero mixed-content issues!
+

@@ -20,6 +20,10 @@ echo "============================================================"
 echo "  🔒 Setting up Let's Encrypt SSL for: $DOMAIN"
 echo "============================================================"
 
+# Ensure challenge and cert directories exist
+mkdir -p /var/www/certbot
+mkdir -p /etc/letsencrypt
+
 # Install Certbot if not already installed
 if ! command -v certbot >/dev/null 2>&1; then
   echo "[*] Installing Certbot..."
@@ -28,14 +32,14 @@ if ! command -v certbot >/dev/null 2>&1; then
 fi
 
 # Request certificate using webroot
-echo "[*] Requesting SSL certificate..."
+echo "[*] Requesting SSL certificate from Let's Encrypt for $DOMAIN..."
 certbot certonly --webroot \
-  -w /var/lib/docker/volumes/ktab-backend_certbot_www/_data \
+  -w /var/www/certbot \
   -d "$DOMAIN" \
   --email "$EMAIL" \
   --agree-tos \
   --no-eff-email \
-  --force-renewal || certbot certonly --standalone -d "$DOMAIN" --email "$EMAIL" --agree-tos --no-eff-email
+  --non-interactive
 
 # Write updated Nginx configuration with SSL
 echo "[*] Updating Nginx configuration for HTTPS..."
@@ -57,8 +61,9 @@ server {
 
 # HTTPS Server
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
     server_name ${DOMAIN};
 
     ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
@@ -104,10 +109,19 @@ server {
 }
 EOF
 
+# Setup automatic renewal deploy hook
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+cat << 'HOOK' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+#!/bin/bash
+docker exec ktab-nginx nginx -s reload 2>/dev/null || true
+HOOK
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+
 # Reload Nginx
 echo "[*] Reloading Nginx container..."
-docker compose exec ktab-nginx nginx -s reload || docker compose restart ktab-nginx
+docker compose -f "${ROOT_DIR}/docker-compose.yml" --env-file "${ROOT_DIR}/.env.production" restart ktab-nginx
 
 echo "============================================================"
 echo "  ✅ SSL configured successfully for https://${DOMAIN}"
+echo "  🔄 Automatic renewal hook installed at /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh"
 echo "============================================================"
