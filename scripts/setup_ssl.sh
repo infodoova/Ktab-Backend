@@ -31,10 +31,13 @@ if ! command -v certbot >/dev/null 2>&1; then
   apt-get install -y certbot
 fi
 
-# Request certificate using webroot
+# Temporarily stop ktab-nginx to free port 80 for standalone ACME challenge
+echo "[*] Temporarily stopping ktab-nginx to free port 80..."
+docker stop ktab-nginx 2>/dev/null || true
+
+# Request certificate using standalone mode
 echo "[*] Requesting SSL certificate from Let's Encrypt for $DOMAIN..."
-certbot certonly --webroot \
-  -w /var/www/certbot \
+certbot certonly --standalone \
   -d "$DOMAIN" \
   --email "$EMAIL" \
   --agree-tos \
@@ -109,19 +112,25 @@ server {
 }
 EOF
 
-# Setup automatic renewal deploy hook
-mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-cat << 'HOOK' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+# Setup automatic renewal hooks
+mkdir -p /etc/letsencrypt/renewal-hooks/pre /etc/letsencrypt/renewal-hooks/post
+cat << 'HOOK' > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
 #!/bin/bash
-docker exec ktab-nginx nginx -s reload 2>/dev/null || true
+docker stop ktab-nginx 2>/dev/null || true
 HOOK
-chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+chmod +x /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
 
-# Reload Nginx
-echo "[*] Reloading Nginx container..."
-docker compose -f "${ROOT_DIR}/docker-compose.yml" --env-file "${ROOT_DIR}/.env.production" restart ktab-nginx
+cat << 'HOOK' > /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+#!/bin/bash
+docker start ktab-nginx 2>/dev/null || true
+HOOK
+chmod +x /etc/letsencrypt/renewal-hooks/post/start-nginx.sh
+
+# Recreate and start Nginx container with SSL mounts
+echo "[*] Starting Nginx container with SSL..."
+docker compose -f "${ROOT_DIR}/docker-compose.yml" --env-file "${ROOT_DIR}/.env.production" up -d --force-recreate ktab-nginx
 
 echo "============================================================"
 echo "  ✅ SSL configured successfully for https://${DOMAIN}"
-echo "  🔄 Automatic renewal hook installed at /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh"
+echo "  🔄 Automatic renewal hooks installed in /etc/letsencrypt/renewal-hooks/"
 echo "============================================================"
