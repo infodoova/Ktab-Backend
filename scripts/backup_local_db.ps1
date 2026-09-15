@@ -42,7 +42,7 @@ if (Test-Path $OutputFile) {
     $size = (Get-Item $OutputFile).Length / 1KB
     Write-Host "✅ Backup successful: $OutputFile ($([Math]::Round($size, 2)) KB)" -ForegroundColor Green
     Write-Host "To send to your Contabo VPS, run:" -ForegroundColor Yellow
-    Write-Host "scp $OutputFile root@<YOUR_CONTABO_VPS_IP>:/root/Ktab-Backend/backups/" -ForegroundColor White
+    Write-Host "    scp $OutputFile ktabadmin@<YOUR_CONTABO_VPS_IP>:~/Ktab-Backend/backups/" -ForegroundColor White
 } else {
     Write-Error "Backup file was not created."
 }

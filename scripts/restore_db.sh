@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 ###############################################################################
 # Ktab Backend - PostgreSQL Database Restore Script
-# Usage: bash scripts/restore_db.sh <path_to_dump.sql or path_to_dump.sql.gz>
+# Supports both plain SQL dumps and custom-format dumps (pg_dump -Fc / pgAdmin)
+# Usage:   bash scripts/restore_db.sh <dump_file>
 # Example: bash scripts/restore_db.sh backups/ktab_backup.sql
 ###############################################################################
 
@@ -54,12 +55,36 @@ if [ -t 0 ]; then
   fi
 fi
 
+# Detect dump format: PostgreSQL custom format starts with bytes 'PGDMP'
+echo "[*] Detecting backup format..."
+FILE_TO_CHECK="$BACKUP_FILE"
+if [[ "$BACKUP_FILE" == *.gz ]]; then
+  # Peek at the first 5 bytes of the gzipped file
+  MAGIC=$(gunzip -c "$BACKUP_FILE" 2>/dev/null | head -c 5)
+else
+  MAGIC=$(head -c 5 "$BACKUP_FILE")
+fi
+
 # Execute restore
 echo "[*] Executing database restore..."
-if [[ "$BACKUP_FILE" == *.gz ]]; then
-  gunzip -c "$BACKUP_FILE" | docker exec -i ktab-db psql -U "$DB_USER" -d "$DB_NAME" -q
+if [[ "$MAGIC" == "PGDMP" ]]; then
+  echo "    Detected: PostgreSQL custom format — using pg_restore"
+  if [[ "$BACKUP_FILE" == *.gz ]]; then
+    gunzip -c "$BACKUP_FILE" | docker exec -i ktab-db pg_restore \
+      -U "$DB_USER" -d "$DB_NAME" \
+      --no-owner --no-acl --clean --if-exists -v 2>&1 | tail -20
+  else
+    docker exec -i ktab-db pg_restore \
+      -U "$DB_USER" -d "$DB_NAME" \
+      --no-owner --no-acl --clean --if-exists -v < "$BACKUP_FILE" 2>&1 | tail -20
+  fi
 else
-  docker exec -i ktab-db psql -U "$DB_USER" -d "$DB_NAME" -q < "$BACKUP_FILE"
+  echo "    Detected: Plain SQL format — using psql"
+  if [[ "$BACKUP_FILE" == *.gz ]]; then
+    gunzip -c "$BACKUP_FILE" | docker exec -i ktab-db psql -U "$DB_USER" -d "$DB_NAME" -q
+  else
+    docker exec -i ktab-db psql -U "$DB_USER" -d "$DB_NAME" -q < "$BACKUP_FILE"
+  fi
 fi
 
 echo "[*] Database restored successfully."
