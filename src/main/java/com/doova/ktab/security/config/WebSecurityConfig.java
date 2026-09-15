@@ -6,6 +6,7 @@ import com.doova.ktab.security.filter.JwtFilter;
 import com.doova.ktab.security.filter.RateLimitingFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,6 +30,7 @@ import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -40,8 +42,8 @@ public class WebSecurityConfig {
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
-    private List<String> allowedOrigins;
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,https://ktab-rho.vercel.app,https://melisa-balsamiferous-aubrie.ngrok-free.dev}")
+    private String allowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -49,14 +51,25 @@ public class WebSecurityConfig {
             AuthenticationProvider authProvider
     ) throws Exception {
 
+        List<String> sanitizedOrigins = java.util.Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .map(o -> o.replaceFirst("^(https?://[^/]+).*", "$1"))
+                .distinct()
+                .toList();
+
+        log.info("Initialized CORS allowed origins: {}", sanitizedOrigins);
+
         http
                 // Disable CSRF for REST APIs
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // Global CORS
                 .cors(cors -> cors.configurationSource(request -> {
+                    String reqOrigin = request.getHeader("Origin");
+                    log.info("CORS check for Origin: {}, Method: {}, Path: {}", reqOrigin, request.getMethod(), request.getRequestURI());
                     CorsConfiguration config = new CorsConfiguration();
-                    config.setAllowedOrigins(allowedOrigins);
+                    config.setAllowedOriginPatterns(sanitizedOrigins);
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
                     config.setExposedHeaders(List.of(
@@ -103,6 +116,9 @@ public class WebSecurityConfig {
 
                 // Route authorization (single unified block)
                 .authorizeHttpRequests(auth -> auth
+                        // Always permit preflight CORS OPTIONS requests
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
                         // SSE & Error dispatchers
                         .dispatcherTypeMatchers(
                                 DispatcherType.ASYNC,
@@ -113,6 +129,7 @@ public class WebSecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/reader/covers",
+                                "/api/v1/reader/books/covers",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",

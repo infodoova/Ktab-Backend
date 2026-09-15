@@ -31,4 +31,6 @@ public interface LibrarianBookService {
     void deleteBook(Long id, User librarian);
 
     PageResponse<BookResponseDto> getPublishedBooksByLibrary(Long libraryOrgId, int page, int size);
+
+    com.doova.ktab.dto.book.BookSourceFileResponseDto getSourceFileForLibrarian(Long bookId, User librarian);
 }

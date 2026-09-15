@@ -149,6 +149,27 @@ public class S3Service implements FileStorageService {
         return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
+    @Override
+    public String getPreSignedDownloadUrl(String keyName, Duration duration, String downloadFilename) {
+        GetObjectRequest.Builder getRequestBuilder = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(keyName)
+                .responseCacheControl("private, no-store, max-age=0");
+
+        if (downloadFilename != null && !downloadFilename.isBlank()) {
+            getRequestBuilder.responseContentDisposition("attachment; filename=\"" + downloadFilename.replace("\"", "") + "\"");
+        } else {
+            getRequestBuilder.responseContentDisposition("attachment");
+        }
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(duration)
+                .getObjectRequest(getRequestBuilder.build())
+                .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
     // ======================================================
     // DELETE FILE
     // ======================================================

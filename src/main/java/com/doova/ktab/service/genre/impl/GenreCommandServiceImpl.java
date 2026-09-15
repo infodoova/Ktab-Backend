@@ -28,33 +28,67 @@ public class GenreCommandServiceImpl implements GenreCommandService {
     @Override
     @Transactional
     public MainGenreDTO save(MainGenreDTO dto) {
-        MainGenre mainGenre = dto.getId() != null ? mainRepo.findById(dto.getId()).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.GENRE_NOT_FOUND.getKey())) : new MainGenre();
+        MainGenre mainGenre = dto.getId() != null
+                ? mainRepo.findById(dto.getId()).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.GENRE_NOT_FOUND.getKey()))
+                : new MainGenre();
 
-        mainGenre.setNameEn(dto.getNameEn());
-        mainGenre.setNameAr(dto.getNameAr());
-        mainGenre.setDescription(dto.getDescription());
+        // Backward compatibility: Support both unified 'name' and legacy 'nameAr' / 'nameEn'
+        if (dto.getNameAr() != null && !dto.getNameAr().isBlank()) {
+            mainGenre.setNameAr(dto.getNameAr());
+        } else if (dto.getName() != null && !dto.getName().isBlank()) {
+            mainGenre.setNameAr(dto.getName());
+        }
 
-        syncSubGenres(mainGenre, dto.getSubGenres());
+        if (dto.getNameEn() != null && !dto.getNameEn().isBlank()) {
+            mainGenre.setNameEn(dto.getNameEn());
+        } else if (dto.getName() != null && !dto.getName().isBlank() && mainGenre.getNameEn() == null) {
+            mainGenre.setNameEn(dto.getName());
+        }
+
+        if (dto.getDescription() != null) {
+            mainGenre.setDescription(dto.getDescription());
+        }
+
+        if (dto.getSubGenres() != null) {
+            syncSubGenres(mainGenre, dto.getSubGenres());
+        }
 
         return genreMapper.toMainGenreDTO(mainRepo.save(mainGenre));
     }
 
     private void syncSubGenres(MainGenre mainGenre, List<SubGenreDTO> subGenreDTOs) {
         if (subGenreDTOs == null || subGenreDTOs.isEmpty()) {
-            mainGenre.clearSubGenres();
             return;
         }
 
-        Map<Long, SubGenre> existing = mainGenre.getSubGenres().stream().collect(Collectors.toMap(SubGenre::getId, Function.identity()));
+        Map<Long, SubGenre> existing = mainGenre.getSubGenres().stream()
+                .filter(s -> s.getId() != null)
+                .collect(Collectors.toMap(SubGenre::getId, Function.identity()));
 
         for (SubGenreDTO dto : subGenreDTOs) {
-            SubGenre subGenre = dto.getId() != null && existing.containsKey(dto.getId()) ? existing.get(dto.getId()) : new SubGenre();
+            SubGenre subGenre = (dto.getId() != null && existing.containsKey(dto.getId()))
+                    ? existing.get(dto.getId())
+                    : new SubGenre();
 
-            subGenre.setNameEn(dto.getNameEn());
-            subGenre.setNameAr(dto.getNameAr());
-            subGenre.setDescription(dto.getDescription());
+            if (dto.getNameAr() != null && !dto.getNameAr().isBlank()) {
+                subGenre.setNameAr(dto.getNameAr());
+            } else if (dto.getName() != null && !dto.getName().isBlank()) {
+                subGenre.setNameAr(dto.getName());
+            }
 
-            mainGenre.addSubGenre(subGenre);
+            if (dto.getNameEn() != null && !dto.getNameEn().isBlank()) {
+                subGenre.setNameEn(dto.getNameEn());
+            } else if (dto.getName() != null && !dto.getName().isBlank() && subGenre.getNameEn() == null) {
+                subGenre.setNameEn(dto.getName());
+            }
+
+            if (dto.getDescription() != null) {
+                subGenre.setDescription(dto.getDescription());
+            }
+
+            if (subGenre.getId() == null) {
+                mainGenre.addSubGenre(subGenre);
+            }
         }
     }
 }

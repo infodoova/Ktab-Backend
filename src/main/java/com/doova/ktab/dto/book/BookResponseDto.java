@@ -28,8 +28,13 @@ public class BookResponseDto {
     private Integer totalReviews;
 
     private String coverImageUrl;
+
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private String pdfDownloadUrl;
+
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private String pdfFileName;
+
     private String authorName;
 
     private BookStatus status;

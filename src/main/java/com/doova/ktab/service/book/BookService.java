@@ -30,4 +30,6 @@ public interface BookService {
     PageResponse<BookResponseDto> searchBooks(BookSearchRequestDto req, Pageable pageable);
 
     PageResponse<BookCoverResponse> getBookCovers(int page, int size);
+
+    com.doova.ktab.dto.book.BookSourceFileResponseDto getSourceFileForAuthor(Long bookId, User author);
 }

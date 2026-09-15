@@ -17,14 +17,19 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final ReaderTtsWebSocketHandler readerTtsWebSocketHandler;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,https://ktab-rho.vercel.app}")
     private List<String> allowedOrigins;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         String[] origins = (allowedOrigins != null && !allowedOrigins.isEmpty())
-                ? allowedOrigins.toArray(new String[0])
-                : new String[]{"http://localhost:3000"};
+                ? allowedOrigins.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .map(String::trim)
+                    .map(o -> o.replaceFirst("^(https?://[^/]+).*", "$1"))
+                    .distinct()
+                    .toArray(String[]::new)
+                : new String[]{"http://localhost:3000", "https://ktab-rho.vercel.app"};
 
         registry.addHandler(readerTtsWebSocketHandler, "/ws/reader/tts")
                 .setAllowedOrigins(origins);

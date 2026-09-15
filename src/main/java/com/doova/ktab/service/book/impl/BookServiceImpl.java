@@ -5,6 +5,7 @@ import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookSearchRequestDto;
 import com.doova.ktab.dto.book.BookCoverResponse;
 import com.doova.ktab.dto.book.BookResponseDto;
+import com.doova.ktab.enums.book.BookSource;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.book.UrlStrategy;
 import com.doova.ktab.enums.status.BookStatus;
@@ -37,9 +38,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+import java.time.Instant;
+import com.doova.ktab.dto.book.BookSourceFileResponseDto;
+import com.doova.ktab.exception.ResourceNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BookServiceImpl implements BookService {
@@ -73,7 +80,7 @@ public class BookServiceImpl implements BookService {
         // Files must be handled before we try to get the pdfKey
         bookFileService.handleCreateFiles(savedBook, cover, pdf);
 
-        return responseBuilder.build(savedBook);
+        return responseBuilder.build(savedBook, true);
     }
 
     // =========================================================
@@ -101,7 +108,7 @@ public class BookServiceImpl implements BookService {
             eventPublisher.publishEvent(new BookPublishedEvent(savedBook.getId(), pdfKey));
         }
 
-        return responseBuilder.build(savedBook);
+        return responseBuilder.build(savedBook, true);
     }
 
     // =========================================================
@@ -111,7 +118,7 @@ public class BookServiceImpl implements BookService {
     @Transactional(readOnly = true)
     public BookResponseDto getBookByIdForAuthor(Long id, User author) {
         Book book = bookRepository.findByIdAndAuthor(id, author).orElseThrow(() -> new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_FOUND));
-        return responseBuilder.build(book);
+        return responseBuilder.build(book, true);
     }
 
     // =========================================================
@@ -136,9 +143,9 @@ public class BookServiceImpl implements BookService {
             } catch (IllegalArgumentException e) {
                 throw new BadRequestException(ApiMessageKey.BOOK_INVALID_STATUS);
             }
-            pageResult = bookRepository.findAllByAuthorIdAndStatus(authorId, bookStatus, pageable);
+            pageResult = bookRepository.findAllByAuthorIdAndStatusAndBookSource(authorId, bookStatus, BookSource.AUTHOR, pageable);
         } else {
-            pageResult = bookRepository.findAllByAuthorId(authorId, pageable);
+            pageResult = bookRepository.findAllByAuthorIdAndBookSource(authorId, BookSource.AUTHOR, pageable);
         }
 
         return mapBookPage(pageResult);
@@ -177,7 +184,7 @@ public class BookServiceImpl implements BookService {
 
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
 
-        var booksPage = bookRepository.findAll(pageable);
+        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
 
         return new PageResponse<>(booksPage.getContent().stream().map(responseBuilder::build).toList(), booksPage.getNumber(), booksPage.getSize(), booksPage.getTotalElements(), booksPage.getTotalPages(), booksPage.isLast());
     }
@@ -261,6 +268,10 @@ public class BookServiceImpl implements BookService {
             predicates.add(cb.ge(root.get("averageRating"), req.minAverageRating()));
         }
 
+        // BOOK SOURCE: Only return author books, exclude librarian / institutional books
+        BookSource source = req.bookSource() != null ? req.bookSource() : BookSource.AUTHOR;
+        predicates.add(cb.equal(root.get("bookSource"), source));
+
         return predicates;
     }
 
@@ -273,7 +284,7 @@ public class BookServiceImpl implements BookService {
         enablePublishedFilter();
 
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
-        var booksPage = bookRepository.findAll(pageable);
+        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
 
         List<BookCoverResponse> covers = booksPage.getContent().stream()
                 .map(book -> {
@@ -312,6 +323,33 @@ public class BookServiceImpl implements BookService {
     // HELPER
     // =========================================================
     private PageResponse<BookResponseDto> mapBookPage(org.springframework.data.domain.Page<Book> page) {
-        return new PageResponse<>(page.getContent().stream().map(responseBuilder::build).toList(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isLast());
+        return new PageResponse<>(page.getContent().stream().map(b -> responseBuilder.build(b, true)).toList(), page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages(), page.isLast());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookSourceFileResponseDto getSourceFileForAuthor(Long bookId, User author) {
+        Book book = bookRepository.findByIdAndAuthor(bookId, author)
+                .orElseThrow(() -> {
+                    log.warn("SECURITY_ALERT: Unauthorized attempt by User ID {} ({}) to access source file of Book ID {}",
+                            author.getId(), author.getEmail(), bookId);
+                    return new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_FOUND);
+                });
+
+        Attachment pdf = attachmentService.getAttachment(book.getId(), "Book", "PDF_SOURCE")
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.BOOK_OCR_PDF_MISSING));
+
+        Duration ttl = Duration.ofMinutes(3);
+        String downloadUrl = fileStorageService.getPreSignedDownloadUrl(pdf.getStoragePath(), ttl, pdf.getFileName());
+
+        log.info("SECURITY_AUDIT: Author User ID {} ({}) generated ephemeral download URL for Book ID {} ({})",
+                author.getId(), author.getEmail(), book.getId(), pdf.getFileName());
+
+        return new BookSourceFileResponseDto(
+                book.getId(),
+                pdf.getFileName(),
+                downloadUrl,
+                Instant.now().plus(ttl)
+        );
     }
 }

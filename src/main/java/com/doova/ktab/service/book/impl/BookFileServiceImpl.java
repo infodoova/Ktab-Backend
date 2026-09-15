@@ -5,6 +5,7 @@ import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.exception.S3UploadException;
 import com.doova.ktab.model.attachment.Attachment;
 import com.doova.ktab.model.book.Book;
+import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.book.BookFileService;
 import com.doova.ktab.service.file.AttachmentService;
 import com.doova.ktab.service.file.FileStorageService;
@@ -41,9 +42,8 @@ public class BookFileServiceImpl implements BookFileService {
         validateCoverIfPresent(coverImage);
         validatePdfIfPresent(pdfFile);
 
-        Long authorId = book.getAuthor().getId();
-        String coverDirectory = "books/cover/" + authorId;
-        String pdfDirectory = "books/pdf/" + authorId;
+        String coverDirectory = resolveStorageDirectory(book, "cover");
+        String pdfDirectory = resolveStorageDirectory(book, "pdf");
 
         String coverPath = null;
         String pdfPath = null;
@@ -68,11 +68,13 @@ public class BookFileServiceImpl implements BookFileService {
         }
 
         if (coverPath != null) {
-            createAttachment(book, coverImage.getOriginalFilename(), coverPath, "COVER_IMAGE", coverImage.getContentType(), coverImage.getSize());
+            createAttachment(book, coverImage.getOriginalFilename(), coverPath, "COVER_IMAGE",
+                    coverImage.getContentType(), coverImage.getSize());
         }
 
         if (pdfPath != null) {
-            createAttachment(book, pdfFile.getOriginalFilename(), pdfPath, "PDF_SOURCE", pdfFile.getContentType(), pdfFile.getSize());
+            createAttachment(book, pdfFile.getOriginalFilename(), pdfPath, "PDF_SOURCE", pdfFile.getContentType(),
+                    pdfFile.getSize());
         }
     }
 
@@ -85,9 +87,11 @@ public class BookFileServiceImpl implements BookFileService {
         validateCoverIfPresent(coverImage);
         validatePdfIfPresent(pdfFile);
 
-        Optional<Attachment> existingCover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, "COVER_IMAGE");
+        Optional<Attachment> existingCover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE,
+                "COVER_IMAGE");
 
-        Optional<Attachment> existingPdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, "PDF_SOURCE");
+        Optional<Attachment> existingPdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE,
+                "PDF_SOURCE");
 
         String oldCoverKey = existingCover.map(Attachment::getStoragePath).orElse(null);
         String oldPdfKey = existingPdf.map(Attachment::getStoragePath).orElse(null);
@@ -100,32 +104,35 @@ public class BookFileServiceImpl implements BookFileService {
 
         registerS3CleanupSynchronization(keysToDeleteAfterCommit, keysToDeleteOnRollback);
 
-        Long authorId = book.getAuthor().getId();
-        String coverDirectory = "books/cover/" + authorId;
-        String pdfDirectory = "books/pdf/" + authorId;
+        String coverDirectory = resolveStorageDirectory(book, "cover");
+        String pdfDirectory = resolveStorageDirectory(book, "pdf");
 
         try {
             if (coverImage != null && !coverImage.isEmpty()) {
                 newCoverPath = fileStorageService.storeFile(coverImage, coverDirectory);
                 keysToDeleteOnRollback.add(newCoverPath);
-                if (oldCoverKey != null) keysToDeleteAfterCommit.add(oldCoverKey);
+                if (oldCoverKey != null)
+                    keysToDeleteAfterCommit.add(oldCoverKey);
             }
 
             if (pdfFile != null && !pdfFile.isEmpty()) {
                 newPdfPath = fileStorageService.storeFile(pdfFile, pdfDirectory);
                 keysToDeleteOnRollback.add(newPdfPath);
-                if (oldPdfKey != null) keysToDeleteAfterCommit.add(oldPdfKey);
+                if (oldPdfKey != null)
+                    keysToDeleteAfterCommit.add(oldPdfKey);
             }
         } catch (Exception e) {
             throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED);
         }
 
         if (newCoverPath != null) {
-            upsertAttachment(book, existingCover, coverImage.getOriginalFilename(), newCoverPath, "COVER_IMAGE", coverImage.getContentType(), coverImage.getSize());
+            upsertAttachment(book, existingCover, coverImage.getOriginalFilename(), newCoverPath, "COVER_IMAGE",
+                    coverImage.getContentType(), coverImage.getSize());
         }
 
         if (newPdfPath != null) {
-            upsertAttachment(book, existingPdf, pdfFile.getOriginalFilename(), newPdfPath, "PDF_SOURCE", pdfFile.getContentType(), pdfFile.getSize());
+            upsertAttachment(book, existingPdf, pdfFile.getOriginalFilename(), newPdfPath, "PDF_SOURCE",
+                    pdfFile.getContentType(), pdfFile.getSize());
         }
     }
 
@@ -137,7 +144,8 @@ public class BookFileServiceImpl implements BookFileService {
 
         List<Attachment> attachments = attachmentService.getAllAttachmentsForEntity(book.getId(), BOOK_ENTITY_TYPE);
 
-        List<String> keysToDeleteAfterCommit = attachments.stream().map(Attachment::getStoragePath).filter(Objects::nonNull).filter(path -> !path.isBlank()).toList();
+        List<String> keysToDeleteAfterCommit = attachments.stream().map(Attachment::getStoragePath)
+                .filter(Objects::nonNull).filter(path -> !path.isBlank()).toList();
 
         registerS3CleanupSynchronization(keysToDeleteAfterCommit, List.of());
 
@@ -149,12 +157,19 @@ public class BookFileServiceImpl implements BookFileService {
     // -------------------------------------------------------------------------
     // ATTACHMENT HELPERS
     // -------------------------------------------------------------------------
-    private void createAttachment(Book book, String originalFileName, String storagePath, String type, String mimeType, Long fileSize) {
-        attachmentService.save(Attachment.builder().fileName(originalFileName).storagePath(storagePath).entityId(book.getId()).entityType(BOOK_ENTITY_TYPE).type(type).user(book.getAuthor()).mimeType(mimeType).fileSize(fileSize).sourceUrl(null).build());
+    private void createAttachment(Book book, String originalFileName, String storagePath, String type, String mimeType,
+            Long fileSize) {
+        User owner = book.getAuthor() != null ? book.getAuthor() : book.getUploader();
+        attachmentService.save(Attachment.builder().fileName(originalFileName).storagePath(storagePath)
+                .entityId(book.getId()).entityType(BOOK_ENTITY_TYPE).type(type).user(owner)
+                .mimeType(mimeType).fileSize(fileSize).sourceUrl(null).build());
     }
 
-    private void upsertAttachment(Book book, Optional<Attachment> existing, String originalFileName, String storagePath, String type, String mimeType, Long fileSize) {
-        Attachment attachment = existing.orElseGet(() -> Attachment.builder().entityId(book.getId()).entityType(BOOK_ENTITY_TYPE).type(type).user(book.getAuthor()).build());
+    private void upsertAttachment(Book book, Optional<Attachment> existing, String originalFileName, String storagePath,
+            String type, String mimeType, Long fileSize) {
+        User owner = book.getAuthor() != null ? book.getAuthor() : book.getUploader();
+        Attachment attachment = existing.orElseGet(() -> Attachment.builder().entityId(book.getId())
+                .entityType(BOOK_ENTITY_TYPE).type(type).user(owner).build());
 
         attachment.setFileName(originalFileName);
         attachment.setStoragePath(storagePath);
@@ -167,8 +182,10 @@ public class BookFileServiceImpl implements BookFileService {
     // -------------------------------------------------------------------------
     // TX-AWARE S3 CLEANUP
     // -------------------------------------------------------------------------
-    private void registerS3CleanupSynchronization(List<String> keysToDeleteAfterCommit, List<String> keysToDeleteOnRollback) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) return;
+    private void registerS3CleanupSynchronization(List<String> keysToDeleteAfterCommit,
+            List<String> keysToDeleteOnRollback) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive())
+            return;
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 
@@ -190,7 +207,8 @@ public class BookFileServiceImpl implements BookFileService {
     // VALIDATION
     // -------------------------------------------------------------------------
     private void validateCoverIfPresent(MultipartFile file) {
-        if (file == null || file.isEmpty()) return;
+        if (file == null || file.isEmpty())
+            return;
 
         try {
             imageValidator.validateCover(file);
@@ -200,12 +218,26 @@ public class BookFileServiceImpl implements BookFileService {
     }
 
     private void validatePdfIfPresent(MultipartFile file) {
-        if (file == null || file.isEmpty()) return;
+        if (file == null || file.isEmpty())
+            return;
 
         try {
             pdfValidator.validatePdf(file);
         } catch (Exception e) {
             throw new BadRequestException(ApiMessageKey.FILE_INVALID_PDF);
         }
+    }
+
+    private String resolveStorageDirectory(Book book, String subType) {
+        if (book.getAuthor() != null && book.getAuthor().getId() != null) {
+            return "books/" + subType + "/" + book.getAuthor().getId();
+        }
+        if (book.getLibraryOrganization() != null && book.getLibraryOrganization().getId() != null) {
+            return "libraries/" + book.getLibraryOrganization().getId() + "/books/" + subType;
+        }
+        if (book.getUploader() != null && book.getUploader().getId() != null) {
+            return "books/" + subType + "/uploader_" + book.getUploader().getId();
+        }
+        return "books/" + subType + "/general";
     }
 }

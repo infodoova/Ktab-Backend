@@ -1,6 +1,7 @@
 package com.doova.ktab.repository.book;
 
 import com.doova.ktab.dto.analytics.AuthorBookAnalyticsResponse;
+import com.doova.ktab.enums.book.BookSource;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.book.Book;
@@ -46,10 +47,15 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     Optional<Book> findByIdAndAuthor(Long bookId, User author);
 
+    Page<Book> findAllByBookSource(BookSource bookSource, Pageable pageable);
 
     Page<Book> findAllByAuthorId(Long authorId, Pageable pageable);
 
+    Page<Book> findAllByAuthorIdAndBookSource(Long authorId, BookSource bookSource, Pageable pageable);
+
     Page<Book> findAllByAuthorIdAndStatus(Long authorId, BookStatus status, Pageable pageable);
+
+    Page<Book> findAllByAuthorIdAndStatusAndBookSource(Long authorId, BookStatus status, BookSource bookSource, Pageable pageable);
 
     Page<Book> findAllByLibraryOrganizationId(Long libraryOrgId, Pageable pageable);
 
@@ -62,6 +68,7 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("""
                 SELECT b FROM Book b
                 WHERE b.id <> :bookId
+                  AND b.bookSource = com.doova.ktab.enums.book.BookSource.AUTHOR
                   AND (b.mainGenre.id = :mainGenreId)
                   AND (
                         b.ageRangeMin <= :ageMax 

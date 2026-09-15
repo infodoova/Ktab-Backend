@@ -1,6 +1,7 @@
 package com.doova.ktab.dto.genre;
 
-import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,19 +12,33 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class SubGenreDTO {
 
     private Long id;
 
-    @NotBlank(message = "{validation.genre.name_en.required}")
+    @Size(max = 100, message = "{validation.genre.name.size}")
+    private String name;
+
     @Size(max = 100, message = "{validation.genre.name_en.size}")
     private String nameEn;
 
-    @NotBlank(message = "{validation.genre.name_ar.required}")
     @Size(max = 100, message = "{validation.genre.name_ar.size}")
     private String nameAr;
 
     @Size(max = 500, message = "{validation.genre.description.size}")
     private String description;
-}
 
+    public SubGenreDTO(Long id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @AssertTrue(message = "{validation.genre.name.required}")
+    public boolean isNameProvided() {
+        return (name != null && !name.isBlank()) ||
+               (nameAr != null && !nameAr.isBlank()) ||
+               (nameEn != null && !nameEn.isBlank());
+    }
+}

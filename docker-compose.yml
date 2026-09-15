@@ -1,0 +1,94 @@
+services:
+  ktab-db:
+    image: postgres:17-alpine
+    container_name: ktab-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ktab}
+      POSTGRES_USER: ${DB_USER:-ktab_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ktab-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ktab_user} -d ${DB_NAME:-ktab}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  ktab-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ktab-app
+    restart: unless-stopped
+    depends_on:
+      ktab-db:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DB_HOST: ktab-db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-ktab}
+      DB_USER: ${DB_USER:-ktab_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://ktab-db:5432/${DB_NAME:-ktab}?sslmode=disable
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-ktab_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - ktab-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/v1/genres || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  ktab-nginx:
+    image: nginx:1.27-alpine
+    container_name: ktab-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      ktab-app:
+        condition: service_healthy
+    networks:
+      - ktab-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  postgres_data:
+    driver: local
+  certbot_conf:
+    driver: local
+  certbot_www:
+    driver: local
+
+networks:
+  ktab-network:
+    driver: bridge

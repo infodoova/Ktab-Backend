@@ -4,6 +4,7 @@ import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.book.UrlStrategy;
 import com.doova.ktab.exception.S3UploadException;
 import com.doova.ktab.features.story.dto.CreateStoryRequest;
+import com.doova.ktab.features.story.dto.StoryResponse;
 import com.doova.ktab.features.story.dto.UpdateStoryRequest;
 import com.doova.ktab.features.story.enums.StoryVisualStyle;
 import com.doova.ktab.features.story.model.Story;
@@ -50,7 +51,7 @@ public class StoryServiceImpl implements StoryService {
 
     @Override
     @Transactional
-    public Story createStory(CreateStoryRequest request, MultipartFile coverImage, User author) {
+    public StoryResponse createStory(CreateStoryRequest request, MultipartFile coverImage, User author) {
         var c = request.constitution();
         StoryConstitution constitution = new StoryConstitution(c.settingTime(), c.settingPlace(), c.coreTheme(), c.tone(), c.philosophy(), c.mainConflict(), c.forbiddenElements(), c.pacing());
         StoryVisualStyle storyVisualStyle = StoryVisualStyle.valueOfSafe(request.visualStyle());
@@ -62,7 +63,8 @@ public class StoryServiceImpl implements StoryService {
             handleCoverImageUpload(savedStory, coverImage);
         }
 
-        return savedStory;
+        String coverUrl = getCoverImageUrl(savedStory.getId());
+        return StoryResponse.from(savedStory, coverUrl);
     }
 
     private void handleCoverImageUpload(Story story, MultipartFile coverImage) {
@@ -129,24 +131,33 @@ public class StoryServiceImpl implements StoryService {
     }
 
     @Override
-    public Story getStoryById(Long id) {
-        return storyRepository.findById(id).orElseThrow(() -> new IllegalArgumentException(ApiMessageKey.STORY_NOT_FOUND.getKey()));
+    @Transactional(readOnly = true)
+    public StoryResponse getStoryById(Long id) {
+        Story story = storyRepository.findWithAuthorById(id)
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessageKey.STORY_NOT_FOUND.getKey()));
+        String coverUrl = getCoverImageUrl(story.getId());
+        return StoryResponse.from(story, coverUrl);
     }
 
     @Override
-    public Page<Story> getAllStoriesPaged(Pageable pageable) {
-        return storyRepository.findAll(pageable);
+    @Transactional(readOnly = true)
+    public Page<StoryResponse> getAllStoriesPaged(Pageable pageable) {
+        return storyRepository.findAllWithAuthor(pageable)
+                .map(story -> StoryResponse.from(story, getCoverImageUrl(story.getId())));
     }
 
     @Override
-    public Page<Story> getStoriesByAuthor(Long authorId, Pageable pageable) {
-        return storyRepository.findAllByAuthorId(authorId, pageable);
+    @Transactional(readOnly = true)
+    public Page<StoryResponse> getStoriesByAuthor(Long authorId, Pageable pageable) {
+        return storyRepository.findAllByAuthorId(authorId, pageable)
+                .map(story -> StoryResponse.from(story, getCoverImageUrl(story.getId())));
     }
 
     @Override
     @Transactional
-    public Story updateStory(Long storyId, UpdateStoryRequest request, MultipartFile coverImage, User author) {
-        Story story = storyRepository.findById(storyId).orElseThrow(() -> new IllegalArgumentException(ApiMessageKey.STORY_NOT_FOUND.getKey()));
+    public StoryResponse updateStory(Long storyId, UpdateStoryRequest request, MultipartFile coverImage, User author) {
+        Story story = storyRepository.findWithAuthorById(storyId)
+                .orElseThrow(() -> new IllegalArgumentException(ApiMessageKey.STORY_NOT_FOUND.getKey()));
 
         // Check if story has any reading sessions
         if (sessionRepository.existsByStoryId(storyId)) {
@@ -184,7 +195,8 @@ public class StoryServiceImpl implements StoryService {
             handleCoverImageUpload(savedStory, coverImage);
         }
 
-        return savedStory;
+        String coverUrl = getCoverImageUrl(savedStory.getId());
+        return StoryResponse.from(savedStory, coverUrl);
     }
 
     @Override

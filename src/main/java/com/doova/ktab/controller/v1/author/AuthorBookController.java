@@ -28,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping(path = "/authors", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('AUTHOR')")
+@PreAuthorize("hasAnyAuthority('AUTHOR', 'ADMIN', 'ADMIN_LIBRARIAN')")
 @Tag(name = "Author Book Management API", description = "Endpoints for authors to publish, manage, and inspect their books.")
 public class AuthorBookController {
 
@@ -38,17 +38,20 @@ public class AuthorBookController {
     // =========================================================
     // GET BOOKS BY AUTHOR
     // =========================================================
-    @Operation(summary = "Get books for current author (or filter by author ID)")
-    @GetMapping("/books")
+    @Operation(summary = "Get books by author (current author or by author ID)")
+    @GetMapping({"/books", "/me/books", "/getBooksByAuthor", "/getBooksByAuthor/{authorId}", "/{authorId}/books"})
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getBooksByAuthor(
             @CurrentUser User author,
-            @RequestParam(required = false) Long authorId,
+            @PathVariable(name = "authorId", required = false) Long pathAuthorId,
+            @RequestParam(name = "authorId", required = false) Long paramAuthorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size,
             @RequestParam(required = false) String status) {
 
-        PageResponse<BookResponseDto> books = (authorId != null)
-                ? bookService.getBooksByAuthorId(authorId, page, size, status)
+        Long targetAuthorId = (pathAuthorId != null) ? pathAuthorId : paramAuthorId;
+
+        PageResponse<BookResponseDto> books = (targetAuthorId != null)
+                ? bookService.getBooksByAuthorId(targetAuthorId, page, size, status)
                 : bookService.getBooksByAuthorId(author, page, size, status);
 
         return ResponseUtils.success(books, ApiMessageKey.AUTHOR_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
@@ -58,7 +61,7 @@ public class AuthorBookController {
     // GET BOOK BY ID (AUTHOR)
     // =========================================================
     @Operation(summary = "Get book by ID for current author")
-    @GetMapping("/books/{id}")
+    @GetMapping({"/books/{id}", "/book/{id}"})
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id, @CurrentUser User author) {
         BookResponseDto book = bookService.getBookByIdForAuthor(id, author);
 
@@ -69,7 +72,7 @@ public class AuthorBookController {
     // CREATE BOOK
     // =========================================================
     @Operation(summary = "Create and publish a new book")
-    @PostMapping(path = "/books", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = {"/books", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Validated(CreateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
@@ -85,7 +88,7 @@ public class AuthorBookController {
     // UPDATE BOOK
     // =========================================================
     @Operation(summary = "Update an existing book")
-    @PatchMapping(path = "/books/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = {"/books/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Validated(UpdateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
@@ -102,10 +105,24 @@ public class AuthorBookController {
     // DELETE BOOK
     // =========================================================
     @Operation(summary = "Delete an author book")
-    @DeleteMapping("/books/{id}")
+    @DeleteMapping({"/books/{id}", "/deleteBook/{id}"})
     public ResponseEntity<ApiResponse<Void>> deleteBook(@PathVariable Long id, @CurrentUser User author) {
         bookService.deleteBook(id, author);
 
         return ResponseUtils.success(null, ApiMessageKey.AUTHOR_BOOK_DELETE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // =========================================================
+    // GET SOURCE FILE (AUDITED EPHEMERAL DOWNLOAD)
+    // =========================================================
+    @Operation(summary = "Get secure ephemeral download URL for author's own book source file")
+    @GetMapping({"/books/{id}/source-file", "/{id}/source-file"})
+    @PreAuthorize("hasAnyAuthority('AUTHOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
+            @PathVariable Long id,
+            @CurrentUser User author
+    ) {
+        com.doova.ktab.dto.book.BookSourceFileResponseDto response = bookService.getSourceFileForAuthor(id, author);
+        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 }

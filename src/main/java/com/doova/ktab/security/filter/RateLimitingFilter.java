@@ -73,6 +73,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private RateLimitTier resolveTier(HttpServletRequest request) {
+        // Exempt preflight CORS requests from rate limiting
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return RateLimitTier.SKIP;
+        }
+
         String path = request.getServletPath();
 
         // Exempt / Infrastructure paths

@@ -14,6 +14,7 @@ import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.repository.genre.MainGenreRepository;
 import com.doova.ktab.repository.genre.SubGenreRepository;
+import com.doova.ktab.repository.user.UserRepository;
 import com.doova.ktab.service.book.BookFileService;
 import com.doova.ktab.service.book.BookResponseBuilderService;
 import com.doova.ktab.service.librarian.LibrarianBookService;
@@ -37,18 +38,31 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
     private final BookRepository bookRepository;
     private final MainGenreRepository mainGenreRepository;
     private final SubGenreRepository subGenreRepository;
+    private final UserRepository userRepository;
     private final BookFileService bookFileService;
     private final BookResponseBuilderService responseBuilder;
+    private final com.doova.ktab.service.file.AttachmentService attachmentService;
+    private final com.doova.ktab.service.file.FileStorageService fileStorageService;
 
     // =========================================================================
     // TENANCY HELPER
     // =========================================================================
-    private LibraryOrganization requireLibrarianOrganization(User librarian) {
-        if (librarian == null || librarian.getLibraryOrganization() == null) {
-            log.warn("Access denied: User {} has no associated library organization", librarian != null ? librarian.getEmail() : "null");
+    private User requireManagedLibrarian(User librarian) {
+        if (librarian == null || librarian.getId() == null) {
+            log.warn("Access denied: Librarian principal is null");
             throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_ASSOCIATED);
         }
-        return librarian.getLibraryOrganization();
+        User managed = userRepository.findById(librarian.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.USER_NOT_FOUND));
+        if (managed.getLibraryOrganization() == null) {
+            log.warn("Access denied: User {} has no associated library organization", managed.getEmail());
+            throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_ASSOCIATED);
+        }
+        return managed;
+    }
+
+    private LibraryOrganization requireLibrarianOrganization(User librarian) {
+        return requireManagedLibrarian(librarian).getLibraryOrganization();
     }
 
     // =========================================================================
@@ -62,7 +76,8 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
             MultipartFile pdf,
             User librarian
     ) {
-        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+        User managedLibrarian = requireManagedLibrarian(librarian);
+        LibraryOrganization libraryOrg = managedLibrarian.getLibraryOrganization();
 
         Book book = new Book();
         book.setTitle(req.getTitle());
@@ -70,7 +85,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         book.setCustomAuthorName(req.getCustomAuthorName());
         book.setBookSource(BookSource.LIBRARY);
         book.setLibraryOrganization(libraryOrg);
-        book.setUploader(librarian);
+        book.setUploader(managedLibrarian);
         book.setAuthor(null); // Institutional upload - no user author
         book.setLanguage(req.getLanguage());
         book.setAgeRangeMin(req.getAgeRangeMin());
@@ -95,7 +110,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         bookFileService.handleCreateFiles(savedBook, cover, pdf);
 
         log.info("Librarian {} created book {} for library {}", librarian.getEmail(), savedBook.getId(), libraryOrg.getName());
-        return responseBuilder.build(savedBook);
+        return responseBuilder.build(savedBook, true);
     }
 
     // =========================================================================
@@ -145,7 +160,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         Book updatedBook = bookRepository.save(book);
 
         log.info("Librarian {} updated book {} for library {}", librarian.getEmail(), updatedBook.getId(), libraryOrg.getName());
-        return responseBuilder.build(updatedBook);
+        return responseBuilder.build(updatedBook, true);
     }
 
     // =========================================================================
@@ -159,7 +174,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         Book book = bookRepository.findByIdAndLibraryOrganizationId(id, libraryOrg.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARIAN_BOOK_NOT_FOUND));
 
-        return responseBuilder.build(book);
+        return responseBuilder.build(book, true);
     }
 
     // =========================================================================
@@ -182,7 +197,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
             pageResult = bookRepository.findAllByLibraryOrganizationId(libraryOrg.getId(), pageable);
         }
 
-        return PageResponse.fromPage(pageResult.map(responseBuilder::build));
+        return PageResponse.fromPage(pageResult.map(b -> responseBuilder.build(b, true)));
     }
 
     // =========================================================================
@@ -215,5 +230,37 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         );
 
         return PageResponse.fromPage(pageResult.map(responseBuilder::build));
+    }
+
+    // =========================================================================
+    // GET SOURCE FILE (AUDITED EPHEMERAL DOWNLOAD)
+    // =========================================================================
+    @Override
+    @Transactional(readOnly = true)
+    public com.doova.ktab.dto.book.BookSourceFileResponseDto getSourceFileForLibrarian(Long bookId, User librarian) {
+        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+
+        Book book = bookRepository.findByIdAndLibraryOrganizationId(bookId, libraryOrg.getId())
+                .orElseThrow(() -> {
+                    log.warn("SECURITY_ALERT: Unauthorized attempt by Librarian User ID {} ({}) for Org ID {} to access source file of Book ID {}",
+                            librarian.getId(), librarian.getEmail(), libraryOrg.getId(), bookId);
+                    return new ResourceNotFoundException(ApiMessageKey.LIBRARIAN_BOOK_NOT_FOUND);
+                });
+
+        com.doova.ktab.model.attachment.Attachment pdf = attachmentService.getAttachment(book.getId(), "Book", "PDF_SOURCE")
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.BOOK_OCR_PDF_MISSING));
+
+        java.time.Duration ttl = java.time.Duration.ofMinutes(3);
+        String downloadUrl = fileStorageService.getPreSignedDownloadUrl(pdf.getStoragePath(), ttl, pdf.getFileName());
+
+        log.info("SECURITY_AUDIT: Librarian User ID {} ({}) for Org ID {} generated ephemeral download URL for Book ID {} ({})",
+                librarian.getId(), librarian.getEmail(), libraryOrg.getId(), book.getId(), pdf.getFileName());
+
+        return new com.doova.ktab.dto.book.BookSourceFileResponseDto(
+                book.getId(),
+                pdf.getFileName(),
+                downloadUrl,
+                java.time.Instant.now().plus(ttl)
+        );
     }
 }

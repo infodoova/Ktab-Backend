@@ -43,4 +43,15 @@ public interface FileStorageService {
      * Retrieves byte array content from storage.
      */
     byte[] getBytes(String key);
+
+    /**
+     * Generates a secure, short-lived presigned URL specifically configured for forced file download
+     * with no-store cache controls and optional content-disposition filename.
+     *
+     * @param keyName          The key/name of the file in storage.
+     * @param duration         The validity duration of the presigned URL.
+     * @param downloadFilename The filename to set in Content-Disposition.
+     * @return The presigned download URL string.
+     */
+    String getPreSignedDownloadUrl(String keyName, java.time.Duration duration, String downloadFilename);
 }

@@ -71,7 +71,7 @@ public class BookReviewController {
     // IS REVIEWED
     // ============================================================================================
     @Operation(summary = "Check if current user has already reviewed the book")
-    @GetMapping("/books/{bookId}/reviews/status")
+    @GetMapping({"/books/{bookId}/reviews/status", "/books/{bookId}/is-reviewed", "/books/{bookId}/isReviewed"})
     public ResponseEntity<ApiResponse<IsReviewedResponseDto>> isReviewed(
             @PathVariable Long bookId,
             @CurrentUser User reader

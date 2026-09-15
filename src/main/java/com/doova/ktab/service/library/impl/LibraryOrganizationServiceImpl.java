@@ -192,11 +192,17 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
     // =========================================================================
     @Override
     public LibraryOrganization requireAdminLibrarianOrganization(User user) {
-        if (user == null || user.getLibraryOrganization() == null) {
+        if (user == null || user.getId() == null) {
             log.warn("Access denied: User has no associated library organization");
             throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_ASSOCIATED);
         }
-        return user.getLibraryOrganization();
+        User managed = userRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.USER_NOT_FOUND));
+        if (managed.getLibraryOrganization() == null) {
+            log.warn("Access denied: User {} has no associated library organization", managed.getEmail());
+            throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_ASSOCIATED);
+        }
+        return managed.getLibraryOrganization();
     }
 
     @Override

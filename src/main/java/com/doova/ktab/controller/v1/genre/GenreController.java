@@ -37,9 +37,11 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Get all genres")
     @PreAuthorize("hasAnyAuthority('ADMIN','AUTHOR','READER','LIBRARIAN','ADMIN_LIBRARIAN')")
-    @GetMapping
-    public ResponseEntity<ApiResponse<List<MainGenreDTO>>> getAllGenres() {
-        List<MainGenreDTO> genres = genreQueryService.getAllGenres();
+    @GetMapping({"", "/getAllGenres", "/viewAll", "/all"})
+    public ResponseEntity<ApiResponse<List<MainGenreDTO>>> getAllGenres(
+            @RequestParam(name = "full", defaultValue = "false") boolean full
+    ) {
+        List<MainGenreDTO> genres = genreQueryService.getAllGenres(full);
         return ResponseUtils.success(genres, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -48,9 +50,12 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Get genre by ID")
     @PreAuthorize("hasAnyAuthority('ADMIN','AUTHOR','READER','LIBRARIAN','ADMIN_LIBRARIAN')")
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<MainGenreDTO>> getGenreById(@PathVariable Long id) {
-        MainGenreDTO genre = genreQueryService.getById(id);
+    @GetMapping({"/{id:[0-9]+}", "/getGenreById/{id:[0-9]+}"})
+    public ResponseEntity<ApiResponse<MainGenreDTO>> getGenreById(
+            @PathVariable Long id,
+            @RequestParam(name = "full", defaultValue = "false") boolean full
+    ) {
+        MainGenreDTO genre = genreQueryService.getById(id, full);
         return ResponseUtils.success(genre, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -59,7 +64,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Create genre via JSON payload")
     @PreAuthorize("hasAnyAuthority('ADMIN')")
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(path = {"", "/createGenre"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<MainGenreDTO>> createGenre(@Valid @RequestBody MainGenreDTO genreDto) {
         MainGenreDTO created = genreCommandService.save(genreDto);
         return ResponseUtils.created(created, ApiMessageKey.GENRE_CREATED_SUCCESS.getMessage(messageSource));
@@ -70,7 +75,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Create genre via multipart/form-data (legacy)")
     @PreAuthorize("hasAnyAuthority('ADMIN')")
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = {"", "/createGenre"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<MainGenreDTO>> createGenreMultipart(
             @Valid @RequestPart("genreDto") MainGenreDTO genreDto,
             @RequestPart(value = "subGenres", required = false) List<@Valid SubGenreDTO> subGenres
@@ -87,7 +92,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Update genre via JSON payload")
     @PreAuthorize("hasAnyAuthority('ADMIN')")
-    @PatchMapping(path = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @RequestMapping(path = {"/{id:[0-9]+}", "/updateGenre/{id:[0-9]+}"}, method = {RequestMethod.PATCH, RequestMethod.PUT}, consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ApiResponse<MainGenreDTO>> updateGenre(
             @PathVariable Long id,
             @Valid @RequestBody MainGenreDTO genreDto
@@ -102,7 +107,7 @@ public class GenreController {
     // ============================================================================================
     @Operation(summary = "Update genre via multipart/form-data (legacy)")
     @PreAuthorize("hasAnyAuthority('ADMIN')")
-    @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequestMapping(path = {"/{id:[0-9]+}", "/updateGenre/{id:[0-9]+}"}, method = {RequestMethod.PATCH, RequestMethod.PUT}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<MainGenreDTO>> updateGenreMultipart(
             @PathVariable Long id,
             @Valid @RequestPart("genreDto") MainGenreDTO genreDto,

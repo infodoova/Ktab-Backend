@@ -20,7 +20,7 @@ WORKDIR /app
 
 # Install fontconfig and fonts required for PDFBox rendering & headless AWT graphics
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core && \
+    apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Run as non-root user for security

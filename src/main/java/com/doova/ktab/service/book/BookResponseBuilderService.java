@@ -10,7 +10,12 @@ public interface BookResponseBuilderService {
     String PDF_SOURCE_TYPE = "PDF_SOURCE";
 
     /**
-     * Convert Book -> BookResponseDto and attach signed URLs
+     * Convert Book -> BookResponseDto without confidential PDF download URL (safe for readers/public)
      */
     BookResponseDto build(Book book);
+
+    /**
+     * Convert Book -> BookResponseDto with explicit control over including confidential PDF download URL
+     */
+    BookResponseDto build(Book book, boolean includePdfUrl);
 }

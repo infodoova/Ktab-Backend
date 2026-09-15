@@ -35,7 +35,7 @@ public class LibrarianBookController {
     private final MessageSource messageSource;
 
     @Operation(summary = "Upload a book for the librarian's library organization")
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = {"", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Valid @RequestPart("bookDto") LibrarianBookUploadRequest bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
@@ -47,7 +47,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Update a library book")
-    @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = {"/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Valid @RequestPart(value = "bookDto", required = false) UpdateLibrarianBookRequest bookDto,
@@ -61,7 +61,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Get a single library book by ID")
-    @GetMapping("/{id}")
+    @GetMapping({"/{id}", "/viewBook/{id}"})
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(
             @PathVariable Long id,
             @CurrentUser User librarian
@@ -71,7 +71,7 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "List all books belonging to the librarian's organization")
-    @GetMapping
+    @GetMapping({"", "/books", "/me/books", "/viewBooks"})
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getMyLibraryBooks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -83,12 +83,23 @@ public class LibrarianBookController {
     }
 
     @Operation(summary = "Delete a book from the library organization")
-    @DeleteMapping("/{id}")
+    @DeleteMapping({"/{id}", "/deleteBook/{id}"})
     public ResponseEntity<ApiResponse<Void>> deleteBook(
             @PathVariable Long id,
             @CurrentUser User librarian
     ) {
         librarianBookService.deleteBook(id, librarian);
         return ResponseUtils.success(null, ApiMessageKey.LIBRARIAN_BOOK_DELETE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get secure ephemeral download URL for library book source file")
+    @GetMapping({"/{id}/source-file", "/books/{id}/source-file"})
+    @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
+            @PathVariable Long id,
+            @CurrentUser User librarian
+    ) {
+        com.doova.ktab.dto.book.BookSourceFileResponseDto response = librarianBookService.getSourceFileForLibrarian(id, librarian);
+        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 }

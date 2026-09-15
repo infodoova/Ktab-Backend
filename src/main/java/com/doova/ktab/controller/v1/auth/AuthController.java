@@ -56,20 +56,34 @@ public class AuthController {
 
     @Operation(summary = "Login")
     @PostMapping(path = "/login", consumes = "application/json")
-    public ResponseEntity<ApiResponse<AuthTokenResponse>> login(
+    public ResponseEntity<ApiResponse<Object>> login(
             @Valid @RequestBody UserLoginRequest req,
+            @RequestParam(name = "includeRefreshToken", required = false) Boolean includeRefreshTokenParam,
+            @RequestParam(name = "rememberMe", required = false) Boolean rememberMeParam,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         UserPrincipal principal = service.authenticate(req);
         String accessToken = jwtService.generateToken(principal);
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
 
         cookieUtils.setAccessTokenCookie(response, accessToken);
-        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
 
-        AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
-        return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        boolean includeRefreshToken = isRefreshTokenRequested(
+                includeRefreshTokenParam,
+                rememberMeParam,
+                req.includeRefreshToken(),
+                req.rememberMe(),
+                request
+        );
+
+        if (includeRefreshToken) {
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
+            cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
+            AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
+            return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        }
+
+        return ResponseUtils.success(accessToken, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
@@ -78,20 +92,48 @@ public class AuthController {
 
     @Operation(summary = "Google OAuth2 login")
     @PostMapping(path = "/google", consumes = "application/json")
-    public ResponseEntity<ApiResponse<AuthTokenResponse>> googleLogin(
+    public ResponseEntity<ApiResponse<Object>> googleLogin(
             @Valid @RequestBody GoogleTokenRequest req,
+            @RequestParam(name = "includeRefreshToken", required = false) Boolean includeRefreshTokenParam,
+            @RequestParam(name = "rememberMe", required = false) Boolean rememberMeParam,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         UserPrincipal principal = googleOAuth2Service.verifyAndAuthenticate(req.idToken());
         String accessToken = jwtService.generateToken(principal);
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
 
         cookieUtils.setAccessTokenCookie(response, accessToken);
-        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
 
-        AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
-        return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        boolean includeRefreshToken = isRefreshTokenRequested(
+                includeRefreshTokenParam,
+                rememberMeParam,
+                req.includeRefreshToken(),
+                req.rememberMe(),
+                request
+        );
+
+        if (includeRefreshToken) {
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
+            cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
+            AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
+            return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        }
+
+        return ResponseUtils.success(accessToken, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    private boolean isRefreshTokenRequested(
+            Boolean paramIncludeRefreshToken,
+            Boolean paramRememberMe,
+            Boolean bodyIncludeRefreshToken,
+            Boolean bodyRememberMe,
+            HttpServletRequest request
+    ) {
+        return Boolean.TRUE.equals(paramIncludeRefreshToken)
+                || Boolean.TRUE.equals(paramRememberMe)
+                || Boolean.TRUE.equals(bodyIncludeRefreshToken)
+                || Boolean.TRUE.equals(bodyRememberMe)
+                || "true".equalsIgnoreCase(request.getHeader("X-Include-Refresh-Token"));
     }
 
     // ============================

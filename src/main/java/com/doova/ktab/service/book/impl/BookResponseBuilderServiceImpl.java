@@ -23,6 +23,11 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
 
     @Override
     public BookResponseDto build(Book book) {
+        return build(book, false);
+    }
+
+    @Override
+    public BookResponseDto build(Book book, boolean includePdfUrl) {
         BookResponseDto dto = bookMapper.toResponseDto(book);
 
         if (book.getMainGenre() != null) {
@@ -49,16 +54,25 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
             dto.setLibraryOrganizationName(book.getLibraryOrganization().getName());
         }
 
-        // Load cover
+        // Load cover (public/signed)
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));
 
-        // Load PDF (resolve URL and filename in one pass)
-        Optional<Attachment> pdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, PDF_SOURCE_TYPE);
-        pdf.ifPresent(att -> {
-            dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED));
-            dto.setPdfFileName(att.getFileName());
-        });
+        // Load PDF only when explicitly authorized (e.g. author or librarian managing their own books)
+        // Highly confidential source file - NEVER sent to readers or discovery endpoints
+        if (includePdfUrl) {
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            boolean isReader = auth != null && auth.getAuthorities().stream()
+                    .anyMatch(a -> "READER".equals(a.getAuthority()) || "ROLE_READER".equals(a.getAuthority()));
+
+            if (!isReader) {
+                Optional<Attachment> pdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, PDF_SOURCE_TYPE);
+                pdf.ifPresent(att -> {
+                    dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED));
+                    dto.setPdfFileName(att.getFileName());
+                });
+            }
+        }
 
         return dto;
     }

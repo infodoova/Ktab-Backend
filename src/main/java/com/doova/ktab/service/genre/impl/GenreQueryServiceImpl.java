@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,13 +23,28 @@ public class GenreQueryServiceImpl implements GenreQueryService {
     @Override
     @Transactional(readOnly = true)
     public List<MainGenreDTO> getAllGenres() {
-        return mainRepo.findAll().stream().map(genreMapper::toMainGenreDTO).toList();
+        return getAllGenres(false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MainGenreDTO> getAllGenres(boolean full) {
+        return mainRepo.findAll().stream()
+                .map(full ? genreMapper::toMainGenreDTO : genreMapper::toSimpleMainGenreDTO)
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public MainGenreDTO getById(Long id) {
-        MainGenre genre = mainRepo.findById(id).orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.GENRE_NOT_FOUND.getKey()));
-        return genreMapper.toMainGenreDTO(genre);
+        return getById(id, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MainGenreDTO getById(Long id, boolean full) {
+        MainGenre genre = mainRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(ApiMessageKey.GENRE_NOT_FOUND.getKey()));
+        return full ? genreMapper.toMainGenreDTO(genre) : genreMapper.toSimpleMainGenreDTO(genre);
     }
 }

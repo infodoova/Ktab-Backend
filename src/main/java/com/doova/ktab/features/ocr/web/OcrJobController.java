@@ -8,6 +8,7 @@ import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +19,7 @@ import java.util.Optional;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/ocr")
+@PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 public class OcrJobController {
 
     private final S3OcrStorageService s3;

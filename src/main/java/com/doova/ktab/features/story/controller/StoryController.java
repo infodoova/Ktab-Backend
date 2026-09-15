@@ -42,28 +42,23 @@ public class StoryController {
     @PreAuthorize("hasAnyAuthority('AUTHOR')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<StoryResponse>> createStory(@RequestPart("story") @Valid CreateStoryRequest request, @RequestPart(value = "coverImage", required = false) MultipartFile coverImage, @CurrentUser User author) {
-        var saved = storyService.createStory(request, coverImage, author);
-        String coverUrl = storyService.getCoverImageUrl(saved.getId());
-        return ResponseUtils.success(StoryResponse.from(saved, coverUrl), ApiMessageKey.STORY_CREATE_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
+        StoryResponse response = storyService.createStory(request, coverImage, author);
+        return ResponseUtils.success(response, ApiMessageKey.STORY_CREATE_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Get all interactive stories (paginated)")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<StoryResponse>>> getAllStoriesPaged(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        Page<StoryResponse> response = storyService.getAllStoriesPaged(pageRequest).map(story -> {
-            String coverUrl = storyService.getCoverImageUrl(story.getId());
-            return StoryResponse.from(story, coverUrl);
-        });
+        Page<StoryResponse> response = storyService.getAllStoriesPaged(pageRequest);
         return ResponseUtils.success(response, ApiMessageKey.STORY_FETCH_ALL_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "Get a story by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<StoryResponse>> getStoryById(@PathVariable Long id) {
-        var story = storyService.getStoryById(id);
-        String coverUrl = storyService.getCoverImageUrl(story.getId());
-        return ResponseUtils.success(StoryResponse.from(story, coverUrl), ApiMessageKey.STORY_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        StoryResponse response = storyService.getStoryById(id);
+        return ResponseUtils.success(response, ApiMessageKey.STORY_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "Get all interactive stories by the current author (paginated)")
@@ -71,10 +66,7 @@ public class StoryController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<Page<StoryResponse>>> getMyStories(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, @CurrentUser User author) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        Page<StoryResponse> response = storyService.getStoriesByAuthor(author.getId(), pageRequest).map(story -> {
-            String coverUrl = storyService.getCoverImageUrl(story.getId());
-            return StoryResponse.from(story, coverUrl);
-        });
+        Page<StoryResponse> response = storyService.getStoriesByAuthor(author.getId(), pageRequest);
         return ResponseUtils.success(response, ApiMessageKey.STORY_FETCH_MY_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -82,9 +74,8 @@ public class StoryController {
     @PreAuthorize("hasAnyAuthority('AUTHOR')")
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<StoryResponse>> updateStory(@PathVariable Long id, @RequestPart("story") @Valid UpdateStoryRequest request, @RequestPart(value = "coverImage", required = false) MultipartFile coverImage, @CurrentUser User author) {
-        var updated = storyService.updateStory(id, request, coverImage, author);
-        String coverUrl = storyService.getCoverImageUrl(updated.getId());
-        return ResponseUtils.success(StoryResponse.from(updated, coverUrl), ApiMessageKey.STORY_UPDATE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        StoryResponse response = storyService.updateStory(id, request, coverImage, author);
+        return ResponseUtils.success(response, ApiMessageKey.STORY_UPDATE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "Delete a story")
