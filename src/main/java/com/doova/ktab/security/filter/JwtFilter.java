@@ -51,7 +51,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         // WebSocket endpoints - auth handled inside the handler
-        if (path.startsWith("/ws/")) {
+        if (path.startsWith("/ws/") || path.startsWith("/Ktab-0.0.1-SNAPSHOT/ws/")) {
             return true;
         }
 

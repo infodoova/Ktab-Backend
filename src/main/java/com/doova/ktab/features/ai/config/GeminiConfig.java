@@ -21,7 +21,17 @@ public class GeminiConfig {
     @Value("${spring.ai.vertex.ai.gemini.credentials-uri:}")
     private org.springframework.core.io.Resource credentialsResource;
 
+    @Value("${gcp.credentials.base64:${GCP_CREDENTIALS_BASE64:}}")
+    private String credentialsBase64;
+
+    @Value("${spring.ai.vertex.ai.gemini.project-id:${GCP_PROJECT_ID:ktab-prod}}")
+    private String projectId;
+
     private GoogleCredentials getCredentials() throws IOException {
+        if (credentialsBase64 != null && !credentialsBase64.isBlank()) {
+            byte[] decoded = java.util.Base64.getDecoder().decode(credentialsBase64.trim());
+            return GoogleCredentials.fromStream(new java.io.ByteArrayInputStream(decoded));
+        }
         if (credentialsResource != null && credentialsResource.exists()) {
             return GoogleCredentials.fromStream(credentialsResource.getInputStream());
         }
@@ -46,7 +56,7 @@ public class GeminiConfig {
         // We use the Builder to prevent the SDK from
         // prefixing the endpoint with "global-"
         return new VertexAI.Builder()
-                .setProjectId("ktab-prod")
+                .setProjectId(projectId)
                 .setLocation("global")
                 .setApiEndpoint("aiplatform.googleapis.com")
                 .setTransport(GRPC)
@@ -111,7 +121,7 @@ public class GeminiConfig {
     @Bean
     public Client vertexGenAiClient() throws IOException {
         return Client.builder()
-                .project("ktab-prod")
+                .project(projectId)
                 .location("global")
                 .vertexAI(true) // ✅ forces Vertex AI
                 .credentials(getCredentials())

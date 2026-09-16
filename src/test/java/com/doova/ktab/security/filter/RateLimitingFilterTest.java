@@ -17,6 +17,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,6 +95,22 @@ class RateLimitingFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
+        verifyNoInteractions(rateLimitService);
+        verifyNoInteractions(responseWriter);
+    }
+
+    @Test
+    @DisplayName("doFilterInternal skips rate limiting on standard and snapshot websocket paths")
+    void doFilterInternal_whenWebSocketPaths_skipsRateLimiting() throws ServletException, IOException {
+        for (String path : List.of("/ws/reader/tts", "/Ktab-0.0.1-SNAPSHOT/ws/reader/tts")) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+            request.setServletPath(path);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            filter.doFilterInternal(request, response, filterChain);
+        }
+
+        verify(filterChain, times(2)).doFilter(any(), any());
         verifyNoInteractions(rateLimitService);
         verifyNoInteractions(responseWriter);
     }

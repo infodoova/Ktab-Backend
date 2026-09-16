@@ -86,6 +86,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/api-docs")
                 || path.startsWith("/ws/")
+                || path.startsWith("/Ktab-0.0.1-SNAPSHOT/ws/")
                 || path.startsWith("/webjars")
                 || path.equals("/favicon.ico")
                 || path.equals("/error")) {

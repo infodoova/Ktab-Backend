@@ -138,6 +138,7 @@ public class WebSecurityConfig {
                                 "/error",
                                 "/favicon.ico",
                                 "/ws/**",
+                                "/Ktab-0.0.1-SNAPSHOT/ws/**",
                                 "/api/v1/reader/organizations/**",
                                 "/api/v1/internal/ocr/**",
                                 "/actuator/health",
