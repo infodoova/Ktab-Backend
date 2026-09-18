@@ -176,4 +176,45 @@ public class BookTextServiceImpl implements BookTextService {
 
         return new BookStatsResponse(sections.size(), totalWords, totalChars);
     }
+
+    @Override
+    public com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse> searchInBook(
+            Long bookId,
+            String keyword,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        if (!org.springframework.util.StringUtils.hasText(keyword)) {
+            return new com.doova.ktab.utils.pagination.PageResponse<>(
+                    java.util.List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0, true
+            );
+        }
+
+        org.springframework.data.domain.Page<BookPage> pages = sectionRepository.findAll(
+                com.doova.ktab.specification.BookPageSpecification.forBookContent(bookId, keyword),
+                pageable
+        );
+
+        java.util.List<com.doova.ktab.dto.book.InBookTextSearchResponse> dtoList = pages.getContent().stream().map(page -> {
+            String snippet = com.doova.ktab.utils.search.ArabicSearchUtils.extractSnippet(page.getMarkdownContent(), keyword, 150);
+            String normContent = com.doova.ktab.utils.search.ArabicSearchUtils.normalize(page.getMarkdownContent());
+            String normKeyword = com.doova.ktab.utils.search.ArabicSearchUtils.normalize(keyword);
+            int count = 0;
+            int idx = 0;
+            while (!normKeyword.isEmpty() && (idx = normContent.indexOf(normKeyword, idx)) != -1) {
+                count++;
+                idx += normKeyword.length();
+            }
+            return new com.doova.ktab.dto.book.InBookTextSearchResponse(
+                    bookId,
+                    page.getPageNumber(),
+                    snippet,
+                    count,
+                    page.getWordCount()
+            );
+        }).toList();
+
+        return new com.doova.ktab.utils.pagination.PageResponse<>(
+                dtoList, pages.getNumber(), pages.getSize(), pages.getTotalElements(), pages.getTotalPages(), pages.isLast()
+        );
+    }
 }

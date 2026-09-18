@@ -6,6 +6,7 @@ import org.hibernate.jpa.HibernateHints;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -13,7 +14,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 @Repository
-public interface BookPageRepository extends JpaRepository<BookPage, Long> {
+public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSpecificationExecutor<BookPage> {
 
     boolean existsByBook_IdAndPageNumber(Long bookId, int pageNumber);
 

@@ -126,6 +126,33 @@ public class LibraryServiceImpl implements LibraryService {
         return libraryRepository.existsByUserIdAndBookId(userId, bookId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> searchUserLibrary(
+            User reader,
+            com.doova.ktab.dto.library.PersonalLibrarySearchRequest req,
+            Pageable pageable
+    ) {
+        Page<BookLibraryEntry> entryPage = libraryRepository.findAll(
+                com.doova.ktab.specification.LibraryEntrySpecification.forUser(reader, req),
+                pageable
+        );
+
+        List<BookResponseDto> books = entryPage.getContent()
+                .stream()
+                .map(e -> responseBuilder.build(e.getBook()))
+                .toList();
+
+        return new PageResponse<>(
+                books,
+                entryPage.getNumber(),
+                entryPage.getSize(),
+                entryPage.getTotalElements(),
+                entryPage.getTotalPages(),
+                entryPage.isLast()
+        );
+    }
+
     private Sort resolveSort(LibrarySort sort) {
         return switch (sort) {
             case RECENT -> Sort.by(Sort.Direction.DESC, "createdAt");

@@ -32,5 +32,7 @@ public interface LibrarianBookService {
 
     PageResponse<BookResponseDto> getPublishedBooksByLibrary(Long libraryOrgId, int page, int size);
 
+    PageResponse<BookResponseDto> searchLibrarianBooks(User librarian, com.doova.ktab.dto.book.LibrarianBookSearchRequest req, org.springframework.data.domain.Pageable pageable);
+
     com.doova.ktab.dto.book.BookSourceFileResponseDto getSourceFileForLibrarian(Long bookId, User librarian);
 }

@@ -63,6 +63,24 @@ public class BookDiscoveryController {
     }
 
     // ============================================================================================
+    // ADVANCED MULTI-FACET SEARCH BOOKS
+    // ============================================================================================
+    @Operation(summary = "Advanced multi-faceted book search with Arabic NLP normalization")
+    @PostMapping({"/advanced-search", "/books/advanced-search"})
+    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> advancedSearchBooks(
+            @Valid @RequestBody com.doova.ktab.dto.book.AdvancedBookSearchRequest requestDto
+    ) {
+        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "averageRating";
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        PageResponse<BookResponseDto> result = bookService.advancedSearchBooks(requestDto, pageable);
+
+        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // ============================================================================================
     // GET BOOK BY ID
     // ============================================================================================
     @Operation(summary = "Get book by ID")

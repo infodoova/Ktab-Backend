@@ -17,6 +17,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +28,7 @@ import java.util.Optional;
  * Extends JpaRepository to inherit basic CRUD operations.
  */
 @Repository
-public interface BookRepository extends JpaRepository<Book, Long> {
+public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
 
     /**
      * Finds all books written by a specific author (User).

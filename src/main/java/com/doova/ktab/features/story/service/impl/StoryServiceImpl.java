@@ -154,6 +154,16 @@ public class StoryServiceImpl implements StoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<StoryResponse> searchStories(com.doova.ktab.features.story.dto.StorySearchRequest request, Pageable pageable) {
+        Page<Story> page = storyRepository.findAll(
+                com.doova.ktab.specification.StorySpecification.forSearch(request),
+                pageable
+        );
+        return page.map(story -> StoryResponse.from(story, getCoverImageUrl(story.getId())));
+    }
+
+    @Override
     @Transactional
     public StoryResponse updateStory(Long storyId, UpdateStoryRequest request, MultipartFile coverImage, User author) {
         Story story = storyRepository.findWithAuthorById(storyId)

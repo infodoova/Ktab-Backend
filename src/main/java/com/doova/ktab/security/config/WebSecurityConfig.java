@@ -42,7 +42,7 @@ public class WebSecurityConfig {
     private final JwtFilter jwtFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,https://ktab-rho.vercel.app,https://melisa-balsamiferous-aubrie.ngrok-free.dev}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,http://192.168.1.16:5173,http://192.168.*:*,https://ktab-rho.vercel.app,https://kristan-prickliest-ezekiel.ngrok-free.dev,https://melisa-balsamiferous-aubrie.ngrok-free.dev,https://*.ngrok-free.dev,https://*.ngrok.app}")
     private String allowedOrigins;
 
     @Bean

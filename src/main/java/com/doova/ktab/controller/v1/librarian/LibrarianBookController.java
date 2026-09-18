@@ -82,6 +82,20 @@ public class LibrarianBookController {
         return ResponseUtils.success(books, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Search library organization inventory with multi-facet filters")
+    @PostMapping({"/search", "/me/search"})
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchLibrarianBooks(
+            @Valid @RequestBody com.doova.ktab.dto.book.LibrarianBookSearchRequest requestDto,
+            @CurrentUser User librarian
+    ) {
+        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        PageResponse<BookResponseDto> result = librarianBookService.searchLibrarianBooks(librarian, requestDto, pageable);
+        return ResponseUtils.success(result, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
     @Operation(summary = "Delete a book from the library organization")
     @DeleteMapping({"/{id}", "/deleteBook/{id}"})
     public ResponseEntity<ApiResponse<Void>> deleteBook(

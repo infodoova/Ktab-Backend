@@ -128,6 +128,19 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
         return PageResponse.fromPage(pageResult.map(this::toDto));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<LibraryOrganizationResponseDto> searchOrganizations(
+            com.doova.ktab.dto.library.LibraryOrganizationSearchRequest req,
+            Pageable pageable
+    ) {
+        Page<LibraryOrganization> pageResult = libraryOrgRepository.findAll(
+                com.doova.ktab.specification.LibraryOrganizationSpecification.forActiveDirectory(req),
+                pageable
+        );
+        return PageResponse.fromPage(pageResult.map(this::toDto));
+    }
+
     // =========================================================================
     // ASSIGN / CREATE LIBRARIAN STAFF (Admin / Admin Librarian)
     // =========================================================================

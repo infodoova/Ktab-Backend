@@ -20,6 +20,8 @@ public interface StoryService {
 
     Page<StoryResponse> getStoriesByAuthor(Long authorId, Pageable pageable);
 
+    Page<StoryResponse> searchStories(com.doova.ktab.features.story.dto.StorySearchRequest request, Pageable pageable);
+
     StoryResponse updateStory(Long storyId, UpdateStoryRequest request, MultipartFile coverImage, User author);
 
     void deleteStory(Long storyId, User author);

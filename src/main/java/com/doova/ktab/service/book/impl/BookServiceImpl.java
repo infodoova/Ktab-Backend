@@ -233,6 +233,41 @@ public class BookServiceImpl implements BookService {
         return new PageResponse<>(books.stream().map(responseBuilder::build).toList(), pageable.getPageNumber(), pageable.getPageSize(), totalElements, totalPages, isLast);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> advancedSearchBooks(com.doova.ktab.dto.book.AdvancedBookSearchRequest req, Pageable pageable) {
+        enablePublishedFilter();
+        org.springframework.data.domain.Page<Book> booksPage = bookRepository.findAll(
+                com.doova.ktab.specification.BookSpecification.forDiscovery(req),
+                pageable
+        );
+        return new PageResponse<>(
+                booksPage.getContent().stream().map(responseBuilder::build).toList(),
+                booksPage.getNumber(),
+                booksPage.getSize(),
+                booksPage.getTotalElements(),
+                booksPage.getTotalPages(),
+                booksPage.isLast()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> searchAuthorBooks(User author, com.doova.ktab.dto.book.AuthorBookSearchRequest req, Pageable pageable) {
+        org.springframework.data.domain.Page<Book> booksPage = bookRepository.findAll(
+                com.doova.ktab.specification.BookSpecification.forAuthor(author, req),
+                pageable
+        );
+        return new PageResponse<>(
+                booksPage.getContent().stream().map(responseBuilder::build).toList(),
+                booksPage.getNumber(),
+                booksPage.getSize(),
+                booksPage.getTotalElements(),
+                booksPage.getTotalPages(),
+                booksPage.isLast()
+        );
+    }
+
     private String getPdfKey(Long bookId) {
         return attachmentService.getAttachment(bookId, "Book", "PDF_SOURCE")
                 .map(Attachment::getStoragePath)

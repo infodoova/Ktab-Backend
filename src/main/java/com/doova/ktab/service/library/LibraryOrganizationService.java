@@ -23,6 +23,11 @@ public interface LibraryOrganizationService {
 
     PageResponse<LibraryOrganizationResponseDto> getAllActiveOrganizations(int page, int size, String search);
 
+    PageResponse<LibraryOrganizationResponseDto> searchOrganizations(
+            com.doova.ktab.dto.library.LibraryOrganizationSearchRequest req,
+            org.springframework.data.domain.Pageable pageable
+    );
+
     void assignLibrarian(Long organizationId, AssignLibrarianRequest req);
 
     void removeLibrarian(Long organizationId, Long userId);

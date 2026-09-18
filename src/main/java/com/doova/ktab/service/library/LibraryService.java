@@ -19,4 +19,10 @@ public interface LibraryService {
     void removeBookFromLibrary(Long userId, Long bookId);
 
     boolean isAssigned(Long userId, Long bookId);
+
+    PageResponse<BookResponseDto> searchUserLibrary(
+            User reader,
+            com.doova.ktab.dto.library.PersonalLibrarySearchRequest req,
+            org.springframework.data.domain.Pageable pageable
+    );
 }

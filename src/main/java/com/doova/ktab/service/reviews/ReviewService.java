@@ -22,4 +22,6 @@ public interface ReviewService {
     IsReviewedResponseDto isReviewed(Long bookId, Long userId);
 
     void updateReview(Long bookId, ReviewRequestDto req, User reader, Long reviewId);
+
+    Page<ReviewResponseDto> searchReviews(Long bookId, com.doova.ktab.dto.review.ReviewSearchRequest req, Pageable pageable);
 }

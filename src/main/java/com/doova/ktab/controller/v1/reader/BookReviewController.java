@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = "/reader", produces = "application/json")
+@RequestMapping(path = {"/reader", "/reviews"}, produces = "application/json")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('READER')")
 @Tag(name = "Reader Book Review API", description = "Endpoints for posting, viewing, and managing book reviews.")
@@ -39,7 +39,7 @@ public class BookReviewController {
     // POST REVIEW
     // ============================================================================================
     @Operation(summary = "Post a new review for a book")
-    @PostMapping("/books/{bookId}/reviews")
+    @PostMapping({"/books/{bookId}/reviews", "/addReview/{bookId}", "/books/{bookId}/addReview"})
     public ResponseEntity<ApiResponse<Void>> postReview(
             @PathVariable Long bookId,
             @Valid @RequestBody ReviewRequestDto request,
@@ -68,10 +68,27 @@ public class BookReviewController {
     }
 
     // ============================================================================================
+    // SEARCH REVIEWS
+    // ============================================================================================
+    @Operation(summary = "Search reviews for a book with rating filters and comment search")
+    @PostMapping("/books/{bookId}/reviews/search")
+    public ResponseEntity<ApiResponse<PageResponse<ReviewResponseDto>>> searchReviews(
+            @PathVariable Long bookId,
+            @Valid @RequestBody com.doova.ktab.dto.review.ReviewSearchRequest requestDto
+    ) {
+        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        Page<ReviewResponseDto> reviews = reviewService.searchReviews(bookId, requestDto, pageable);
+        return ResponseUtils.success(PageResponse.fromPage(reviews), ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // ============================================================================================
     // IS REVIEWED
     // ============================================================================================
     @Operation(summary = "Check if current user has already reviewed the book")
-    @GetMapping({"/books/{bookId}/reviews/status", "/books/{bookId}/is-reviewed", "/books/{bookId}/isReviewed"})
+    @GetMapping({"/books/{bookId}/reviews/status", "/books/{bookId}/is-reviewed", "/books/{bookId}/isReviewed", "/isReviewed/{bookId}"})
     public ResponseEntity<ApiResponse<IsReviewedResponseDto>> isReviewed(
             @PathVariable Long bookId,
             @CurrentUser User reader

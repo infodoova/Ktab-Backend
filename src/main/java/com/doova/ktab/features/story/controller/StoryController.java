@@ -54,6 +54,19 @@ public class StoryController {
         return ResponseUtils.success(response, ApiMessageKey.STORY_FETCH_ALL_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Search interactive stories with multi-facet filters")
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<Page<StoryResponse>>> searchStories(
+            @Valid @RequestBody com.doova.ktab.features.story.dto.StorySearchRequest request
+    ) {
+        String sortProperty = request.sortBy() != null ? request.sortBy() : "createdAt";
+        org.springframework.data.domain.Sort.Direction direction = request.sortDirection() != null ? request.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
+        PageRequest pageRequest = PageRequest.of(request.page(), request.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        Page<StoryResponse> response = storyService.searchStories(request, pageRequest);
+        return ResponseUtils.success(response, ApiMessageKey.STORY_FETCH_ALL_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
     @Operation(summary = "Get a story by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<StoryResponse>> getStoryById(@PathVariable Long id) {

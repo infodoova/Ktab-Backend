@@ -39,6 +39,19 @@ public class PublicLibraryController {
         return ResponseUtils.success(orgs, ApiMessageKey.LIBRARY_ORGANIZATION_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Search active library organizations directory")
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<LibraryOrganizationResponseDto>>> searchOrganizations(
+            @jakarta.validation.Valid @RequestBody com.doova.ktab.dto.library.LibraryOrganizationSearchRequest requestDto
+    ) {
+        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "name";
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.ASC;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        PageResponse<LibraryOrganizationResponseDto> orgs = libraryOrgService.searchOrganizations(requestDto, pageable);
+        return ResponseUtils.success(orgs, ApiMessageKey.LIBRARY_ORGANIZATION_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
     @Operation(summary = "Get library organization profile by ID")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> getOrganizationById(@PathVariable Long id) {

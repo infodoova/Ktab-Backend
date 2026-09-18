@@ -14,4 +14,10 @@ public interface BookTextService {
     BookStatsResponse getBookStats(Long bookId);
 
     TextRangeResponse getTextByWordRange(Long bookId, int startWord, int endWord);
+
+    com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse> searchInBook(
+            Long bookId,
+            String keyword,
+            org.springframework.data.domain.Pageable pageable
+    );
 }

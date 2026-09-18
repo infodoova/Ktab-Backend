@@ -58,6 +58,24 @@ public class AuthorBookController {
     }
 
     // =========================================================
+    // SEARCH AUTHOR'S BOOKS
+    // =========================================================
+    @Operation(summary = "Search author's catalog with multi-facet filters")
+    @PostMapping({"/me/books/search", "/books/search"})
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchAuthorBooks(
+            @CurrentUser User author,
+            @jakarta.validation.Valid @RequestBody com.doova.ktab.dto.book.AuthorBookSearchRequest requestDto
+    ) {
+        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+
+        PageResponse<BookResponseDto> result = bookService.searchAuthorBooks(author, requestDto, pageable);
+
+        return ResponseUtils.success(result, ApiMessageKey.AUTHOR_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // =========================================================
     // GET BOOK BY ID (AUTHOR)
     // =========================================================
     @Operation(summary = "Get book by ID for current author")

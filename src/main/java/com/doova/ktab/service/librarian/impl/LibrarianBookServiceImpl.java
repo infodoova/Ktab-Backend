@@ -233,6 +233,24 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
     }
 
     // =========================================================================
+    // SEARCH LIBRARIAN BOOKS (ADVANCED MULTI-FACETED)
+    // =========================================================================
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> searchLibrarianBooks(
+            User librarian,
+            com.doova.ktab.dto.book.LibrarianBookSearchRequest req,
+            Pageable pageable
+    ) {
+        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+        Page<Book> pageResult = bookRepository.findAll(
+                com.doova.ktab.specification.BookSpecification.forLibrarian(libraryOrg.getId(), req),
+                pageable
+        );
+        return PageResponse.fromPage(pageResult.map(b -> responseBuilder.build(b, true)));
+    }
+
+    // =========================================================================
     // GET SOURCE FILE (AUDITED EPHEMERAL DOWNLOAD)
     // =========================================================================
     @Override

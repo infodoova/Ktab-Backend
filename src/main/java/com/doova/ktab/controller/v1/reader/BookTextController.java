@@ -96,4 +96,22 @@ public class BookTextController {
 
         return ResponseUtils.success(result, ApiMessageKey.BOOK_TEXT_RANGE_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
+
+    // ============================================================================================
+    // IN-BOOK FULL-TEXT SEARCH
+    // ============================================================================================
+    @Operation(summary = "Search keywords inside book pages with contextual snippet highlighting")
+    @GetMapping({"/books/{bookId}/text/search", "/books/{bookId}/search"})
+    public ResponseEntity<ApiResponse<com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse>>> searchInBook(
+            @PathVariable Long bookId,
+            @RequestParam String q,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) int size
+    ) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, Math.min(size, 50));
+        com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse> result =
+                bookTextService.searchInBook(bookId, q, pageable);
+
+        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
 }

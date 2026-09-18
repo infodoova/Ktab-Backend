@@ -185,4 +185,21 @@ public class ReviewServiceImpl implements ReviewService {
 
         updateBookRating(book);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ReviewResponseDto> searchReviews(
+            Long bookId,
+            com.doova.ktab.dto.review.ReviewSearchRequest req,
+            Pageable pageable
+    ) {
+        if (!bookRepository.existsById(bookId)) {
+            throw new ResourceNotFoundException(ApiMessageKey.REVIEW_BOOK_NOT_FOUND);
+        }
+
+        return reviewRepository.findAll(
+                com.doova.ktab.specification.ReviewSpecification.forBookReviews(bookId, req),
+                pageable
+        ).map(toDto);
+    }
 }
