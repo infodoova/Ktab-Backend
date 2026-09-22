@@ -4,5 +4,7 @@ public enum OcrStatus {
     PENDING,
     PROCESSING,
     COMPLETED,
-    FAILED
+    DONE,
+    FAILED,
+    FLAGGED
 }

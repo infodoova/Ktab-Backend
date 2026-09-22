@@ -47,9 +47,12 @@ public class GoogleOAuth2ServiceImpl implements GoogleOAuth2Service {
         this.verifier = builder.build();
     }
 
+    // -------------------------------------------------------------------------
+    // STEP 1 — Verify Google token (no DB access)
+    // -------------------------------------------------------------------------
+
     @Override
-    @Transactional
-    public UserPrincipal verifyAndAuthenticate(String idTokenString) {
+    public GoogleIdToken.Payload verifyGoogleToken(String idTokenString) {
         try {
             GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken == null) {
@@ -63,51 +66,62 @@ public class GoogleOAuth2ServiceImpl implements GoogleOAuth2Service {
 
             if (email == null || email.isBlank() || !emailVerified) {
                 log.warn("Google account email unverified or missing: {}", email);
-                throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
+                throw new BadRequestException(ApiMessageKey.AUTH_GOOGLE_LOGIN_FAILED);
             }
 
-            String firstName = (String) payload.get("given_name");
-            String lastName = (String) payload.get("family_name");
+            return payload;
 
-            if (firstName == null || firstName.isBlank()) {
-                firstName = (String) payload.get("name");
-                if (firstName == null || firstName.isBlank()) {
-                    firstName = "GoogleUser";
-                }
-            }
-            if (lastName == null || lastName.isBlank()) {
-                lastName = "";
-            }
-
-            final String finalFirstName = firstName;
-            final String finalLastName = lastName;
-
-            User user = userRepository.findByEmail(email).orElseGet(() -> {
-                log.info("Creating new user from Google OAuth2 login: {}", email);
-                User newUser = User.builder()
-                        .email(email)
-                        .firstName(finalFirstName)
-                        .lastName(finalLastName)
-                        .role(UserRole.READER.getCode())
-                        .active(Status.ACTIVE.getCode())
-                        .build();
-
-                newUser.setPasswordAndDigest(UUID.randomUUID().toString(), passwordEncoder);
-                return userRepository.save(newUser);
-            });
-
-            if (!Status.ACTIVE.getCode().equals(user.getActive())) {
-                user.setActive(Status.ACTIVE.getCode());
-                user = userRepository.save(user);
-            }
-
-            return new UserPrincipal(user);
-
-        } catch (BadRequestException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to verify Google ID token", e);
+        } catch (BadRequestException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Failed to verify Google ID token", ex);
             throw new BadRequestException(ApiMessageKey.AUTH_GOOGLE_LOGIN_FAILED);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 1b — Find existing user (fast-path login, no registration)
+    // -------------------------------------------------------------------------
+
+    @Override
+    @Transactional
+    public UserPrincipal findExistingUser(String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> {
+                    // Re-activate silently deactivated accounts
+                    if (!Status.ACTIVE.getCode().equals(user.getActive())) {
+                        user.setActive(Status.ACTIVE.getCode());
+                        userRepository.save(user);
+                    }
+                    return new UserPrincipal(user);
+                })
+                .orElse(null);
+    }
+
+    // -------------------------------------------------------------------------
+    // STEP 2 — Create new user after role selection
+    // -------------------------------------------------------------------------
+
+    @Override
+    @Transactional
+    public UserPrincipal createUser(String email, String firstName, String lastName, UserRole role) {
+        // Idempotent: if somehow the user already exists (race), just return them
+        return userRepository.findByEmail(email)
+                .map(existing -> {
+                    log.info("Google complete: user already exists for email {}, skipping creation", email);
+                    return new UserPrincipal(existing);
+                })
+                .orElseGet(() -> {
+                    log.info("Creating new user from Google OAuth2 registration: {} role={}", email, role);
+                    User newUser = User.builder()
+                            .email(email)
+                            .firstName(firstName != null && !firstName.isBlank() ? firstName : "GoogleUser")
+                            .lastName(lastName != null ? lastName : "")
+                            .role(role.getCode())
+                            .active(Status.ACTIVE.getCode())
+                            .build();
+                    newUser.setPasswordAndDigest(UUID.randomUUID().toString(), passwordEncoder);
+                    return new UserPrincipal(userRepository.save(newUser));
+                });
     }
 }

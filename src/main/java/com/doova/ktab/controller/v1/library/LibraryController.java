@@ -38,7 +38,7 @@ public class LibraryController {
     // GET USER LIBRARY (PAGINATED)
     // ============================================================================================
     @Operation(summary = "Get user's library (paginated)")
-    @GetMapping({ "", "/my-library", "/myLibrary" })
+    @GetMapping("")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getUserLibrary(
             @CurrentUser User reader,
             @RequestParam(defaultValue = "0") int page,
@@ -53,7 +53,7 @@ public class LibraryController {
     // SEARCH USER LIBRARY
     // ============================================================================================
     @Operation(summary = "Search books inside user's personal library")
-    @PostMapping({ "/my-library/search", "/search" })
+    @PostMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchUserLibrary(
             @CurrentUser User reader,
             @Valid @RequestBody com.doova.ktab.dto.library.PersonalLibrarySearchRequest requestDto) {
@@ -73,7 +73,7 @@ public class LibraryController {
     // GET USER LIBRARY (UNPAGED)
     // ============================================================================================
     @Operation(summary = "Get user's full library (unpaged)")
-    @GetMapping({ "/all", "/all-books" })
+    @GetMapping("/books")
     public ResponseEntity<ApiResponse<List<BookResponseDto>>> getUserLibraryFull(
             @CurrentUser User reader) {
         List<BookResponseDto> data = libraryService.getUserLibrary(reader.getId());
@@ -85,7 +85,7 @@ public class LibraryController {
     // REMOVE BOOK
     // ============================================================================================
     @Operation(summary = "Remove a book from user's library")
-    @DeleteMapping({ "/books/{bookId}", "/removeBook/{bookId}" })
+    @DeleteMapping("/books/{bookId}")
     public ResponseEntity<ApiResponse<Void>> removeBookFromLibrary(
             @PathVariable Long bookId,
             @CurrentUser User reader) {
@@ -97,7 +97,7 @@ public class LibraryController {
     // ASSIGN BOOK
     // ============================================================================================
     @Operation(summary = "Assign a book to user's library")
-    @PostMapping({ "/books", "/assignBook" })
+    @PostMapping("/books")
     public ResponseEntity<ApiResponse<Void>> assignBookToUser(
             @Valid @RequestBody AssignBookRequest request,
             @CurrentUser User reader) {
@@ -110,7 +110,7 @@ public class LibraryController {
     // CHECK ASSIGNMENT
     // ============================================================================================
     @Operation(summary = "Check if a book is assigned to the user's library")
-    @GetMapping({ "/books/{bookId}/status", "/isAssigned/{bookId}" })
+    @GetMapping("/books/{bookId}/status")
     public ResponseEntity<ApiResponse<Boolean>> isBookAssigned(
             @PathVariable Long bookId,
             @CurrentUser User reader) {

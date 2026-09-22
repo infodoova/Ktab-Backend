@@ -59,7 +59,13 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
 
     Page<Book> findAllByAuthorIdAndStatusAndBookSource(Long authorId, BookStatus status, BookSource bookSource, Pageable pageable);
 
+    Page<Book> findAllByStatus(BookStatus status, Pageable pageable);
+
+    Page<Book> findAllByStatusAndBookSource(BookStatus status, BookSource bookSource, Pageable pageable);
+
     Page<Book> findAllByLibraryOrganizationId(Long libraryOrgId, Pageable pageable);
+
+    List<Book> findAllByLibraryOrganizationId(Long libraryOrgId);
 
     Page<Book> findAllByLibraryOrganizationIdAndStatus(Long libraryOrgId, BookStatus status, Pageable pageable);
 

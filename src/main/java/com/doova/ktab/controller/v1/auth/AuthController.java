@@ -4,15 +4,18 @@ import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.user.*;
 import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.enums.user.UserRole;
 import com.doova.ktab.model.user.RefreshToken;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
 import com.doova.ktab.service.auth.GoogleOAuth2Service;
 import com.doova.ktab.service.auth.JWTService;
+import com.doova.ktab.service.auth.PendingGoogleTokenService;
 import com.doova.ktab.service.auth.RefreshTokenService;
 import com.doova.ktab.service.user.UserService;
 import com.doova.ktab.utils.web.CookieUtils;
 import com.doova.ktab.utils.response.ResponseUtils;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +38,7 @@ public class AuthController {
     private final MessageSource messageSource;
     private final CookieUtils cookieUtils;
     private final GoogleOAuth2Service googleOAuth2Service;
+    private final PendingGoogleTokenService pendingGoogleTokenService;
     private final JWTService jwtService;
     private final RefreshTokenService refreshTokenService;
 
@@ -46,7 +50,6 @@ public class AuthController {
     @PostMapping(path = "/register", consumes = "application/json")
     public ResponseEntity<ApiResponse<UserResponseDto>> register(@Valid @RequestBody UserRegisterRequest req) {
         User user = service.register(req);
-
         return ResponseUtils.success(UserResponseDto.from(user), ApiMessageKey.AUTH_REGISTER_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
     }
 
@@ -54,86 +57,88 @@ public class AuthController {
     // LOGIN
     // ============================
 
-    @Operation(summary = "Login")
+    @Operation(summary = "Login — sets ACCESS_TOKEN and REFRESH_TOKEN as HttpOnly cookies")
     @PostMapping(path = "/login", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Object>> login(
+    public ResponseEntity<ApiResponse<UserResponseDto>> login(
             @Valid @RequestBody UserLoginRequest req,
-            @RequestParam(name = "includeRefreshToken", required = false) Boolean includeRefreshTokenParam,
-            @RequestParam(name = "rememberMe", required = false) Boolean rememberMeParam,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         UserPrincipal principal = service.authenticate(req);
-        String accessToken = jwtService.generateToken(principal);
 
+        String accessToken = jwtService.generateToken(principal);
         cookieUtils.setAccessTokenCookie(response, accessToken);
 
-        boolean includeRefreshToken = isRefreshTokenRequested(
-                includeRefreshTokenParam,
-                rememberMeParam,
-                req.includeRefreshToken(),
-                req.rememberMe(),
-                request
-        );
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
+        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
 
-        if (includeRefreshToken) {
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
-            cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
-            AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
-            return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
-        }
-
-        return ResponseUtils.success(accessToken, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(UserResponseDto.from(principal.user()), ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
-    // GOOGLE LOGIN
+    // GOOGLE LOGIN (step 1)
     // ============================
 
-    @Operation(summary = "Google OAuth2 login")
+    @Operation(summary = "Google OAuth2 login — returns session for existing users, or a pendingToken for new users to complete registration")
     @PostMapping(path = "/google", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Object>> googleLogin(
+    public ResponseEntity<?> googleLogin(
             @Valid @RequestBody GoogleTokenRequest req,
-            @RequestParam(name = "includeRefreshToken", required = false) Boolean includeRefreshTokenParam,
-            @RequestParam(name = "rememberMe", required = false) Boolean rememberMeParam,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        UserPrincipal principal = googleOAuth2Service.verifyAndAuthenticate(req.idToken());
-        String accessToken = jwtService.generateToken(principal);
+        // Verify Google ID token — throws if invalid
+        GoogleIdToken.Payload payload = googleOAuth2Service.verifyGoogleToken(req.idToken());
+        String email     = payload.getEmail();
+        String firstName = resolveFirstName(payload);
+        String lastName  = resolveLastName(payload);
 
-        cookieUtils.setAccessTokenCookie(response, accessToken);
-
-        boolean includeRefreshToken = isRefreshTokenRequested(
-                includeRefreshTokenParam,
-                rememberMeParam,
-                req.includeRefreshToken(),
-                req.rememberMe(),
-                request
-        );
-
-        if (includeRefreshToken) {
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
-            cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
-            AuthTokenResponse data = AuthTokenResponse.of(accessToken, refreshToken.getToken(), 21600);
-            return ResponseUtils.success(data, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        // Fast path: existing user → issue session immediately
+        UserPrincipal principal = googleOAuth2Service.findExistingUser(email);
+        if (principal != null) {
+            cookieUtils.setAccessTokenCookie(response, jwtService.generateToken(principal));
+            RefreshToken rt = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
+            cookieUtils.setRefreshTokenCookie(response, rt.getToken());
+            return ResponseUtils.success(UserResponseDto.from(principal.user()), ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
         }
 
-        return ResponseUtils.success(accessToken, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        // New user → issue a short-lived pending token and ask frontend to pick a role
+        String pendingToken = pendingGoogleTokenService.issue(email, firstName, lastName);
+        GooglePendingResponse pending = new GooglePendingResponse(
+                GooglePendingResponse.STATUS, pendingToken, email, firstName, lastName
+        );
+        return ResponseUtils.success(pending, ApiMessageKey.AUTH_LOGIN_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
-    private boolean isRefreshTokenRequested(
-            Boolean paramIncludeRefreshToken,
-            Boolean paramRememberMe,
-            Boolean bodyIncludeRefreshToken,
-            Boolean bodyRememberMe,
-            HttpServletRequest request
+    // ============================
+    // GOOGLE COMPLETE (step 2)
+    // ============================
+
+    @Operation(summary = "Complete Google registration — creates account with chosen role and issues session cookies")
+    @PostMapping(path = "/google/complete", consumes = "application/json")
+    public ResponseEntity<ApiResponse<UserResponseDto>> completeGoogleRegistration(
+            @Valid @RequestBody GoogleCompleteRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
     ) {
-        return Boolean.TRUE.equals(paramIncludeRefreshToken)
-                || Boolean.TRUE.equals(paramRememberMe)
-                || Boolean.TRUE.equals(bodyIncludeRefreshToken)
-                || Boolean.TRUE.equals(bodyRememberMe)
-                || "true".equalsIgnoreCase(request.getHeader("X-Include-Refresh-Token"));
+        // Enforce allowed self-registration roles
+        if (req.role() != UserRole.READER && req.role() != UserRole.AUTHOR) {
+            throw new com.doova.ktab.exception.BadRequestException(ApiMessageKey.AUTH_ROLE_REGISTRATION_FORBIDDEN);
+        }
+
+        // Verify pending token — throws if expired or tampered
+        GoogleProfileClaims claims = pendingGoogleTokenService.verify(req.pendingToken());
+
+        // Create user with chosen role
+        UserPrincipal principal = googleOAuth2Service.createUser(
+                claims.email(), claims.firstName(), claims.lastName(), req.role()
+        );
+
+        // Issue session
+        cookieUtils.setAccessTokenCookie(response, jwtService.generateToken(principal));
+        RefreshToken rt = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
+        cookieUtils.setRefreshTokenCookie(response, rt.getToken());
+
+        return ResponseUtils.success(UserResponseDto.from(principal.user()), ApiMessageKey.AUTH_REGISTER_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
     }
 
     // ============================
@@ -144,7 +149,6 @@ public class AuthController {
     @PostMapping(path = "/verify", consumes = "application/json")
     public ResponseEntity<ApiResponse<Void>> verify(@Valid @RequestBody VerifyCodeRequest req) {
         service.verifyEmail(req);
-
         return ResponseUtils.success(null, ApiMessageKey.AUTH_EMAIL_VERIFIED.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -156,7 +160,6 @@ public class AuthController {
     @PostMapping(path = "/send-re-verify", consumes = "application/json")
     public ResponseEntity<ApiResponse<Void>> resendVerificationCode(@Valid @RequestBody ResendVerificationCodeRequest req) {
         service.sendReVerifyAccountCode(req);
-
         return ResponseUtils.success(null, ApiMessageKey.AUTH_RESET_CODE_SENT.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -168,7 +171,6 @@ public class AuthController {
     @PostMapping(path = "/send-reset", consumes = "application/json")
     public ResponseEntity<ApiResponse<Void>> sendReset(@Valid @RequestBody SendResetPasswordRequest req) {
         service.sendResetCode(req);
-
         return ResponseUtils.success(null, ApiMessageKey.AUTH_RESET_CODE_SENT.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -180,7 +182,6 @@ public class AuthController {
     @PostMapping(path = "/reset-password", consumes = "application/json")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         service.resetPassword(req);
-
         return ResponseUtils.success(null, ApiMessageKey.AUTH_PASSWORD_RESET_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -188,28 +189,27 @@ public class AuthController {
     // REFRESH TOKEN
     // ============================
 
-    @Operation(summary = "Refresh token")
+    @Operation(summary = "Rotate refresh token — reads from HttpOnly cookie or request body")
     @PostMapping(path = "/refresh-token")
-    public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
+    public ResponseEntity<ApiResponse<Void>> refreshToken(
             @RequestBody(required = false) RefreshTokenRequest req,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         String token = resolveRefreshToken(req, request);
-
         AuthTokenResponse tokenResponse = refreshTokenService.rotateRefreshToken(token, request.getHeader("User-Agent"));
 
         cookieUtils.setAccessTokenCookie(response, tokenResponse.accessToken());
         cookieUtils.setRefreshTokenCookie(response, tokenResponse.refreshToken());
 
-        return ResponseUtils.success(tokenResponse, ApiMessageKey.AUTH_TOKEN_REFRESH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(null, ApiMessageKey.AUTH_TOKEN_REFRESH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
     // LOGOUT
     // ============================
 
-    @Operation(summary = "Logout")
+    @Operation(summary = "Logout — revokes refresh token and clears auth cookies")
     @PostMapping(path = "/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @RequestBody(required = false) RefreshTokenRequest req,
@@ -217,21 +217,41 @@ public class AuthController {
             HttpServletResponse response
     ) {
         String token = resolveRefreshToken(req, request);
-
         if (token != null && !token.isBlank()) {
             refreshTokenService.revokeToken(token);
         }
-
         cookieUtils.clearAllAuthCookies(response);
-
         return ResponseUtils.success(null, ApiMessageKey.AUTH_LOGOUT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
+    // ============================
+    // HELPERS
+    // ============================
+
+    /**
+     * Resolves the refresh token from, in priority order:
+     * 1. JSON request body
+     * 2. HttpOnly REFRESH_TOKEN cookie (primary path for browser clients)
+     * 3. X-Refresh-Token header (mobile / non-cookie clients)
+     */
     private String resolveRefreshToken(RefreshTokenRequest req, HttpServletRequest request) {
         if (req != null && req.refreshToken() != null && !req.refreshToken().isBlank()) {
             return req.refreshToken();
         }
         return cookieUtils.extractCookieValue(request, CookieUtils.REFRESH_TOKEN_COOKIE_NAME)
                 .orElse(request.getHeader("X-Refresh-Token"));
+    }
+
+    private String resolveFirstName(com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload) {
+        String firstName = (String) payload.get("given_name");
+        if (firstName == null || firstName.isBlank()) {
+            firstName = (String) payload.get("name");
+        }
+        return (firstName != null && !firstName.isBlank()) ? firstName : "GoogleUser";
+    }
+
+    private String resolveLastName(com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload) {
+        String lastName = (String) payload.get("family_name");
+        return lastName != null ? lastName : "";
     }
 }

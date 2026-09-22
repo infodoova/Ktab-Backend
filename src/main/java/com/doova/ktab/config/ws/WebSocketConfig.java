@@ -31,7 +31,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
                     .toArray(String[]::new)
                 : new String[]{"http://localhost:3000", "https://ktab-rho.vercel.app"};
 
-        registry.addHandler(readerTtsWebSocketHandler, "/ws/reader/tts", "/Ktab-0.0.1-SNAPSHOT/ws/reader/tts")
+        registry.addHandler(readerTtsWebSocketHandler,
+                        "/ws/reader/tts",
+                        "/api/v1/ws/reader/tts",
+                        "/Ktab-0.0.1-SNAPSHOT/ws/reader/tts",
+                        "/Ktab-0.0.1-SNAPSHOT/api/v1/ws/reader/tts")
                 .setAllowedOriginPatterns("*");
     }
 }

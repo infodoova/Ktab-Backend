@@ -52,8 +52,8 @@ class GenreControllerTest {
     }
 
     @Test
-    @DisplayName("getAllGenres_canonicalAndAliasEndpoints_bothReturnOk")
-    void getAllGenres_canonicalAndAliasEndpoints_bothReturnOk() throws Exception {
+    @DisplayName("getAllGenres_canonicalEndpoint_returnsOk")
+    void getAllGenres_canonicalEndpoint_returnsOk() throws Exception {
         MainGenreDTO genre = new MainGenreDTO(
                 1L,
                 "أدب وروايات",
@@ -64,8 +64,7 @@ class GenreControllerTest {
         );
         when(genreQueryService.getAllGenres(anyBoolean())).thenReturn(List.of(genre));
 
-        // Test alias path /genres/getAllGenres
-        mockMvc.perform(get("/genres/getAllGenres")
+        mockMvc.perform(get("/genres")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
@@ -77,19 +76,11 @@ class GenreControllerTest {
                 .andExpect(jsonPath("$.data[0].nameEn").doesNotExist())
                 .andExpect(jsonPath("$.data[0].nameProvided").doesNotExist())
                 .andExpect(jsonPath("$.data[0].subGenres[0].nameProvided").doesNotExist());
-
-        // Test alias path /genres/viewAll
-        mockMvc.perform(get("/genres/viewAll")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].id").value(1))
-                .andExpect(jsonPath("$.data[0].name").value("أدب وروايات"));
     }
 
     @Test
-    @DisplayName("getGenreById_canonicalAndAliasEndpoints_bothReturnOk")
-    void getGenreById_canonicalAndAliasEndpoints_bothReturnOk() throws Exception {
+    @DisplayName("getGenreById_canonicalEndpoint_returnsOk")
+    void getGenreById_canonicalEndpoint_returnsOk() throws Exception {
         MainGenreDTO genre = new MainGenreDTO(
                 1L,
                 "أدب وروايات",
@@ -97,17 +88,6 @@ class GenreControllerTest {
         );
         when(genreQueryService.getById(eq(1L), anyBoolean())).thenReturn(genre);
 
-        // Test alias path /genres/getGenreById/1
-        mockMvc.perform(get("/genres/getGenreById/1")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.id").value(1))
-                .andExpect(jsonPath("$.data.name").value("أدب وروايات"))
-                .andExpect(jsonPath("$.data.subGenres[0].id").value(101))
-                .andExpect(jsonPath("$.data.subGenres[0].name").value("خيال علمي"));
-
-        // Test canonical path /genres/1
         mockMvc.perform(get("/genres/1")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())

@@ -49,7 +49,17 @@ public enum ApiMessageKey {
     AI_BOOK_ENDING_GENERATE_SUCCESS("ai.book.ending.generate.success"), AI_BOOK_ENDING_INVALID_FILE("ai.book.ending.invalid.file"), AI_BOOK_ENDING_INVALID_AUDIENCE("ai.book.ending.invalid.audience"), AI_BOOK_ENDING_UNEXPECTED_ERROR("ai.book.ending.unexpected.error"),
 
     // ===== IMAGE VALIDATION =====
-    IMAGE_INVALID_FORMAT("image.invalid.format"), IMAGE_SIZE_EXCEEDED("image.size.exceeded"), IMAGE_INVALID_FILE("image.invalid.file"), IMAGE_INVALID_RATIO("image.invalid.ratio"),
+    IMAGE_INVALID_FORMAT("image.invalid.format"),
+    IMAGE_SIZE_EXCEEDED("image.size.exceeded"),
+    IMAGE_INVALID_FILE("image.invalid.file"),
+    IMAGE_INVALID_RATIO_COVER("image.invalid.ratio.cover"),
+    IMAGE_INVALID_RATIO_SQUARE("image.invalid.ratio.square"),
+    IMAGE_EMPTY("image.empty"),
+    IMAGE_INVALID_FILENAME("image.invalid.filename"),
+    IMAGE_CORRUPTED("image.corrupted"),
+    IMAGE_FORMAT_MISMATCH("image.format.mismatch"),
+    IMAGE_INVALID_DIMENSIONS("image.invalid.dimensions"),
+    IMAGE_DIMENSIONS_EXCEEDED("image.dimensions.exceeded"),
 
     // ===== PDF VALIDATION =====
     PDF_INVALID_FILENAME("pdf.invalid.filename"), PDF_INVALID_EXTENSION("pdf.invalid.extension"), PDF_INVALID_MIME("pdf.invalid.mime"), PDF_SIZE_EXCEEDED("pdf.size.exceeded"), PDF_ENCRYPTED("pdf.encrypted"), PDF_EMPTY("pdf.empty"), PDF_PAGES_EXCEEDED("pdf.pages.exceeded"), PDF_NO_SELECTABLE_TEXT("pdf.no.selectable.text"), PDF_CORRUPTED("pdf.corrupted"),
@@ -96,6 +106,7 @@ public enum ApiMessageKey {
     LIBRARY_ORGANIZATION_ACCESS_DENIED("library.organization.access.denied"),
     LIBRARY_ORGANIZATION_CREATED_SUCCESS("library.organization.created.success"),
     LIBRARY_ORGANIZATION_UPDATED_SUCCESS("library.organization.updated.success"),
+    LIBRARY_ORGANIZATION_DELETED_SUCCESS("library.organization.deleted.success"),
     LIBRARY_ORGANIZATION_FETCH_SUCCESS("library.organization.fetch.success"),
 
     LIBRARY_STAFF_ASSIGNED_SUCCESS("library.staff.assigned.success"),
@@ -121,6 +132,24 @@ public enum ApiMessageKey {
     // ===== BOOK =====
     BOOK_INVALID_STATUS("book.invalid.status"),
     BOOK_OCR_PDF_MISSING("book.ocr.pdf.missing"),
+    BOOK_INVALID_STATUS_TRANSITION("book.invalid.status.transition"),
+    BOOK_STATUS_NOT_ASSIGNABLE("book.status.not.assignable"),
+
+    // ===== AUTHOR BOOK REVIEW WORKFLOW =====
+    AUTHOR_BOOK_UPDATE_UNDER_REVIEW("author.book.update.under.review"),
+    AUTHOR_BOOK_SUBMIT_SUCCESS("author.book.submit.success"),
+    AUTHOR_BOOK_WITHDRAW_SUCCESS("author.book.withdraw.success"),
+
+    // ===== PUBLISHER =====
+    PUBLISHER_REVIEW_QUEUE_FETCH_SUCCESS("publisher.review.queue.fetch.success"),
+    PUBLISHER_BOOK_FETCH_SUCCESS("publisher.book.fetch.success"),
+    PUBLISHER_BOOK_NOT_FOUND("publisher.book.not.found"),
+    PUBLISHER_BOOK_APPROVED_SUCCESS("publisher.book.approved.success"),
+    PUBLISHER_BOOK_REJECTED_SUCCESS("publisher.book.rejected.success"),
+    PUBLISHER_REVIEW_NOTE_REQUIRED("publisher.review.note.required"),
+    PUBLISHER_ASSIGNED_SUCCESS("publisher.assigned.success"),
+    PUBLISHER_REMOVED_SUCCESS("publisher.removed.success"),
+    PUBLISHER_FETCH_SUCCESS("publisher.fetch.success"),
 
     // ===== RATE LIMIT =====
     RATE_LIMIT_EXCEEDED("rate.limit.exceeded"),

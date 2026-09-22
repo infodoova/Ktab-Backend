@@ -63,8 +63,10 @@ public class BookFileServiceImpl implements BookFileService {
                 pdfPath = fileStorageService.storeFile(pdfFile, pdfDirectory);
                 keysToDeleteOnRollback.add(pdfPath);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED);
+            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED, e);
         }
 
         if (coverPath != null) {
@@ -121,8 +123,10 @@ public class BookFileServiceImpl implements BookFileService {
                 if (oldPdfKey != null)
                     keysToDeleteAfterCommit.add(oldPdfKey);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED);
+            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED, e);
         }
 
         if (newCoverPath != null) {
@@ -212,6 +216,8 @@ public class BookFileServiceImpl implements BookFileService {
 
         try {
             imageValidator.validateCover(file);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new BadRequestException(ApiMessageKey.FILE_INVALID_IMAGE);
         }
@@ -223,6 +229,8 @@ public class BookFileServiceImpl implements BookFileService {
 
         try {
             pdfValidator.validatePdf(file);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new BadRequestException(ApiMessageKey.FILE_INVALID_PDF);
         }

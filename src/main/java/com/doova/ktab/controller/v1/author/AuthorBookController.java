@@ -39,19 +39,16 @@ public class AuthorBookController {
     // GET BOOKS BY AUTHOR
     // =========================================================
     @Operation(summary = "Get books by author (current author or by author ID)")
-    @GetMapping({"/books", "/me/books", "/getBooksByAuthor", "/getBooksByAuthor/{authorId}", "/{authorId}/books"})
+    @GetMapping("/me/books")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getBooksByAuthor(
             @CurrentUser User author,
-            @PathVariable(name = "authorId", required = false) Long pathAuthorId,
-            @RequestParam(name = "authorId", required = false) Long paramAuthorId,
+            @RequestParam(name = "authorId", required = false) Long authorId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size,
             @RequestParam(required = false) String status) {
 
-        Long targetAuthorId = (pathAuthorId != null) ? pathAuthorId : paramAuthorId;
-
-        PageResponse<BookResponseDto> books = (targetAuthorId != null)
-                ? bookService.getBooksByAuthorId(targetAuthorId, page, size, status)
+        PageResponse<BookResponseDto> books = (authorId != null)
+                ? bookService.getBooksByAuthorId(authorId, page, size, status)
                 : bookService.getBooksByAuthorId(author, page, size, status);
 
         return ResponseUtils.success(books, ApiMessageKey.AUTHOR_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
@@ -61,7 +58,7 @@ public class AuthorBookController {
     // SEARCH AUTHOR'S BOOKS
     // =========================================================
     @Operation(summary = "Search author's catalog with multi-facet filters")
-    @PostMapping({"/me/books/search", "/books/search"})
+    @PostMapping("/me/books/search")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchAuthorBooks(
             @CurrentUser User author,
             @jakarta.validation.Valid @RequestBody com.doova.ktab.dto.book.AuthorBookSearchRequest requestDto
@@ -79,7 +76,7 @@ public class AuthorBookController {
     // GET BOOK BY ID (AUTHOR)
     // =========================================================
     @Operation(summary = "Get book by ID for current author")
-    @GetMapping({"/books/{id}", "/book/{id}"})
+    @GetMapping("/me/books/{id}")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id, @CurrentUser User author) {
         BookResponseDto book = bookService.getBookByIdForAuthor(id, author);
 
@@ -90,7 +87,7 @@ public class AuthorBookController {
     // CREATE BOOK
     // =========================================================
     @Operation(summary = "Create and publish a new book")
-    @PostMapping(path = {"/books", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "/me/books", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Validated(CreateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
@@ -106,7 +103,7 @@ public class AuthorBookController {
     // UPDATE BOOK
     // =========================================================
     @Operation(summary = "Update an existing book")
-    @PatchMapping(path = {"/books/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = "/me/books/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Validated(UpdateBook.class) @RequestPart("bookDto") BookRequestDto bookDto,
@@ -123,7 +120,7 @@ public class AuthorBookController {
     // DELETE BOOK
     // =========================================================
     @Operation(summary = "Delete an author book")
-    @DeleteMapping({"/books/{id}", "/deleteBook/{id}"})
+    @DeleteMapping("/me/books/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBook(@PathVariable Long id, @CurrentUser User author) {
         bookService.deleteBook(id, author);
 
@@ -131,10 +128,32 @@ public class AuthorBookController {
     }
 
     // =========================================================
+    // SUBMIT BOOK FOR REVIEW
+    // =========================================================
+    @Operation(summary = "Submit a draft book for publisher review")
+    @PostMapping("/me/books/{id}/submit")
+    public ResponseEntity<ApiResponse<BookResponseDto>> submitForReview(@PathVariable Long id, @CurrentUser User author) {
+        BookResponseDto submitted = bookService.submitForReview(id, author);
+
+        return ResponseUtils.success(submitted, ApiMessageKey.AUTHOR_BOOK_SUBMIT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // =========================================================
+    // WITHDRAW BOOK FROM REVIEW
+    // =========================================================
+    @Operation(summary = "Withdraw a book from the publisher review queue back to draft")
+    @PostMapping("/me/books/{id}/withdraw")
+    public ResponseEntity<ApiResponse<BookResponseDto>> withdrawFromReview(@PathVariable Long id, @CurrentUser User author) {
+        BookResponseDto withdrawn = bookService.withdrawFromReview(id, author);
+
+        return ResponseUtils.success(withdrawn, ApiMessageKey.AUTHOR_BOOK_WITHDRAW_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // =========================================================
     // GET SOURCE FILE (AUDITED EPHEMERAL DOWNLOAD)
     // =========================================================
     @Operation(summary = "Get secure ephemeral download URL for author's own book source file")
-    @GetMapping({"/books/{id}/source-file", "/{id}/source-file"})
+    @GetMapping("/me/books/{id}/source-file")
     @PreAuthorize("hasAnyAuthority('AUTHOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
             @PathVariable Long id,

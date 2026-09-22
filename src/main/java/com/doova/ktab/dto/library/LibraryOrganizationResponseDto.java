@@ -24,5 +24,6 @@ public class LibraryOrganizationResponseDto {
     private String status;
     private long totalBooks;
     private long totalStaff;
+    private LibrarianStaffResponseDto admin;
     private java.time.LocalDateTime createdAt;
 }

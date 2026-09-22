@@ -8,6 +8,7 @@ import com.doova.ktab.dto.library.UpdateLibraryOrganizationRequest;
 import com.doova.ktab.dto.library.LibraryOrganizationResponseDto;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.service.library.LibraryOrganizationService;
+import com.doova.ktab.utils.pagination.PageResponse;
 import com.doova.ktab.utils.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,48 +25,49 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "/admin/libraries", produces = "application/json")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('ADMIN')")
-@Tag(name = "Admin Library Management API", description = "Endpoints for managing institutional library organizations and assigning librarian staff.")
+@Tag(name = "Admin Library Management API", description = "Endpoints for managing institutional library organizations.")
 public class AdminLibraryOrganizationController {
 
     private final LibraryOrganizationService libraryOrgService;
     private final MessageSource messageSource;
 
+    @Operation(summary = "Get all library organizations with their administrators (paginated)")
+    @GetMapping
+    public ResponseEntity<ApiResponse<PageResponse<LibraryOrganizationResponseDto>>> getAllLibraries(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        PageResponse<LibraryOrganizationResponseDto> result = libraryOrgService.getAllOrganizationsForAdmin(page, size,
+                search);
+        return ResponseUtils.success(result, ApiMessageKey.LIBRARY_ORGANIZATION_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
+    }
+
     @Operation(summary = "Create a new library organization")
     @PostMapping(consumes = "application/json")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> createLibrary(
-            @Valid @RequestBody CreateLibraryOrganizationRequest req
-    ) {
+            @Valid @RequestBody CreateLibraryOrganizationRequest req) {
         LibraryOrganizationResponseDto created = libraryOrgService.createOrganization(req);
-        return ResponseUtils.success(created, ApiMessageKey.LIBRARY_ORGANIZATION_CREATED_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
+        return ResponseUtils.success(created,
+                ApiMessageKey.LIBRARY_ORGANIZATION_CREATED_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
     }
 
     @Operation(summary = "Update an existing library organization")
     @PatchMapping(path = "/{id}", consumes = "application/json")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> updateLibrary(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateLibraryOrganizationRequest req
-    ) {
+            @Valid @RequestBody UpdateLibraryOrganizationRequest req) {
         LibraryOrganizationResponseDto updated = libraryOrgService.updateOrganization(id, req);
-        return ResponseUtils.success(updated, ApiMessageKey.LIBRARY_ORGANIZATION_UPDATED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(updated,
+                ApiMessageKey.LIBRARY_ORGANIZATION_UPDATED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
-    @Operation(summary = "Assign or create a librarian for a library organization")
-    @PostMapping(path = "/{id}/librarians", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Void>> assignLibrarian(
-            @PathVariable Long id,
-            @Valid @RequestBody AssignLibrarianRequest req
-    ) {
-        libraryOrgService.assignLibrarian(id, req);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_ASSIGNED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
-    }
-
-    @Operation(summary = "Remove a librarian from a library organization")
-    @DeleteMapping(path = "/{id}/librarians/{userId}")
-    public ResponseEntity<ApiResponse<Void>> removeLibrarian(
-            @PathVariable Long id,
-            @PathVariable Long userId
-    ) {
-        libraryOrgService.removeLibrarian(id, userId);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_REMOVED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    @Operation(summary = "Delete a library organization along with its admin, staff, and books")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteLibrary(
+            @PathVariable Long id) {
+        libraryOrgService.deleteOrganization(id);
+        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_ORGANIZATION_DELETED_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 }

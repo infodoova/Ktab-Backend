@@ -20,5 +20,7 @@ public interface LibraryOrganizationRepository extends JpaRepository<LibraryOrga
 
     Page<LibraryOrganization> findAllByStatus(String status, Pageable pageable);
 
+    Page<LibraryOrganization> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
     Page<LibraryOrganization> findByNameContainingIgnoreCaseAndStatus(String name, String status, Pageable pageable);
 }

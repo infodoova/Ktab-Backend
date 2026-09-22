@@ -14,6 +14,12 @@ import java.util.Set;
 @Entity
 @Table(
         name = "tbl_reading_sessions",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_reading_sessions_story_reader",
+                        columnNames = {"col_story_id", "col_reader_id"}
+                )
+        },
         indexes = {
                 @Index(
                         name = "idx_reading_sessions_story_reader",

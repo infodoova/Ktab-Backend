@@ -54,24 +54,33 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
             dto.setLibraryOrganizationName(book.getLibraryOrganization().getName());
         }
 
+        dto.setSubmittedAt(book.getSubmittedAt());
+        dto.setReviewedAt(book.getReviewedAt());
+
         // Load cover (public/signed)
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));
 
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean isReader = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "READER".equals(a.getAuthority()) || "ROLE_READER".equals(a.getAuthority()));
+
+        // Gate editorial commentary behind non-READER check so readers never see review notes
+        if (!isReader) {
+            dto.setReviewNote(book.getReviewNote());
+            if (book.getReviewedBy() != null) {
+                dto.setReviewedByName(book.getReviewedBy().getFullName());
+            }
+        }
+
         // Load PDF only when explicitly authorized (e.g. author or librarian managing their own books)
         // Highly confidential source file - NEVER sent to readers or discovery endpoints
-        if (includePdfUrl) {
-            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-            boolean isReader = auth != null && auth.getAuthorities().stream()
-                    .anyMatch(a -> "READER".equals(a.getAuthority()) || "ROLE_READER".equals(a.getAuthority()));
-
-            if (!isReader) {
-                Optional<Attachment> pdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, PDF_SOURCE_TYPE);
-                pdf.ifPresent(att -> {
-                    dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED));
-                    dto.setPdfFileName(att.getFileName());
-                });
-            }
+        if (includePdfUrl && !isReader) {
+            Optional<Attachment> pdf = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, PDF_SOURCE_TYPE);
+            pdf.ifPresent(att -> {
+                dto.setPdfDownloadUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED));
+                dto.setPdfFileName(att.getFileName());
+            });
         }
 
         return dto;

@@ -17,11 +17,15 @@ public interface LibraryOrganizationService {
 
     LibraryOrganizationResponseDto updateOrganization(Long id, UpdateLibraryOrganizationRequest req);
 
+    void deleteOrganization(Long id);
+
     LibraryOrganizationResponseDto getOrganizationById(Long id);
 
     LibraryOrganizationResponseDto getOrganizationBySlug(String slug);
 
     PageResponse<LibraryOrganizationResponseDto> getAllActiveOrganizations(int page, int size, String search);
+
+    PageResponse<LibraryOrganizationResponseDto> getAllOrganizationsForAdmin(int page, int size, String search);
 
     PageResponse<LibraryOrganizationResponseDto> searchOrganizations(
             com.doova.ktab.dto.library.LibraryOrganizationSearchRequest req,
@@ -29,6 +33,8 @@ public interface LibraryOrganizationService {
     );
 
     void assignLibrarian(Long organizationId, AssignLibrarianRequest req);
+
+    void assignAdminLibrarian(Long organizationId, AssignLibrarianRequest req);
 
     void removeLibrarian(Long organizationId, Long userId);
 

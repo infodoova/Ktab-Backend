@@ -98,6 +98,19 @@ public class Book extends BaseEntity {
     @Column(name = "col_publish_date")
     private Instant publishDate;
 
+    @Column(name = "col_submitted_at")
+    private Instant submittedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "col_reviewed_by")
+    private User reviewedBy;
+
+    @Column(name = "col_reviewed_at")
+    private Instant reviewedAt;
+
+    @Column(name = "col_review_note", columnDefinition = "TEXT")
+    private String reviewNote;
+
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BookReview> reviews = new HashSet<>();
 
@@ -116,6 +129,45 @@ public class Book extends BaseEntity {
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BookPage> sections = new HashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_reading_direction", nullable = false, length = 3)
+    @ColumnDefault("'RTL'")
+    private com.doova.ktab.enums.book.ReadingDirection readingDirection = com.doova.ktab.enums.book.ReadingDirection.RTL;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_pagination_mode", length = 10)
+    private com.doova.ktab.enums.book.PaginationMode paginationMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_structure_status", length = 20)
+    @ColumnDefault("'NONE'")
+    private com.doova.ktab.enums.book.StructureStatus structureStatus = com.doova.ktab.enums.book.StructureStatus.NONE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_structure_source", length = 20)
+    private com.doova.ktab.enums.book.StructureSource structureSource;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "col_toc_raw", columnDefinition = "JSONB")
+    private String tocRaw;
+
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private Set<BookSection> bookSections = new HashSet<>();
+
+    public void addBookSection(BookSection bookSection) {
+        if (bookSection != null) {
+            bookSection.setBook(this);
+            bookSections.add(bookSection);
+        }
+    }
+
+    public void removeBookSection(BookSection bookSection) {
+        if (bookSection != null && bookSections.remove(bookSection)) {
+            bookSection.setBook(null);
+        }
+    }
 
     public void addSection(BookPage section) {
         if (section != null) {

@@ -35,7 +35,7 @@ public class JWTServiceImpl implements JWTService {
 
     public JWTServiceImpl(
             @Value("${security.jwt.secret:}") String secretKey,
-            @Value("${security.jwt.expiration-ms:43200000}") long expirationMillis
+            @Value("${security.jwt.expiration-ms:60000}") long expirationMillis
     ) {
         this.key = resolveKey(secretKey);
         this.expirationMillis = expirationMillis;
@@ -117,5 +117,10 @@ public class JWTServiceImpl implements JWTService {
 
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    @Override
+    public long getExpirationMillis() {
+        return expirationMillis;
     }
 }

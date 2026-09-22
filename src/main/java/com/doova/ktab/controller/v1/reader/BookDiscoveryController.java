@@ -24,8 +24,9 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = "/reader", produces = "application/json")
+@RequestMapping(path = "/books", produces = "application/json")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('READER')")
 @Tag(name = "Reader Book Discovery API", description = "Endpoints for accessing, searching, and discovering books.")
 public class BookDiscoveryController {
 
@@ -37,88 +38,75 @@ public class BookDiscoveryController {
     // GET ALL BOOKS
     // ============================================================================================
     @Operation(summary = "Get all books (paginated)")
-    @GetMapping({"/books", "/viewBooks"})
-    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    @GetMapping("")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getAllBooks(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
         PageResponse<BookResponseDto> books = bookService.getAllBooksPaginated(page, size);
 
-        return ResponseUtils.success(books, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(books, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     // ============================================================================================
     // SEARCH BOOKS
     // ============================================================================================
     @Operation(summary = "Search books")
-    @PostMapping({"/search", "/books/search"})
-    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchBooks(@Valid @RequestBody BookSearchRequestDto requestDto) {
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchBooks(
+            @Valid @RequestBody BookSearchRequestDto requestDto) {
         Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size());
 
         PageResponse<BookResponseDto> result = bookService.searchBooks(requestDto, pageable);
 
-        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     // ============================================================================================
     // ADVANCED MULTI-FACET SEARCH BOOKS
     // ============================================================================================
     @Operation(summary = "Advanced multi-faceted book search with Arabic NLP normalization")
-    @PostMapping({"/advanced-search", "/books/advanced-search"})
-    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    @PostMapping("/advanced-search")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> advancedSearchBooks(
-            @Valid @RequestBody com.doova.ktab.dto.book.AdvancedBookSearchRequest requestDto
-    ) {
+            @Valid @RequestBody com.doova.ktab.dto.book.AdvancedBookSearchRequest requestDto) {
         String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "averageRating";
-        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
-        Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null
+                ? requestDto.sortDirection()
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(requestDto.page(), requestDto.size(),
+                org.springframework.data.domain.Sort.by(direction, sortProperty));
 
         PageResponse<BookResponseDto> result = bookService.advancedSearchBooks(requestDto, pageable);
 
-        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     // ============================================================================================
     // GET BOOK BY ID
     // ============================================================================================
     @Operation(summary = "Get book by ID")
-    @GetMapping({"/books/{id}", "/viewBook/{id}"})
-    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(@PathVariable Long id) {
         BookResponseDto book = bookService.getBookById(id);
 
-        return ResponseUtils.success(book, ApiMessageKey.READER_BOOK_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(book, ApiMessageKey.READER_BOOK_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     // ============================================================================================
     // GET SIMILAR BOOKS
     // ============================================================================================
     @Operation(summary = "Get similar books")
-    @GetMapping({"/books/{bookId}/similar", "/similar/{bookId}"})
-    @PreAuthorize("hasAnyAuthority('READER', 'AUTHOR', 'LIBRARIAN', 'ADMIN', 'ADMIN_LIBRARIAN')")
+    @GetMapping("/{bookId}/similar")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getSimilarBooks(
             @PathVariable Long bookId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "6") int size
-    ) {
+            @RequestParam(defaultValue = "6") int size) {
         PageResponse<BookResponseDto> result = similarityService.getSmartSimilarBooks(bookId, page, size);
 
-        return ResponseUtils.success(result, ApiMessageKey.READER_SIMILAR_SUCCESS.getMessage(messageSource), HttpStatus.OK);
-    }
-
-    // ============================================================================================
-    // GET BOOK COVERS (PUBLIC - NO AUTH REQUIRED)
-    // ============================================================================================
-    @Operation(summary = "Get book covers with titles (public endpoint)")
-    @GetMapping({"/covers", "/books/covers"})
-    public ResponseEntity<ApiResponse<PageResponse<BookCoverResponse>>> getBookCovers(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "18") int size
-    ) {
-        PageResponse<BookCoverResponse> covers = bookService.getBookCovers(page, size);
-
-        return ResponseUtils.success(covers, ApiMessageKey.READER_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(result, ApiMessageKey.READER_SIMILAR_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 }

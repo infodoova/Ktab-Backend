@@ -73,17 +73,6 @@ class LibraryControllerTest {
     }
 
     @Test
-    @DisplayName("assignBookToUser_assignBookAlias_returns201")
-    void assignBookToUser_assignBookAlias_returns201() throws Exception {
-        mockMvc.perform(post("/library/assignBook")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"bookId\":112}"))
-                .andExpect(status().isCreated());
-
-        verify(libraryService).assignBookToUser(eq(new AssignBookRequest(112L)), eq(testReader));
-    }
-
-    @Test
     @DisplayName("assignBookToUser_booksCanonical_returns201")
     void assignBookToUser_booksCanonical_returns201() throws Exception {
         mockMvc.perform(post("/library/books")

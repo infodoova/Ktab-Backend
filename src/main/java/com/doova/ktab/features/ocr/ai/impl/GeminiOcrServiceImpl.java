@@ -113,7 +113,15 @@ public class GeminiOcrServiceImpl implements GeminiOcrService {
             return GeminiOcrResponse.empty();
         }
 
-        // 1️⃣ Strict format (expected contract)
+        // 1️⃣ Structured JSON format (v2 contract)
+        Optional<GeminiOcrResponse> jsonResp = parseJsonFormat(rawOutput);
+        if (jsonResp.isPresent()) {
+            meterRegistry.counter("ocr.gemini.responses.parsed", "format", "json").increment();
+            sample.stop(meterRegistry.timer("ocr.gemini.parsing.duration"));
+            return jsonResp.get();
+        }
+
+        // 2️⃣ Strict format (legacy v1 contract)
         Optional<GeminiOcrResponse> strict = parseStrictFormat(rawOutput);
         if (strict.isPresent()) {
             meterRegistry.counter("ocr.gemini.responses.parsed", "format", "strict").increment();
@@ -121,7 +129,7 @@ public class GeminiOcrServiceImpl implements GeminiOcrService {
             return strict.get();
         }
 
-        // 2️⃣ Relaxed format (Gemini drift tolerance)
+        // 3️⃣ Relaxed format (Gemini drift tolerance)
         Optional<GeminiOcrResponse> relaxed = parseRelaxedFormat(rawOutput);
         if (relaxed.isPresent()) {
             meterRegistry.counter("ocr.gemini.responses.parsed", "format", "relaxed").increment();
@@ -129,10 +137,94 @@ public class GeminiOcrServiceImpl implements GeminiOcrService {
             return relaxed.get();
         }
 
-        // 3️⃣ Last resort fallback (text only, zero words)
+        // 4️⃣ Last resort fallback (text only, zero words)
         meterRegistry.counter("ocr.gemini.responses.parsed", "format", "fallback").increment();
         sample.stop(meterRegistry.timer("ocr.gemini.parsing.duration"));
         return GeminiOcrResponse.fallback(rawOutput);
+    }
+
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+    private Optional<GeminiOcrResponse> parseJsonFormat(String output) {
+        String cleanJson = output.trim();
+        if (cleanJson.startsWith("```json")) {
+            cleanJson = cleanJson.substring(7);
+        } else if (cleanJson.startsWith("```")) {
+            cleanJson = cleanJson.substring(3);
+        }
+        if (cleanJson.endsWith("```")) {
+            cleanJson = cleanJson.substring(0, cleanJson.length() - 3);
+        }
+        cleanJson = cleanJson.trim();
+
+        // If not starting with '{', attempt to find first '{' and last '}'
+        int firstBrace = cleanJson.indexOf('{');
+        int lastBrace = cleanJson.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+        } else {
+            return Optional.empty();
+        }
+
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(cleanJson);
+            if (!root.isObject()) {
+                return Optional.empty();
+            }
+
+            com.doova.ktab.enums.book.PageKind kind = parsePageKind(root.path("pageKind").asText("BODY"));
+            int orientation = root.path("orientation").asInt(0);
+            com.doova.ktab.enums.book.ImageQuality quality = parseImageQuality(root.path("imageQuality").asText("GOOD"));
+            boolean hasStamps = root.path("hasStamps").asBoolean(false);
+            boolean hasHandwriting = root.path("hasHandwriting").asBoolean(false);
+            int illegibleSegments = root.path("illegibleSegments").asInt(0);
+            String printedPageLabel = root.path("printedPageLabel").asText("");
+            String runningHeader = root.path("runningHeader").asText("");
+            String bodyMarkdown = normalizeMarkdown(root.path("bodyMarkdown").asText(""));
+            String footnotesMarkdown = normalizeMarkdown(root.path("footnotesMarkdown").asText(""));
+            Boolean startsMid = root.has("startsMidSentence") ? root.path("startsMidSentence").asBoolean() : false;
+            Boolean endsMid = root.has("endsMidSentence") ? root.path("endsMidSentence").asBoolean() : false;
+
+            java.util.List<com.doova.ktab.features.ocr.batch.OcrResult.DetectedHeading> headings = new java.util.ArrayList<>();
+            com.fasterxml.jackson.databind.JsonNode headingsNode = root.path("headings");
+            if (headingsNode.isArray()) {
+                for (com.fasterxml.jackson.databind.JsonNode h : headingsNode) {
+                    String hText = h.path("text").asText("");
+                    int hLevel = h.path("levelHint").asInt(1);
+                    if (!hText.isBlank()) {
+                        headings.add(new com.doova.ktab.features.ocr.batch.OcrResult.DetectedHeading(hText, hLevel));
+                    }
+                }
+            }
+
+            int wordCount = estimateWordCount(bodyMarkdown);
+            return Optional.of(new GeminiOcrResponse(
+                    kind, orientation, quality, hasStamps, hasHandwriting, illegibleSegments,
+                    printedPageLabel, runningHeader, headings, bodyMarkdown, footnotesMarkdown,
+                    startsMid, endsMid, wordCount, "STOP"
+            ));
+        } catch (Exception e) {
+            log.trace("JSON format parse failed: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private com.doova.ktab.enums.book.PageKind parsePageKind(String text) {
+        if (text == null) return com.doova.ktab.enums.book.PageKind.BODY;
+        try {
+            return com.doova.ktab.enums.book.PageKind.valueOf(text.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return com.doova.ktab.enums.book.PageKind.BODY;
+        }
+    }
+
+    private com.doova.ktab.enums.book.ImageQuality parseImageQuality(String text) {
+        if (text == null) return com.doova.ktab.enums.book.ImageQuality.GOOD;
+        try {
+            return com.doova.ktab.enums.book.ImageQuality.valueOf(text.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return com.doova.ktab.enums.book.ImageQuality.GOOD;
+        }
     }
 
     /* -------------------------------------------------------

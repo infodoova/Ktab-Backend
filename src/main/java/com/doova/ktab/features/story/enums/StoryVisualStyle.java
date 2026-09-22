@@ -3,9 +3,29 @@ package com.doova.ktab.features.story.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import lombok.Getter;
+
+@Getter
 public enum StoryVisualStyle {
 
-    CINEMATIC_STORYBOOK, REALISTIC, ANIME, COMIC_BOOK, WATERCOLOR, PIXAR_3D, NOIR;
+    CINEMATIC_STORYBOOK("سينمائي قصصي", "Cinematic Storybook"),
+    MODERN_DIGITAL_ART("فن رقمي عصري", "Modern Digital Art"),
+    DARK_GRAPHIC_NOVEL("رواية مصورة مظلمة", "Dark Graphic Novel"),
+    ANIME("أنمي ورسوم متحركة", "Anime & Animation"),
+    WATERCOLOR("ألوان مائية فنية", "Artistic Watercolor"),
+    CLASSIC_OIL_PAINTING("رسم زيتي كلاسيكي", "Classic Oil Painting"),
+    REALISTIC("واقعي سينمائي", "Photorealistic Cinematic"),
+    COMIC_BOOK("قصص مصورة", "Comic Book"),
+    PIXAR_3D("ثلاثي الأبعاد", "Stylized 3D Animation"),
+    NOIR("فيلم نوار مظلم", "Film Noir");
+
+    private final String labelAr;
+    private final String labelEn;
+
+    StoryVisualStyle(String labelAr, String labelEn) {
+        this.labelAr = labelAr;
+        this.labelEn = labelEn;
+    }
 
     /**
      * Spring + Jackson safe valueOf.

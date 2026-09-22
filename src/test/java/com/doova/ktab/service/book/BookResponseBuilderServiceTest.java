@@ -154,6 +154,42 @@ class BookResponseBuilderServiceTest {
             String json = objectMapper.writeValueAsString(result);
             assertFalse(json.contains("pdfDownloadUrl"), "JSON must never leak pdfDownloadUrl to a Reader");
             assertFalse(json.contains("pdfFileName"), "JSON must never leak pdfFileName to a Reader");
+            assertFalse(json.contains("reviewNote"), "JSON must never leak reviewNote to a Reader");
+            assertFalse(json.contains("reviewedByName"), "JSON must never leak reviewedByName to a Reader");
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("build_whenUserIsPublisher_includesReviewNoteAndReviewedByName")
+    void build_whenUserIsPublisher_includesReviewNoteAndReviewedByName() throws Exception {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "publisher@ktab.com",
+                "credentials",
+                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("PUBLISHER"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        com.doova.ktab.model.user.User reviewer = new com.doova.ktab.model.user.User();
+        reviewer.setFirstName("Saleh");
+        reviewer.setLastName("Omar");
+        testBook.setReviewedBy(reviewer);
+        testBook.setReviewNote("Needs minor revisions.");
+        java.time.Instant now = java.time.Instant.now();
+        testBook.setSubmittedAt(now.minusSeconds(100));
+        testBook.setReviewedAt(now);
+
+        try {
+            when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+
+            BookResponseDto result = responseBuilder.build(testBook, false);
+
+            assertNotNull(result);
+            assertEquals("Needs minor revisions.", result.getReviewNote());
+            assertEquals("Saleh Omar", result.getReviewedByName());
+            assertEquals(now.minusSeconds(100), result.getSubmittedAt());
+            assertEquals(now, result.getReviewedAt());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }

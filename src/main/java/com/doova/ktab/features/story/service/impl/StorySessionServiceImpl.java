@@ -62,14 +62,22 @@ public class StorySessionServiceImpl implements StorySessionService {
     @Transactional
     public List<Turn> startSession(Long storyId, User reader) {
         try {
-            var existingSession = sessionRepo.findByStoryIdAndReaderId(storyId, reader.getId());
+            // Serialize session creation for this story. The database unique
+            // constraint remains the final guard, including across instances.
+            Story story = storyRepository.findById(storyId)
+                    .orElseThrow(() -> new IllegalArgumentException("Story not found"));
 
-            if (existingSession.isPresent()) {
-                ReadingSession session = existingSession.get();
+            var existingSessions = sessionRepo.findByStoryIdAndReaderIdOrderByIdDesc(storyId, reader.getId());
+
+            if (!existingSessions.isEmpty()) {
+                ReadingSession session = existingSessions.getFirst();
+                if (existingSessions.size() > 1) {
+                    log.warn("Multiple reading sessions found for storyId={} readerId={}; reusing newest sessionId={} and leaving older records untouched",
+                            storyId, reader.getId(), session.getId());
+                }
                 return session.getTurns().stream().sorted(Comparator.comparingInt(Turn::getTurnIndex).reversed()).toList();
             }
 
-            Story story = storyRepository.findById(storyId).orElseThrow(() -> new IllegalArgumentException("Story not found"));
             int maxScenes = effectiveMaxScenes(story);
 
             SessionState initialState = sessionStateFactory.initialStateFor(story);

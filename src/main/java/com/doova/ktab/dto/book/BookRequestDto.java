@@ -2,6 +2,7 @@ package com.doova.ktab.dto.book;
 
 import com.doova.ktab.validation.CreateBook;
 import com.doova.ktab.enums.status.BookStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -49,6 +50,15 @@ public class BookRequestDto {
     @NotNull(message = "{validation.book.has_audio.required}", groups = CreateBook.class)
     private Boolean hasAudio;
 
-    @NotNull(message = "{validation.book.status.required}", groups = CreateBook.class)
+    /**
+     * @deprecated Book status is no longer author-assignable. Books always start as
+     * DRAFT and progress through the editorial review workflow
+     * (submit -> UNDER_REVIEW -> publisher approves -> PUBLISHED). Setting this field
+     * to anything other than DRAFT (or leaving it null) is required; any other value
+     * is rejected by {@code BookServiceImpl}. Kept only for backward-compatible
+     * deserialization of older clients.
+     */
+    @Deprecated
+    @Schema(deprecated = true, description = "Deprecated: status is no longer author-assignable; books always start as DRAFT.")
     private BookStatus status;
 }

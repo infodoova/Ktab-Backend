@@ -159,55 +159,14 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
         Timer.Sample timer = Timer.start(meterRegistry);
 
         try {
-            /* -----------------------------
-               1) FETCH EXTENDED CONTEXT
-               ----------------------------- */
-
-//            int safeStart = Math.max(0, params.start() - MAX_CONTEXT_WORDS);
-//            int safeEnd = params.end() + MAX_CONTEXT_WORDS;
-//
-//            TextRangeResponse extended = bookTextService.getTextByWordRange(params.bookId(), safeStart, safeEnd);
-//
-//            List<String> words = splitWordsPreserveArabic(extended.text());
-//
-//            int localStart = params.start() - safeStart;
-//            int localEnd = params.end() - safeStart;
-//
-//            /* -----------------------------
-//               2) CONTEXT (NOT SPOKEN)
-//               ----------------------------- */
-//
-//            String prevContext = String.join(" ", words.subList(Math.max(0, localStart - MAX_CONTEXT_WORDS), localStart));
-//
-//            String nextContext = String.join(" ", words.subList(localEnd, Math.min(words.size(), localEnd + MAX_CONTEXT_WORDS)));
-//
-//            /* -----------------------------
-//               3) MAIN TEXT ONLY (SPOKEN)
-//               ----------------------------- */
-//
-//            String mainText = String.join(" ", words.subList(localStart, localEnd));
-//
-//            int mainStartChar = extended.startChar() + charOffsetUntilWord(words, localStart);
-//
-//            List<TextChunk> chunks = ArabicTtsChunker.chunk(mainText, mainStartChar);
-
 
             TextRangeResponse mainText = bookTextService.getTextByWordRange(params.bookId(), params.start(), params.end());
             log.info("--- WS_TEXT_FETCHED sid={} textLen={}", sid, mainText.text().length());
-
-            /* -----------------------------
-               3) MAIN TEXT ONLY (SPOKEN)
-               ----------------------------- */
-
-            //   List<TextChunk> chunks = ArabicTtsChunker.chunk(mainText.text(), mainText.startChar());
 
             List<TextChunk> chunksForV3 = ElevenLabsV3TextChunker.chunk(mainText.text(), mainText.startChar());
 
             log.info("WS_TTS_RANGE sid={} bookId={} start={} end={} chunksCount={}", sid, params.bookId(), params.start(), params.end(), chunksForV3.size());
 
-            /* -----------------------------
-               4) STREAM CHUNKS
-               ----------------------------- */
 
             if (chunksForV3.isEmpty()) {
                 log.warn("WS_TTS_EMPTY_TEXT bookId={} start={} end={}", params.bookId(), params.start(), params.end());
@@ -258,12 +217,10 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
                     }
                 })
 
-                // 👇 handle audio + alignment
                 .doOnNext(resp -> {
                         handleTtsResponse(session, chunk, idx, resp);
                 })
 
-                // 👇 convert Mono<TtsStreamChunk> → Mono<Void>
                 .then()
 
                 .onErrorResume(e -> {

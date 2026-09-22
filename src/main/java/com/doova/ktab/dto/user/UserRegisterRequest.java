@@ -1,9 +1,9 @@
 package com.doova.ktab.dto.user;
 
+import com.doova.ktab.validation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
 public record UserRegisterRequest(
         @NotBlank(message = "{validation.first_name.required}")
@@ -18,8 +18,7 @@ public record UserRegisterRequest(
         @NotBlank(message = "{validation.email.required}")
         String email,
 
-        @NotBlank(message = "{validation.password.required}")
-        @Size(min = 6, message = "{validation.password.min_size}")
+        @ValidPassword
         String password,
 
         @NotBlank(message = "{validation.role.required}")

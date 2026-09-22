@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @ApiVersion(1)
 @Validated
 @RestController
-@RequestMapping(path = "/reader", produces = "application/json")
+@RequestMapping(path = "/books", produces = "application/json")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('READER')")
 @Tag(name = "Reader Book Text API", description = "Endpoints for reading, paginating, and analyzing book text.")
@@ -34,7 +34,7 @@ public class BookTextController {
     // GET FULL BOOK TEXT
     // ============================================================================================
     @Operation(summary = "Get full book text")
-    @GetMapping("/books/{bookId}/text")
+    @GetMapping("/{bookId}/text")
     public ResponseEntity<ApiResponse<String>> getFullText(@PathVariable Long bookId) {
         String text = bookTextService.getFullText(bookId);
 
@@ -45,7 +45,7 @@ public class BookTextController {
     // GET TEXT BY CHARACTER RANGE
     // ============================================================================================
     @Operation(summary = "Get book text by character range")
-    @GetMapping("/books/{bookId}/text/range")
+    @GetMapping("/{bookId}/text/range")
     public ResponseEntity<ApiResponse<TextRangeResponse>> getTextRange(
             @PathVariable Long bookId,
             @RequestParam @Min(0) int start,
@@ -60,7 +60,7 @@ public class BookTextController {
     // GET TEXT BY PAGE RANGE
     // ============================================================================================
     @Operation(summary = "Get book text by page range")
-    @GetMapping("/books/{bookId}/text/pages")
+    @GetMapping("/{bookId}/text/pages")
     public ResponseEntity<ApiResponse<String>> getTextByPages(
             @PathVariable Long bookId,
             @RequestParam @Min(1) int from,
@@ -75,7 +75,7 @@ public class BookTextController {
     // GET BOOK TEXT STATS
     // ============================================================================================
     @Operation(summary = "Get book text statistics")
-    @GetMapping("/books/{bookId}/text/stats")
+    @GetMapping("/{bookId}/text/stats")
     public ResponseEntity<ApiResponse<BookStatsResponse>> getStats(@PathVariable Long bookId) {
         BookStatsResponse stats = bookTextService.getBookStats(bookId);
 
@@ -86,7 +86,7 @@ public class BookTextController {
     // GET TEXT BY WORD RANGE
     // ============================================================================================
     @Operation(summary = "Get book text by word range")
-    @GetMapping("/books/{bookId}/text/words")
+    @GetMapping("/{bookId}/text/words")
     public ResponseEntity<ApiResponse<TextRangeResponse>> getTextByWordRange(
             @PathVariable Long bookId,
             @RequestParam @Min(0) int start,
@@ -101,7 +101,7 @@ public class BookTextController {
     // IN-BOOK FULL-TEXT SEARCH
     // ============================================================================================
     @Operation(summary = "Search keywords inside book pages with contextual snippet highlighting")
-    @GetMapping({"/books/{bookId}/text/search", "/books/{bookId}/search"})
+    @GetMapping("/{bookId}/text/search")
     public ResponseEntity<ApiResponse<com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse>>> searchInBook(
             @PathVariable Long bookId,
             @RequestParam String q,

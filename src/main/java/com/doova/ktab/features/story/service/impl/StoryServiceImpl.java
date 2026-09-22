@@ -87,8 +87,10 @@ public class StoryServiceImpl implements StoryService {
             if (oldCoverKey != null) {
                 keysToDeleteAfterCommit.add(oldCoverKey);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED);
+            throw new S3UploadException(ApiMessageKey.FILE_UPLOAD_FAILED, e);
         }
 
         upsertAttachment(story, existingCover, coverImage.getOriginalFilename(), newCoverPath, coverImage.getContentType(), coverImage.getSize());

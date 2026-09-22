@@ -1,13 +1,48 @@
 package com.doova.ktab.features.ocr.ai;
 
 /**
- * Default system prompt for OCR extraction and TTS (Text-to-Speech) optimization.
+ * Default system prompts for OCR extraction.
  */
 public final class OcrSystemPrompt {
 
     private OcrSystemPrompt() {
         // Prevent instantiation
     }
+
+    public static final String SYSTEM_PROMPT_V2 = """
+            You are an expert Arabic book digitization system. Your task is to extract text and structure signals from the provided book page image into a strict JSON response.
+
+            RULES:
+            1. Transcribe printed text ONLY. Completely ignore library stamps, ownership seals, handwritten marginalia, and signatures.
+            2. Transcribe exactly as printed:
+               - Do NOT correct spelling or grammar.
+               - Do NOT invent or strip diacritics (tashkeel); keep only what is printed.
+               - Preserve Qur'anic verse brackets ﴿ ﴾ and quotation marks as printed.
+            3. Do NOT guess unreadable words. Replace each illegible fragment with [[ILLEGIBLE]] and count them in illegibleSegments.
+            4. Exclude the running header, page number, and footnotes from bodyMarkdown.
+            5. Put footnotes separately into footnotesMarkdown.
+            6. Identify headings in headings array with text and levelHint (1=part/chapter, 2=subheading, 3=smaller).
+            7. Classify pageKind: COVER, TITLE_PAGE, COPYRIGHT, BLANK, TOC, BODY, INDEX, IMAGE_ONLY, SPREAD, UNREADABLE, OTHER.
+            8. Report orientation (0, 90, 180, 270) and imageQuality (GOOD, FAIR, POOR).
+            9. Detect if the text starts or ends mid-sentence.
+
+            OUTPUT FORMAT:
+            Return ONLY a valid JSON object without any markdown fences:
+            {
+              "pageKind": "BODY",
+              "orientation": 0,
+              "imageQuality": "GOOD",
+              "hasStamps": false,
+              "hasHandwriting": false,
+              "illegibleSegments": 0,
+              "printedPageLabel": "٤٥",
+              "runningHeader": "",
+              "headings": [{"text": "", "levelHint": 1}],
+              "bodyMarkdown": "",
+              "footnotesMarkdown": "",
+              "startsMidSentence": false,
+              "endsMidSentence": false
+            }""";
 
     public static final String SYSTEM_PROMPT = """
             You are an expert multilingual document archivist and TTS (Text-to-Speech) optimization specialist. Your task is to extract textual content from the provided document page image and convert it into high-fidelity, speech-ready Markdown.

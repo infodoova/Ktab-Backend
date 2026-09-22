@@ -1,8 +1,8 @@
 package com.doova.ktab.controller.v1.auth;
 
 import com.doova.ktab.dto.ApiResponse;
-import com.doova.ktab.dto.user.AuthTokenResponse;
 import com.doova.ktab.dto.user.UserLoginRequest;
+import com.doova.ktab.dto.user.UserResponseDto;
 import com.doova.ktab.model.user.RefreshToken;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 class AuthControllerTest {
 
     @Mock
-    private UserService userService;
+    private UserService service;
 
     @Mock
     private MessageSource messageSource;
@@ -78,37 +78,11 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("login_defaultRequest_returnsOnlyAccessTokenAndOmitsRefreshToken")
-    void login_defaultRequest_returnsOnlyAccessTokenAndOmitsRefreshToken() {
+    @DisplayName("login_validCredentials_setsAccessAndRefreshTokenCookiesAndReturnsUser")
+    void login_validCredentials_setsAccessAndRefreshTokenCookiesAndReturnsUser() {
         // Arrange
         UserLoginRequest loginReq = new UserLoginRequest("ali@darhashem.com", "Password123!");
-        when(userService.authenticate(loginReq)).thenReturn(testPrincipal);
-        when(jwtService.generateToken(testPrincipal)).thenReturn("mock-access-token");
-
-        // Act
-        ResponseEntity<ApiResponse<Object>> result = authController.login(
-                loginReq, null, null, request, response
-        );
-
-        // Assert
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertNotNull(result.getBody());
-        Object data = result.getBody().getData();
-        assertNotNull(data);
-        assertEquals("mock-access-token", data);
-
-        // Verify only access token cookie was set, no refresh token created or set
-        verify(cookieUtils).setAccessTokenCookie(response, "mock-access-token");
-        verify(cookieUtils, never()).setRefreshTokenCookie(any(), anyString());
-        verify(refreshTokenService, never()).createRefreshToken(any(), any());
-    }
-
-    @Test
-    @DisplayName("login_withRememberMe_returnsAccessAndRefreshToken")
-    void login_withRememberMe_returnsAccessAndRefreshToken() {
-        // Arrange
-        UserLoginRequest loginReq = new UserLoginRequest("ali@darhashem.com", "Password123!", true, false);
-        when(userService.authenticate(loginReq)).thenReturn(testPrincipal);
+        when(service.authenticate(loginReq)).thenReturn(testPrincipal);
         when(jwtService.generateToken(testPrincipal)).thenReturn("mock-access-token");
         when(request.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
 
@@ -116,59 +90,20 @@ class AuthControllerTest {
                 .token("mock-refresh-token")
                 .user(testUser)
                 .build();
-        when(refreshTokenService.createRefreshToken(eq(testUser), eq("Mozilla/5.0"))).thenReturn(mockRefreshToken);
+        when(refreshTokenService.createRefreshToken(testUser, "Mozilla/5.0")).thenReturn(mockRefreshToken);
 
         // Act
-        ResponseEntity<ApiResponse<Object>> result = authController.login(
-                loginReq, null, null, request, response
-        );
+        ResponseEntity<ApiResponse<UserResponseDto>> result = authController.login(loginReq, request, response);
 
         // Assert
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
-        assertInstanceOf(AuthTokenResponse.class, result.getBody().getData());
-        AuthTokenResponse data = (AuthTokenResponse) result.getBody().getData();
+        UserResponseDto data = result.getBody().getData();
         assertNotNull(data);
-        assertEquals("mock-access-token", data.accessToken());
-        assertEquals("mock-access-token", data.token());
-        assertEquals("mock-refresh-token", data.refreshToken());
+        assertEquals("ali@darhashem.com", data.email());
 
-        // Verify both cookies were set
         verify(cookieUtils).setAccessTokenCookie(response, "mock-access-token");
         verify(cookieUtils).setRefreshTokenCookie(response, "mock-refresh-token");
         verify(refreshTokenService).createRefreshToken(testUser, "Mozilla/5.0");
-    }
-
-    @Test
-    @DisplayName("login_withIncludeRefreshTokenQueryParam_returnsAccessAndRefreshToken")
-    void login_withIncludeRefreshTokenQueryParam_returnsAccessAndRefreshToken() {
-        // Arrange
-        UserLoginRequest loginReq = new UserLoginRequest("ali@darhashem.com", "Password123!");
-        when(userService.authenticate(loginReq)).thenReturn(testPrincipal);
-        when(jwtService.generateToken(testPrincipal)).thenReturn("mock-access-token");
-        when(request.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
-
-        RefreshToken mockRefreshToken = RefreshToken.builder()
-                .token("mock-refresh-token-param")
-                .user(testUser)
-                .build();
-        when(refreshTokenService.createRefreshToken(eq(testUser), eq("Mozilla/5.0"))).thenReturn(mockRefreshToken);
-
-        // Act
-        ResponseEntity<ApiResponse<Object>> result = authController.login(
-                loginReq, true, null, request, response
-        );
-
-        // Assert
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertNotNull(result.getBody());
-        assertInstanceOf(AuthTokenResponse.class, result.getBody().getData());
-        AuthTokenResponse data = (AuthTokenResponse) result.getBody().getData();
-        assertNotNull(data);
-        assertEquals("mock-access-token", data.accessToken());
-        assertEquals("mock-refresh-token-param", data.refreshToken());
-
-        verify(cookieUtils).setAccessTokenCookie(response, "mock-access-token");
-        verify(cookieUtils).setRefreshTokenCookie(response, "mock-refresh-token-param");
     }
 }

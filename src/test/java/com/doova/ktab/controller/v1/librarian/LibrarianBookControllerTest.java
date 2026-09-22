@@ -90,8 +90,7 @@ class LibrarianBookControllerTest {
 
         when(librarianBookService.getSourceFileForLibrarian(eq(100L), eq(testLibrarian))).thenReturn(dto);
 
-        // Canonical path: /librarians/books/{id}/source-file
-        mockMvc.perform(get("/librarians/books/100/source-file")
+        mockMvc.perform(get("/librarians/me/books/100/source-file")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
@@ -102,8 +101,8 @@ class LibrarianBookControllerTest {
     }
 
     @Test
-    @DisplayName("getMyLibraryBooks_legacyAliases_returnsSuccess")
-    void getMyLibraryBooks_legacyAliases_returnsSuccess() throws Exception {
+    @DisplayName("getMyLibraryBooks_canonicalEndpoint_returnsSuccess")
+    void getMyLibraryBooks_canonicalEndpoint_returnsSuccess() throws Exception {
         BookResponseDto bookDto = new BookResponseDto();
         bookDto.setId(100L);
         bookDto.setTitle("Library Book");
@@ -112,13 +111,7 @@ class LibrarianBookControllerTest {
 
         when(librarianBookService.getBooksForLibrary(anyInt(), anyInt(), any(), eq(testLibrarian))).thenReturn(pageResponse);
 
-        // Test alias: /librarians/books/viewBooks
-        mockMvc.perform(get("/librarians/books/viewBooks"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].id").value(100));
-
-        // Test alias: /librarians/books/me/books
-        mockMvc.perform(get("/librarians/books/me/books"))
+        mockMvc.perform(get("/librarians/me/books"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(100));
     }

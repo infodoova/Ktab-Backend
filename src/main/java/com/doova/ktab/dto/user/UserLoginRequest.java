@@ -9,12 +9,5 @@ public record UserLoginRequest(
         String email,
 
         @NotBlank(message = "{validation.password.required}")
-        String password,
-
-        Boolean rememberMe,
-        Boolean includeRefreshToken
-) {
-    public UserLoginRequest(String email, String password) {
-        this(email, password, false, false);
-    }
-}
+        String password
+) {}

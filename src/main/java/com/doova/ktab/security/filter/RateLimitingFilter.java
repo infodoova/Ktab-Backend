@@ -93,6 +93,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return RateLimitTier.SKIP;
         }
 
+        // Refresh-token rotation is not credential-guessing-sensitive — exempt from rate limiting
+        if (path.equals("/api/v1/auth/refresh-token")) {
+            return RateLimitTier.SKIP;
+        }
+
         // Authentication & Credential-sensitive endpoints
         if (path.startsWith("/api/v1/auth/")) {
             return RateLimitTier.AUTH;

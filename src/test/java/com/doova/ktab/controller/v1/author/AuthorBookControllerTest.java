@@ -90,7 +90,7 @@ class AuthorBookControllerTest {
 
         when(bookService.getSourceFileForAuthor(eq(94L), eq(testAuthor))).thenReturn(dto);
 
-        mockMvc.perform(get("/authors/books/94/source-file")
+        mockMvc.perform(get("/authors/me/books/94/source-file")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
@@ -101,32 +101,8 @@ class AuthorBookControllerTest {
     }
 
     @Test
-    @DisplayName("getSourceFile_aliasEndpoint_returnsEphemeralDownloadUrl")
-    void getSourceFile_aliasEndpoint_returnsEphemeralDownloadUrl() throws Exception {
-        Instant expiresAt = Instant.now().plusSeconds(180);
-        BookSourceFileResponseDto dto = new BookSourceFileResponseDto(
-                94L,
-                "novel.pdf",
-                "https://storage.ktab.com/signed-ephemeral-download-url",
-                expiresAt
-        );
-
-        when(bookService.getSourceFileForAuthor(eq(94L), eq(testAuthor))).thenReturn(dto);
-
-        // Alias /{id}/source-file under /authors
-        mockMvc.perform(get("/authors/94/source-file")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.statusCode").value(200))
-                .andExpect(jsonPath("$.status").value("OK"))
-                .andExpect(jsonPath("$.data.bookId").value(94))
-                .andExpect(jsonPath("$.data.fileName").value("novel.pdf"))
-                .andExpect(jsonPath("$.data.downloadUrl").value("https://storage.ktab.com/signed-ephemeral-download-url"));
-    }
-
-    @Test
-    @DisplayName("getBooksByAuthor_legacyAliases_returnsSuccess")
-    void getBooksByAuthor_legacyAliases_returnsSuccess() throws Exception {
+    @DisplayName("getBooksByAuthor_canonicalEndpoint_returnsSuccess")
+    void getBooksByAuthor_canonicalEndpoint_returnsSuccess() throws Exception {
         BookResponseDto bookDto = new BookResponseDto();
         bookDto.setId(94L);
         bookDto.setTitle("Author Novel");
@@ -136,18 +112,12 @@ class AuthorBookControllerTest {
         when(bookService.getBooksByAuthorId(eq(testAuthor), anyInt(), anyInt(), any())).thenReturn(pageResponse);
         when(bookService.getBooksByAuthorId(eq(11L), anyInt(), anyInt(), any())).thenReturn(pageResponse);
 
-        // Test canonical
-        mockMvc.perform(get("/authors/books"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[0].id").value(94));
-
-        // Test alias: /authors/me/books
         mockMvc.perform(get("/authors/me/books"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(94));
 
-        // Test alias: /authors/getBooksByAuthor/11
-        mockMvc.perform(get("/authors/getBooksByAuthor/11"))
+        // authorId now passed as a query param instead of a path-variable alias
+        mockMvc.perform(get("/authors/me/books").param("authorId", "11"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(94));
     }

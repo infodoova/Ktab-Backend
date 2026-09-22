@@ -7,7 +7,7 @@ import java.util.List;
 
 @Getter
 public enum UserRole {
-    ADMIN("00"), AUTHOR("10"), READER("20"), LIBRARIAN("30"), ADMIN_LIBRARIAN("35");
+    ADMIN("00"), AUTHOR("10"), READER("20"), LIBRARIAN("30"), ADMIN_LIBRARIAN("35"), PUBLISHER("40");
 
     private final String code;
 

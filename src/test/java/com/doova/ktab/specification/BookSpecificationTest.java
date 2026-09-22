@@ -96,4 +96,26 @@ class BookSpecificationTest {
         Specification<Book> spec = BookSpecification.forLibrarian(99L, request);
         assertThat(spec).isNotNull();
     }
+
+    @Test
+    @DisplayName("forReviewQueue_buildsSpecification_notNull")
+    void forReviewQueue_buildsSpecification_notNull() {
+        com.doova.ktab.dto.book.PublisherReviewSearchRequest request = new com.doova.ktab.dto.book.PublisherReviewSearchRequest(
+                "رواية",
+                BookStatus.UNDER_REVIEW,
+                42L,
+                1L,
+                2L,
+                "ar",
+                Instant.now().minusSeconds(86400),
+                Instant.now(),
+                0,
+                10,
+                "submittedAt",
+                null
+        );
+
+        Specification<Book> spec = BookSpecification.forReviewQueue(request);
+        assertThat(spec).isNotNull();
+    }
 }

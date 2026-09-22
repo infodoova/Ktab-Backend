@@ -1,6 +1,5 @@
 package com.doova.ktab.service.book.impl;
 
-import com.doova.ktab.event.model.BookPublishedEvent;
 import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookSearchRequestDto;
 import com.doova.ktab.dto.book.BookCoverResponse;
@@ -16,6 +15,7 @@ import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.service.book.BookService;
+import com.doova.ktab.service.book.BookStatusTransition;
 import com.doova.ktab.service.book.BookFileService;
 import com.doova.ktab.service.file.AttachmentService;
 import com.doova.ktab.service.book.BookResponseBuilderService;
@@ -29,7 +29,6 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Session;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -56,7 +55,6 @@ public class BookServiceImpl implements BookService {
     private final BookFileService bookFileService;
     private final EntityManager entityManager;
     private final BookResponseBuilderService responseBuilder;
-    private final ApplicationEventPublisher eventPublisher;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
 
@@ -73,6 +71,8 @@ public class BookServiceImpl implements BookService {
     @Override
     @Transactional
     public BookResponseDto createBook(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) {
+        assertStatusAssignable(dto);
+
         Book book = bookMapper.toEntity(dto);
         book.setAuthor(author);
 
@@ -89,26 +89,19 @@ public class BookServiceImpl implements BookService {
     @Override
     @Transactional
     public BookResponseDto updateBook(Long id, BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) {
+        assertStatusAssignable(dto);
+
         Book book = bookRepository.findByIdAndAuthor(id, author)
                 .orElseThrow(() -> new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_OWNER));
 
-        // Prevent editing already published books if that's your business rule
-        if (book.getStatus() == BookStatus.PUBLISHED) {
-            throw new BadRequestException(ApiMessageKey.AUTHOR_BOOK_UPDATE_FORBIDDEN);
-        }
+        assertEditable(book);
 
         bookMapper.updateBookFromDto(dto, book);
         bookFileService.handleUpdateFiles(book, cover, pdf);
 
-        Book savedBook = bookRepository.save(book);
+        bookRepository.save(book);
 
-        // If updated to PUBLISHED, trigger OCR
-        if (savedBook.getStatus() == BookStatus.PUBLISHED) {
-            String pdfKey = getPdfKey(savedBook.getId());
-            eventPublisher.publishEvent(new BookPublishedEvent(savedBook.getId(), pdfKey));
-        }
-
-        return responseBuilder.build(savedBook, true);
+        return responseBuilder.build(book, true);
     }
 
     // =========================================================
@@ -170,8 +163,43 @@ public class BookServiceImpl implements BookService {
     public void deleteBook(Long id, User author) {
         Book book = bookRepository.findByIdAndAuthor(id, author).orElseThrow(() -> new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_OWNER));
 
+        assertEditable(book);
+
         bookFileService.handleDeleteFiles(book);
         bookRepository.delete(book);
+    }
+
+    // =========================================================
+    // SUBMIT / WITHDRAW (AUTHOR REVIEW WORKFLOW)
+    // =========================================================
+    @Override
+    @Transactional
+    public BookResponseDto submitForReview(Long id, User author) {
+        Book book = bookRepository.findByIdAndAuthor(id, author)
+                .orElseThrow(() -> new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_OWNER));
+
+        BookStatusTransition.assertAllowed(book.getStatus(), BookStatus.UNDER_REVIEW);
+
+        book.setStatus(BookStatus.UNDER_REVIEW);
+        book.setSubmittedAt(Instant.now());
+        book.setReviewNote(null);
+
+        Book savedBook = bookRepository.save(book);
+        return responseBuilder.build(savedBook, true);
+    }
+
+    @Override
+    @Transactional
+    public BookResponseDto withdrawFromReview(Long id, User author) {
+        Book book = bookRepository.findByIdAndAuthor(id, author)
+                .orElseThrow(() -> new BadRequestException(ApiMessageKey.AUTHOR_BOOK_NOT_OWNER));
+
+        BookStatusTransition.assertAllowed(book.getStatus(), BookStatus.DRAFT);
+
+        book.setStatus(BookStatus.DRAFT);
+
+        Book savedBook = bookRepository.save(book);
+        return responseBuilder.build(savedBook, true);
     }
 
     // =========================================================
@@ -268,10 +296,19 @@ public class BookServiceImpl implements BookService {
         );
     }
 
-    private String getPdfKey(Long bookId) {
-        return attachmentService.getAttachment(bookId, "Book", "PDF_SOURCE")
-                .map(Attachment::getStoragePath)
-                .orElseThrow(() -> new BadRequestException(ApiMessageKey.BOOK_OCR_PDF_MISSING));
+    private void assertStatusAssignable(BookRequestDto dto) {
+        if (dto.getStatus() != null && dto.getStatus() != BookStatus.DRAFT) {
+            throw new BadRequestException(ApiMessageKey.BOOK_STATUS_NOT_ASSIGNABLE);
+        }
+    }
+
+    private void assertEditable(Book book) {
+        if (book.getStatus() == BookStatus.PUBLISHED) {
+            throw new BadRequestException(ApiMessageKey.AUTHOR_BOOK_UPDATE_FORBIDDEN);
+        }
+        if (book.getStatus() == BookStatus.UNDER_REVIEW) {
+            throw new BadRequestException(ApiMessageKey.AUTHOR_BOOK_UPDATE_UNDER_REVIEW);
+        }
     }
 
     private List<Predicate> buildPredicates(BookSearchRequestDto req, CriteriaBuilder cb, Root<Book> root) {

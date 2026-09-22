@@ -2,6 +2,7 @@ package com.doova.ktab.exception.handler;
 
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.ImageValidationException;
 import com.doova.ktab.exception.KtabException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -142,6 +143,39 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ApiMessageKey.REQUEST_TIMEOUT.getMessage(messageSource), HttpStatus.GATEWAY_TIMEOUT));
     }
 
+    @ExceptionHandler(ImageValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleImageValidation(ImageValidationException ex) {
+        log.warn("Image validation failed: {} (details: {})", ex.getMessage(), ex.getDetails());
+        String message = ex.getMessage();
+
+        // If message is null, equals key, or contains unpopulated placeholders like {0}, resolve with args
+        if (message == null || message.isBlank() || (ex.getMessageKey() != null && message.equals(ex.getMessageKey().getKey())) || message.contains("{0}")) {
+            if (ex.getMessageKey() != null) {
+                try {
+                    message = messageSource.getMessage(ex.getMessageKey().getKey(), ex.getArgs(), org.springframework.context.i18n.LocaleContextHolder.getLocale());
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        // Fallback: If message still contains unresolved {0}, format with MessageFormat using ex.getArgs()
+        if (message != null && message.contains("{0}") && ex.getArgs() != null && ex.getArgs().length > 0) {
+            try {
+                message = java.text.MessageFormat.format(message, ex.getArgs());
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (message == null || message.isBlank() || message.contains("{0}")) {
+            message = resolveMessageOrDefault(ex.getMessage(), ApiMessageKey.VALIDATION_FAILED);
+        }
+
+        if (ex.getDetails() != null && !ex.getDetails().isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.validationError(message, ex.getDetails(), HttpStatus.BAD_REQUEST));
+        }
+        return ResponseEntity.badRequest().body(ApiResponse.error(message, HttpStatus.BAD_REQUEST));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         String message = resolveMessageOrDefault(ex.getMessage(), ApiMessageKey.VALIDATION_FAILED);
@@ -222,8 +256,11 @@ public class GlobalExceptionHandler {
         if (keyOrMsg != null && !keyOrMsg.isBlank()) {
             try {
                 return messageSource.getMessage(keyOrMsg, null, org.springframework.context.i18n.LocaleContextHolder.getLocale());
+            } catch (org.springframework.context.NoSuchMessageException ignored) {
+                // If not found as a property key, preserve keyOrMsg directly since it is already descriptive
+                return keyOrMsg;
             } catch (Exception ignored) {
-                // If not found as a key, fallback to the default localized message
+                return keyOrMsg;
             }
         }
         return defaultKey.getMessage(messageSource);

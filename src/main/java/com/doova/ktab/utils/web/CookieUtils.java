@@ -31,8 +31,8 @@ public class CookieUtils {
     public CookieUtils(
             @Value("${app.cookie.secure:false}") boolean secure,
             @Value("${app.cookie.same-site:Lax}") String sameSite,
-            @Value("${app.cookie.max-age-seconds:21600}") long maxAgeSeconds,
-            @Value("${app.cookie.refresh-max-age-seconds:604800}") long refreshMaxAgeSeconds
+            @Value("#{${security.jwt.expiration-ms:60000} / 1000}") long maxAgeSeconds,
+            @Value("#{${security.jwt.refresh-expiration-ms:900000} / 1000}") long refreshMaxAgeSeconds
     ) {
         this.secure = secure;
         this.sameSite = normalizeSameSite(sameSite);

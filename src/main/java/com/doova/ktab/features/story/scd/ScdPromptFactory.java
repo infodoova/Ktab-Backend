@@ -96,12 +96,13 @@ public final class ScdPromptFactory {
     private static String toStylePhrase(StoryVisualStyle style, String notes) {
         String base = switch (style == null ? StoryVisualStyle.ANIME : style) {
             case CINEMATIC_STORYBOOK -> "cinematic storybook illustration";
-            case REALISTIC -> "photorealistic cinematic still, real camera look";
+            case REALISTIC, MODERN_DIGITAL_ART -> "modern digital art illustration, clean vibrant render";
             case ANIME -> "high-quality anime keyframe, cinematic lighting";
             case COMIC_BOOK -> "comic book panel, inked lines, dramatic shading";
             case WATERCOLOR -> "watercolor illustration, soft washes, textured paper";
             case PIXAR_3D -> "stylized 3D animation still, warm lighting, Pixar-like proportions";
-            case NOIR -> "film noir still, high contrast, deep shadows";
+            case NOIR, DARK_GRAPHIC_NOVEL -> "dark graphic novel illustration, high contrast, deep atmospheric shadows";
+            case CLASSIC_OIL_PAINTING -> "classic oil painting style, rich textures and brushstrokes";
         };
         if (notes == null || notes.isBlank()) return base;
         return base + " (Specific Style Notes: " + notes.trim() + ")";

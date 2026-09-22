@@ -1,25 +1,20 @@
 package com.doova.ktab.features.ocr.config;
 
 import com.doova.ktab.features.ocr.ai.GeminiOcrService;
-import com.doova.ktab.features.ocr.ai.OcrSystemPrompt;
-import com.doova.ktab.features.ocr.batch.BookSectionWriter;
-import com.doova.ktab.features.ocr.batch.GeminiOcrProcessor;
-import com.doova.ktab.features.ocr.batch.OcrCleanUpListener;
-import com.doova.ktab.features.ocr.batch.OcrResult;
-import com.doova.ktab.features.ocr.batch.OcrSkipListener;
-
-import com.doova.ktab.features.ocr.batch.PageItem;
-import com.doova.ktab.features.ocr.batch.PdfToS3Tasklet;
-import com.doova.ktab.features.ocr.batch.RestartableS3PageReader;
-
-import com.doova.ktab.features.ocr.pdf.PdfPageRenderer;
+import com.doova.ktab.features.ocr.batch.*;
+import com.doova.ktab.features.ocr.harmonize.HarmonizationService;
+import com.doova.ktab.features.ocr.harmonize.HarmonizationTasklet;
+import com.doova.ktab.features.ocr.harmonize.PageStitcher;
+import com.doova.ktab.features.ocr.image.*;
+import com.doova.ktab.features.ocr.quality.QualityGateTasklet;
 import com.doova.ktab.features.ocr.quota.DynamicConcurrencyGate;
-import com.doova.ktab.repository.book.BookPageRepository;
-import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.features.ocr.repository.OcrFailureRepository;
 import com.doova.ktab.features.ocr.service.impl.S3OcrStorageService;
+import com.doova.ktab.features.ocr.structure.*;
+import com.doova.ktab.repository.book.BookPageRepository;
+import com.doova.ktab.repository.book.BookRepository;
+import com.doova.ktab.repository.book.BookSectionRepository;
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -29,7 +24,6 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.integration.async.AsyncItemProcessor;
 import org.springframework.batch.integration.async.AsyncItemWriter;
-import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -50,32 +44,38 @@ public class OcrBatchConfig {
     private final S3OcrStorageService s3;
     private final GeminiOcrService gemini;
     private final DynamicConcurrencyGate gate;
-    private final BookPageRepository sections;
-    private final OcrFailureRepository failures;
+    private final BookPageRepository pageRepository;
+    private final BookSectionRepository sectionRepository;
     private final BookRepository bookRepository;
-    private final EntityManager em;
-    private final PdfPageRenderer renderer;
+    private final OcrFailureRepository failures;
     private final MeterRegistry meterRegistry;
+    private final OcrProperties properties;
 
-    @Value("${ktab.ocr.chunkSize:20}")
-    private int chunkSize;
+    // Image Preparation beans
+    private final PageRenderer pageRenderer;
+    private final BorderCropper borderCropper;
+    private final SpreadDetector spreadDetector;
+    private final SpreadSplitter spreadSplitter;
+    private final OrientationPreChecker orientationPreChecker;
+    private final ImageQualityAnalyzer imageQualityAnalyzer;
 
-    @Value("${ktab.ocr.retryLimit:3}")
-    private int retryLimit;
+    // Repetition & Prompts
+    private final RepetitionDetector repetitionDetector;
 
-    @Value("${ktab.ocr.systemPrompt:#{null}}")
-    private String systemPrompt;
+    // TOC sources
+    private final List<TocSource> tocSources;
 
-    @Value("${ktab.ocr.dpi:300}")
-    private int dpi;
+    // Structure Resolution beans
+    private final PaginationModeDetector paginationModeDetector;
+    private final TocAligner tocAligner;
+    private final HeadingsStructureBuilder headingsStructureBuilder;
+    private final SectionTreeBuilder sectionTreeBuilder;
 
-    @Value("${ktab.ocr.threadPoolSize:20}")
-    private int threadPoolSize;
+    // Harmonization beans
+    private final HarmonizationService harmonizationService;
+    private final PageStitcher pageStitcher;
 
-    @Value("${ktab.ocr.queueCapacity:200}")
-    private int queueCapacity;
-
-    // Circuit breaker configuration
+    // Circuit breaker settings
     @Value("${ktab.circuitbreaker.failure-rate-threshold:50}")
     private int failureRateThreshold;
 
@@ -98,82 +98,118 @@ public class OcrBatchConfig {
     @Bean
     public TaskExecutor ocrTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(threadPoolSize);
-        executor.setMaxPoolSize(threadPoolSize * 2);
-        executor.setQueueCapacity(queueCapacity);
-        executor.setThreadNamePrefix("ocr-thread-");
+        executor.setCorePoolSize(properties.getParallelism());
+        executor.setMaxPoolSize(properties.getParallelism() * 2);
+        executor.setQueueCapacity(200);
+        executor.setThreadNamePrefix("ocr-v2-thread-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
-        
-        // Register metrics for thread pool monitoring
+
         meterRegistry.gauge("ocr.threadpool.active", executor, ThreadPoolTaskExecutor::getActiveCount);
         meterRegistry.gauge("ocr.threadpool.pool_size", executor, ThreadPoolTaskExecutor::getPoolSize);
-        meterRegistry.gauge("ocr.threadpool.queue_size", executor, e -> e.getThreadPoolExecutor().getQueue().size());
-        
+
         return executor;
     }
 
     // =========================
-    // Job Definition
+    // Jobs
     // =========================
 
     @Bean
-    public Job ocrJob(Step decompositionStep, Step ocrStep) {
+    public Job ocrJob(
+            Step decompositionStep,
+            Step ocrStep,
+            Step tocStep,
+            Step structureStep,
+            Step harmonizeStep,
+            Step qualityStep
+    ) {
         return new JobBuilder("ocrJob", jobRepository)
                 .listener(new OcrCleanUpListener(bookRepository, s3))
                 .start(decompositionStep)
                 .next(ocrStep)
+                .next(tocStep)
+                .next(structureStep)
+                .next(harmonizeStep)
+                .next(qualityStep)
                 .listener(new OcrCleanUpListener(bookRepository, s3))
                 .build();
     }
 
+    @Bean
+    public Job restructureJob(Step tocStep, Step structureStep, Step qualityStep) {
+        return new JobBuilder("restructureJob", jobRepository)
+                .start(tocStep)
+                .next(structureStep)
+                .next(qualityStep)
+                .build();
+    }
+
+    @Bean
+    public Job harmonizeJob(Step harmonizeStep, Step qualityStep) {
+        return new JobBuilder("harmonizeJob", jobRepository)
+                .start(harmonizeStep)
+                .next(qualityStep)
+                .build();
+    }
+
     // =========================
-    // Step 1: PDF Decomposition (Parallel Tasklet)
+    // Step 1: Decomposition & Image Preparation
     // =========================
 
     @Bean
     public Step decompositionStep() {
         return new StepBuilder("decompositionStep", jobRepository)
-                .tasklet(pdfToS3Tasklet(null, null), tx)
+                .tasklet(pageImagePreparationTasklet(null, null), tx)
                 .build();
     }
 
     @Bean
     @StepScope
-    public PdfToS3Tasklet pdfToS3Tasklet(
+    public PageImagePreparationTasklet pageImagePreparationTasklet(
             @Value("#{jobParameters['bookId']}") Long bookId,
             @Value("#{jobParameters['pdfKey']}") String pdfKey
     ) {
-        return new PdfToS3Tasklet(renderer, s3, bookId, pdfKey, dpi, meterRegistry);
+        return new PageImagePreparationTasklet(
+                pageRenderer,
+                borderCropper,
+                spreadDetector,
+                spreadSplitter,
+                orientationPreChecker,
+                imageQualityAnalyzer,
+                s3,
+                bookRepository,
+                pageRepository,
+                bookId,
+                pdfKey,
+                meterRegistry
+        );
     }
 
     // =========================
-    // Step 2: OCR Processing (Async with Presigned URLs)
+    // Step 2: Page OCR
     // =========================
 
     @Bean
     public Step ocrStep(
             AsyncItemProcessor<PageItem, OcrResult> asyncProcessor,
             AsyncItemWriter<OcrResult> asyncWriter,
-            ItemReader<PageItem> pageReader
+            org.springframework.batch.item.ItemStreamReader<PageItem> pageReader
     ) {
         return new StepBuilder("ocrStep", jobRepository)
-                .<PageItem, Future<OcrResult>>chunk(chunkSize, tx)
+                .<PageItem, Future<OcrResult>>chunk(properties.getChunkSize(), tx)
                 .reader(pageReader)
+                .stream(pageReader)
                 .processor(asyncProcessor)
                 .writer(asyncWriter)
                 .faultTolerant()
-                .retryLimit(retryLimit)
+                .retryLimit(properties.getRetryLimit())
                 .retry(Exception.class)
                 .skip(Exception.class)
                 .skipLimit(Integer.MAX_VALUE)
-                .listener(new OcrSkipListener(s3, failures, bookRepository, retryLimit))
+                .listener(new OcrSkipListener(s3, failures, bookRepository, properties.getRetryLimit()))
                 .build();
     }
-
-    // =========================
-    // Async Wrappers
-    // =========================
 
     @Bean
     public AsyncItemProcessor<PageItem, OcrResult> asyncProcessor(GeminiOcrProcessor processor) {
@@ -184,25 +220,20 @@ public class OcrBatchConfig {
     }
 
     @Bean
-    public AsyncItemWriter<OcrResult> asyncWriter(BookSectionWriter writer) {
+    public AsyncItemWriter<OcrResult> asyncWriter(BookPageWriter writer) {
         AsyncItemWriter<OcrResult> asyncWriter = new AsyncItemWriter<>();
         asyncWriter.setDelegate(writer);
         return asyncWriter;
     }
 
-    // =========================
-    // Components
-    // =========================
-
     @Bean
     public GeminiOcrProcessor ocrProcessor() {
-        String prompt = (systemPrompt != null && !systemPrompt.isBlank())
-                ? systemPrompt
-                : OcrSystemPrompt.SYSTEM_PROMPT;
         return new GeminiOcrProcessor(
                 gemini,
                 gate,
-                prompt,
+                repetitionDetector,
+                properties.getPromptVersion(),
+                properties.getRepetition().getMaxRepeatedLines(),
                 meterRegistry,
                 failureRateThreshold,
                 slowCallRateThreshold,
@@ -214,8 +245,99 @@ public class OcrBatchConfig {
 
     @Bean
     @StepScope
-    public ItemReader<PageItem> pageReader(@Value("#{jobParameters['bookId']}") Long bookId) {
-        List<String> keys = s3.listPageKeys(bookId);
-        return new RestartableS3PageReader(bookId, keys, s3, sections, meterRegistry);
+    public org.springframework.batch.item.ItemStreamReader<PageItem> pageReader(@Value("#{jobParameters['bookId']}") Long bookId) {
+        return new BookPageManifestReader(bookId, pageRepository, s3, meterRegistry);
+    }
+
+    // =========================
+    // Step 3: TOC Extraction
+    // =========================
+
+    @Bean
+    public Step tocStep() {
+        return new StepBuilder("tocStep", jobRepository)
+                .tasklet(tocExtractionTasklet(null), tx)
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public TocExtractionTasklet tocExtractionTasklet(@Value("#{jobParameters['bookId']}") Long bookId) {
+        return new TocExtractionTasklet(bookId, tocSources, bookRepository, meterRegistry);
+    }
+
+    // =========================
+    // Step 4: Structure Resolution
+    // =========================
+
+    @Bean
+    public Step structureStep() {
+        return new StepBuilder("structureStep", jobRepository)
+                .tasklet(structureResolutionTasklet(null), tx)
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public StructureResolutionTasklet structureResolutionTasklet(@Value("#{jobParameters['bookId']}") Long bookId) {
+        return new StructureResolutionTasklet(
+                bookId,
+                bookRepository,
+                pageRepository,
+                sectionRepository,
+                paginationModeDetector,
+                tocAligner,
+                headingsStructureBuilder,
+                sectionTreeBuilder,
+                meterRegistry
+        );
+    }
+
+    // =========================
+    // Step 5: Stitch & Harmonize
+    // =========================
+
+    @Bean
+    public Step harmonizeStep() {
+        return new StepBuilder("harmonizeStep", jobRepository)
+                .tasklet(harmonizationTasklet(null), tx)
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public HarmonizationTasklet harmonizationTasklet(@Value("#{jobParameters['bookId']}") Long bookId) {
+        return new HarmonizationTasklet(
+                bookId,
+                pageRepository,
+                harmonizationService,
+                pageStitcher,
+                properties,
+                meterRegistry
+        );
+    }
+
+    // =========================
+    // Step 6: Quality Gate
+    // =========================
+
+    @Bean
+    public Step qualityStep() {
+        return new StepBuilder("qualityStep", jobRepository)
+                .tasklet(qualityGateTasklet(null), tx)
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public QualityGateTasklet qualityGateTasklet(@Value("#{jobParameters['bookId']}") Long bookId) {
+        return new QualityGateTasklet(
+                bookId,
+                bookRepository,
+                pageRepository,
+                sectionRepository,
+                properties,
+                meterRegistry
+        );
     }
 }

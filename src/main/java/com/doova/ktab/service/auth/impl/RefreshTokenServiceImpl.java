@@ -30,8 +30,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public RefreshTokenServiceImpl(
             RefreshTokenRepository refreshTokenRepository,
             JWTService jwtService,
-            @Value("${security.jwt.refresh-expiration-ms:604800000}") long refreshExpirationMillis,
-            @Value("${security.jwt.expiration-ms:21600000}") long jwtExpirationMillis
+            @Value("${security.jwt.refresh-expiration-ms:900000}") long refreshExpirationMillis,
+            @Value("${security.jwt.expiration-ms:60000}") long jwtExpirationMillis
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtService = jwtService;

@@ -41,7 +41,8 @@ public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTts
 
     @Override
     public Mono<TtsStreamChunk> streamWithTimestamps(String text, String voiceId, String prevText, String nextText, List<String> previousRequestIds, Consumer<String> onRequestId) {
-        log.info(">>> EL_SERVICE_REQ voiceId={} textLen={} prevIds={}", voiceId, (text != null ? text.length() : 0), previousRequestIds);
+        String resolvedVoiceId = resolveVoiceId(voiceId);
+        log.info(">>> EL_SERVICE_REQ voiceId={} textLen={} prevIds={}", resolvedVoiceId, (text != null ? text.length() : 0), previousRequestIds);
         String preferredModel = firstNonBlank(props.getModelId(), "eleven_multilingual_v2");
         String fallbackModel = firstNonBlank(props.getTimestampsFallbackModelId(), "eleven_multilingual_v2");
         preferredModel = "eleven_multilingual_v2";
@@ -49,19 +50,32 @@ public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTts
         log.debug("ElevenLabs timestamps models preferred='{}' fallback='{}'", preferredModel, fallbackModel);
 
         String finalPreferredModel = preferredModel;
-        return streamWithTimestampsModel(text, voiceId, prevText, nextText, preferredModel, previousRequestIds, onRequestId).onErrorResume(e -> {
+        return streamWithTimestampsModel(text, resolvedVoiceId, prevText, nextText, preferredModel, previousRequestIds, onRequestId).onErrorResume(e -> {
             // Recovery: If 400 Bad Request AND we sent previous_ids, try clearing context first (stay on preferred model)
             if (e instanceof WebClientResponseException.BadRequest && previousRequestIds != null && !previousRequestIds.isEmpty()) {
                 log.warn("⚠️ ElevenLabs 400 Bad Request with context. Retrying CLEARED context. prevIds={}", previousRequestIds);
-                return streamWithTimestampsModel(text, voiceId, null, null, finalPreferredModel, null, onRequestId);
+                return streamWithTimestampsModel(text, resolvedVoiceId, null, null, finalPreferredModel, null, onRequestId);
             }
 
             if (shouldFallbackModel(finalPreferredModel, fallbackModel, e)) {
                 log.warn("ElevenLabs timestamps model '{}' rejected; falling back to '{}'", finalPreferredModel, fallbackModel);
-                return streamWithTimestampsModel(text, voiceId, prevText, nextText, fallbackModel, null, onRequestId);
+                return streamWithTimestampsModel(text, resolvedVoiceId, prevText, nextText, fallbackModel, null, onRequestId);
             }
             return Mono.error(e);
         });
+    }
+
+    private String resolveVoiceId(String voiceId) {
+        String requested = firstNonBlank(voiceId, props.getVoiceId());
+        String resolved = requested == null ? null : props.getVoiceAliases().getOrDefault(requested, requested);
+        if (resolved == null || resolved.isBlank()) {
+            throw new IllegalArgumentException("No ElevenLabs voice ID configured");
+        }
+        if (resolved.equals(requested) && props.getVoiceAliases().containsKey(requested)
+                && props.getVoiceAliases().get(requested).isBlank()) {
+            throw new IllegalArgumentException("ElevenLabs voice alias is configured but has no voice ID: " + requested);
+        }
+        return resolved;
     }
 
     private Mono<TtsStreamChunk> streamWithTimestampsModel(String text, String voiceId, String prevText, String nextText, String modelId, List<String> previousRequestIds, Consumer<String> onRequestId) {

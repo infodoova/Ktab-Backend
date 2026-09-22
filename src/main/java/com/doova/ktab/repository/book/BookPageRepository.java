@@ -31,6 +31,16 @@ public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSp
             """)
     int getTotalWordCount(@Param("bookId") Long bookId);
 
+    java.util.Optional<BookPage> findByBookIdAndPageNumber(Long bookId, int pageNumber);
+
+    List<BookPage> findByBookIdAndStatusInOrderByPageNumberAsc(Long bookId, java.util.Collection<com.doova.ktab.enums.status.OcrStatus> statuses);
+
+    List<BookPage> findByBookIdAndPageKindOrderByPageNumberAsc(Long bookId, com.doova.ktab.enums.book.PageKind pageKind);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE BookPage p SET p.pageNumber = p.pageNumber + :delta WHERE p.book.id = :bookId AND p.pageNumber >= :fromPage")
+    void shiftPageNumbers(@Param("bookId") Long bookId, @Param("fromPage") int fromPage, @Param("delta") int delta);
+
     @Query("""
                 SELECT s
                 FROM BookPage s

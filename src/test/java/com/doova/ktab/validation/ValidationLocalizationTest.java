@@ -2,6 +2,7 @@ package com.doova.ktab.validation;
 
 import com.doova.ktab.dto.library.AssignBookRequest;
 import com.doova.ktab.dto.review.ReviewRequestDto;
+import com.doova.ktab.dto.user.UpdatePublisherRequest;
 import com.doova.ktab.dto.user.UserRegisterRequest;
 import com.doova.ktab.features.story.dto.ChooseRequest;
 import com.doova.ktab.features.story.dto.CreateStoryRequest;
@@ -45,12 +46,12 @@ class ValidationLocalizationTest {
         boolean hasFirstNameAr = violations.stream().anyMatch(v -> v.getMessage().contains("الاسم الأول مطلوب"));
         boolean hasLastNameAr = violations.stream().anyMatch(v -> v.getMessage().contains("اسم العائلة مطلوب"));
         boolean hasEmailAr = violations.stream().anyMatch(v -> v.getMessage().contains("صيغة البريد الإلكتروني غير صحيحة"));
-        boolean hasPasswordMinAr = violations.stream().anyMatch(v -> v.getMessage().contains("يجب ألا تقل كلمة المرور عن 6 أحرف"));
+        boolean hasPasswordInvalidAr = violations.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص"));
 
         assertTrue(hasFirstNameAr, "Should have Arabic first name error");
         assertTrue(hasLastNameAr, "Should have Arabic last name error");
         assertTrue(hasEmailAr, "Should have Arabic email format error");
-        assertTrue(hasPasswordMinAr, "Should have Arabic password size error");
+        assertTrue(hasPasswordInvalidAr, "Should have Arabic unified password validation error");
     }
 
     @Test
@@ -98,5 +99,58 @@ class ValidationLocalizationTest {
         assertFalse(violations.isEmpty());
         boolean hasBookIdAr = violations.stream().anyMatch(v -> v.getMessage().contains("معرف الكتاب مطلوب"));
         assertTrue(hasBookIdAr, "Should contain Arabic book ID required message");
+    }
+
+    @Test
+    @DisplayName("Valid password passes unified validation")
+    void testValidPassword_passes() {
+        UserRegisterRequest req = new UserRegisterRequest("John", null, "Doe", "john@example.com", "SecureP@ss123", "READER");
+        Set<ConstraintViolation<UserRegisterRequest>> violations = validator.validate(req);
+        assertTrue(violations.isEmpty(), "Valid request should have no violations");
+    }
+
+    @Test
+    @DisplayName("Password missing complexity or length fails with unified Arabic message")
+    void testInvalidPassword_failsWithUnifiedMessage() {
+        // Missing special char
+        UserRegisterRequest req1 = new UserRegisterRequest("John", null, "Doe", "john@example.com", "Password123", "READER");
+        Set<ConstraintViolation<UserRegisterRequest>> violations1 = validator.validate(req1);
+        assertTrue(violations1.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص")));
+
+        // Length < 8
+        UserRegisterRequest req2 = new UserRegisterRequest("John", null, "Doe", "john@example.com", "P@s1", "READER");
+        Set<ConstraintViolation<UserRegisterRequest>> violations2 = validator.validate(req2);
+        assertTrue(violations2.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص")));
+
+        // Missing digit
+        UserRegisterRequest req3 = new UserRegisterRequest("John", null, "Doe", "john@example.com", "Password!@", "READER");
+        Set<ConstraintViolation<UserRegisterRequest>> violations3 = validator.validate(req3);
+        assertTrue(violations3.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص")));
+
+        // Missing uppercase
+        UserRegisterRequest req4 = new UserRegisterRequest("John", null, "Doe", "john@example.com", "password123!", "READER");
+        Set<ConstraintViolation<UserRegisterRequest>> violations4 = validator.validate(req4);
+        assertTrue(violations4.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص")));
+    }
+
+    @Test
+    @DisplayName("Optional password when null or blank passes validation")
+    void testOptionalPassword_nullOrBlank_passes() {
+        UpdatePublisherRequest reqNull = new UpdatePublisherRequest("pub@example.com", "Pub", null, "Publisher", null);
+        Set<ConstraintViolation<UpdatePublisherRequest>> violationsNull = validator.validate(reqNull);
+        assertTrue(violationsNull.isEmpty(), "Null optional password should produce no violations");
+
+        UpdatePublisherRequest reqBlank = new UpdatePublisherRequest("pub@example.com", "Pub", null, "Publisher", "");
+        Set<ConstraintViolation<UpdatePublisherRequest>> violationsBlank = validator.validate(reqBlank);
+        assertTrue(violationsBlank.isEmpty(), "Blank optional password should produce no violations");
+    }
+
+    @Test
+    @DisplayName("Optional password when provided but invalid fails validation")
+    void testOptionalPassword_providedInvalid_fails() {
+        UpdatePublisherRequest reqInvalid = new UpdatePublisherRequest("pub@example.com", "Pub", null, "Publisher", "weak");
+        Set<ConstraintViolation<UpdatePublisherRequest>> violations = validator.validate(reqInvalid);
+        assertFalse(violations.isEmpty(), "Invalid optional password should produce violations");
+        assertTrue(violations.stream().anyMatch(v -> v.getMessage().contains("يجب أن تتكون كلمة المرور من 8 أحرف على الأقل، وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص")));
     }
 }

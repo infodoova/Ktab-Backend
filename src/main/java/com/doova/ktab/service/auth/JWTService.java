@@ -18,4 +18,7 @@ public interface JWTService {
     boolean validateToken(String token, UserDetails userDetails);
 
     <T> T extractClaim(String token, Function<Claims, T> claimResolver);
+
+    /** Returns the configured JWT expiration duration in milliseconds. */
+    long getExpirationMillis();
 }

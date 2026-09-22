@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = {"/reader", "/reviews"}, produces = "application/json")
+@RequestMapping(path = "/books", produces = "application/json")
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('READER')")
 @Tag(name = "Reader Book Review API", description = "Endpoints for posting, viewing, and managing book reviews.")
@@ -39,7 +39,7 @@ public class BookReviewController {
     // POST REVIEW
     // ============================================================================================
     @Operation(summary = "Post a new review for a book")
-    @PostMapping({"/books/{bookId}/reviews", "/addReview/{bookId}", "/books/{bookId}/addReview"})
+    @PostMapping("/{bookId}/reviews")
     public ResponseEntity<ApiResponse<Void>> postReview(
             @PathVariable Long bookId,
             @Valid @RequestBody ReviewRequestDto request,
@@ -54,7 +54,7 @@ public class BookReviewController {
     // GET REVIEWS
     // ============================================================================================
     @Operation(summary = "View reviews for a book")
-    @GetMapping("/books/{bookId}/reviews")
+    @GetMapping("/{bookId}/reviews")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponseDto>>> viewReviews(
             @PathVariable Long bookId,
             @CurrentUser User reader,
@@ -71,7 +71,7 @@ public class BookReviewController {
     // SEARCH REVIEWS
     // ============================================================================================
     @Operation(summary = "Search reviews for a book with rating filters and comment search")
-    @PostMapping("/books/{bookId}/reviews/search")
+    @PostMapping("/{bookId}/reviews/search")
     public ResponseEntity<ApiResponse<PageResponse<ReviewResponseDto>>> searchReviews(
             @PathVariable Long bookId,
             @Valid @RequestBody com.doova.ktab.dto.review.ReviewSearchRequest requestDto
@@ -88,7 +88,7 @@ public class BookReviewController {
     // IS REVIEWED
     // ============================================================================================
     @Operation(summary = "Check if current user has already reviewed the book")
-    @GetMapping({"/books/{bookId}/reviews/status", "/books/{bookId}/is-reviewed", "/books/{bookId}/isReviewed", "/isReviewed/{bookId}"})
+    @GetMapping("/{bookId}/reviews/status")
     public ResponseEntity<ApiResponse<IsReviewedResponseDto>> isReviewed(
             @PathVariable Long bookId,
             @CurrentUser User reader
@@ -102,7 +102,7 @@ public class BookReviewController {
     // UPDATE REVIEW
     // ============================================================================================
     @Operation(summary = "Update an existing review")
-    @PatchMapping("/books/{bookId}/reviews/{reviewId}")
+    @PatchMapping("/{bookId}/reviews/{reviewId}")
     public ResponseEntity<ApiResponse<Void>> updateReview(
             @PathVariable Long bookId,
             @PathVariable Long reviewId,
@@ -118,7 +118,7 @@ public class BookReviewController {
     // DELETE REVIEW
     // ============================================================================================
     @Operation(summary = "Delete a review")
-    @DeleteMapping("/books/{bookId}/reviews/{reviewId}")
+    @DeleteMapping("/{bookId}/reviews/{reviewId}")
     public ResponseEntity<ApiResponse<Void>> deleteReview(
             @PathVariable Long bookId,
             @PathVariable Long reviewId,

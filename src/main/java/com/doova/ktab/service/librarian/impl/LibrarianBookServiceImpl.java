@@ -30,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.doova.ktab.service.book.BookPublicationService;
+import com.doova.ktab.service.book.BookStatusTransition;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -41,6 +44,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
     private final UserRepository userRepository;
     private final BookFileService bookFileService;
     private final BookResponseBuilderService responseBuilder;
+    private final BookPublicationService bookPublicationService;
     private final com.doova.ktab.service.file.AttachmentService attachmentService;
     private final com.doova.ktab.service.file.FileStorageService fileStorageService;
 
@@ -92,7 +96,7 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         book.setAgeRangeMax(req.getAgeRangeMax());
         book.setPageCount(req.getPageCount());
         book.setHasAudio(Boolean.TRUE.equals(req.getHasAudio()));
-        book.setStatus(req.getStatus() != null ? req.getStatus() : BookStatus.DRAFT);
+        book.setStatus(BookStatus.DRAFT);
 
         book.setMainGenre(
                 mainGenreRepository.findById(req.getMainGenreId())
@@ -108,6 +112,10 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
 
         // Upload and bind attachment files (S3 / storage)
         bookFileService.handleCreateFiles(savedBook, cover, pdf);
+
+        if (req.getStatus() == BookStatus.PUBLISHED) {
+            savedBook = bookPublicationService.publish(savedBook, managedLibrarian, null);
+        }
 
         log.info("Librarian {} created book {} for library {}", librarian.getEmail(), savedBook.getId(), libraryOrg.getName());
         return responseBuilder.build(savedBook, true);
@@ -140,7 +148,17 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         if (req.getAgeRangeMax() != null) book.setAgeRangeMax(req.getAgeRangeMax());
         if (req.getPageCount() != null) book.setPageCount(req.getPageCount());
         if (req.getHasAudio() != null) book.setHasAudio(req.getHasAudio());
-        if (req.getStatus() != null) book.setStatus(req.getStatus());
+
+        boolean shouldPublish = false;
+        if (req.getStatus() != null && req.getStatus() != book.getStatus()) {
+            if (req.getStatus() == BookStatus.PUBLISHED) {
+                BookStatusTransition.assertAllowed(book.getStatus(), BookStatus.PUBLISHED);
+                shouldPublish = true;
+            } else {
+                BookStatusTransition.assertAllowed(book.getStatus(), req.getStatus());
+                book.setStatus(req.getStatus());
+            }
+        }
 
         if (req.getMainGenreId() != null) {
             book.setMainGenre(
@@ -157,7 +175,13 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
         }
 
         bookFileService.handleUpdateFiles(book, cover, pdf);
-        Book updatedBook = bookRepository.save(book);
+
+        Book updatedBook;
+        if (shouldPublish) {
+            updatedBook = bookPublicationService.publish(book, librarian, null);
+        } else {
+            updatedBook = bookRepository.save(book);
+        }
 
         log.info("Librarian {} updated book {} for library {}", librarian.getEmail(), updatedBook.getId(), libraryOrg.getName());
         return responseBuilder.build(updatedBook, true);

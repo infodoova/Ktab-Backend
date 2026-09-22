@@ -1,8 +1,8 @@
 package com.doova.ktab.dto.library;
 
+import com.doova.ktab.validation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 public record AssignLibrarianRequest(
         @Email(message = "{validation.email.invalid}")
@@ -17,8 +17,7 @@ public record AssignLibrarianRequest(
         @NotBlank(message = "{validation.last_name.required}")
         String lastName,
 
-        @NotBlank(message = "{validation.password.required}")
-        @Size(min = 6, message = "{validation.password.min_size}")
+        @ValidPassword
         String password,
 
         String role

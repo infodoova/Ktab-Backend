@@ -25,6 +25,10 @@ public interface BookService {
 
     void deleteBook(Long id, User author);
 
+    BookResponseDto submitForReview(Long id, User author);
+
+    BookResponseDto withdrawFromReview(Long id, User author);
+
     PageResponse<BookResponseDto> getAllBooksPaginated(int page, int size);
 
     PageResponse<BookResponseDto> searchBooks(BookSearchRequestDto req, Pageable pageable);

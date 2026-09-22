@@ -3,6 +3,7 @@ package com.doova.ktab.specification;
 import com.doova.ktab.dto.book.AdvancedBookSearchRequest;
 import com.doova.ktab.dto.book.AuthorBookSearchRequest;
 import com.doova.ktab.dto.book.LibrarianBookSearchRequest;
+import com.doova.ktab.dto.book.PublisherReviewSearchRequest;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
@@ -134,6 +135,52 @@ public final class BookSpecification {
 
             if (req.subGenreId() != null) {
                 predicates.add(cb.equal(root.get("subGenre").get("id"), req.subGenreId()));
+            }
+
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    /**
+     * Builds a specification for the publisher review queue with faceted search.
+     */
+    public static Specification<Book> forReviewQueue(PublisherReviewSearchRequest req) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (StringUtils.hasText(req.q())) {
+                String pattern = ArabicSearchUtils.toNormalizedLikePattern(req.q());
+                Predicate titleMatch = cb.like(cb.lower(root.get("title")), pattern);
+                Predicate descMatch = cb.like(cb.lower(root.get("description")), pattern);
+                predicates.add(cb.or(titleMatch, descMatch));
+            }
+
+            if (req.status() != null) {
+                predicates.add(cb.equal(root.get("status"), req.status()));
+            }
+
+            if (req.authorId() != null) {
+                predicates.add(cb.equal(root.get("author").get("id"), req.authorId()));
+            }
+
+            if (req.mainGenreId() != null) {
+                predicates.add(cb.equal(root.get("mainGenre").get("id"), req.mainGenreId()));
+            }
+
+            if (req.subGenreId() != null) {
+                predicates.add(cb.equal(root.get("subGenre").get("id"), req.subGenreId()));
+            }
+
+            if (StringUtils.hasText(req.language())) {
+                predicates.add(cb.equal(root.get("language"), req.language()));
+            }
+
+            if (req.submittedAfter() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("submittedAt"), req.submittedAfter()));
+            }
+
+            if (req.submittedBefore() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("submittedAt"), req.submittedBefore()));
             }
 
             return cb.and(predicates.toArray(Predicate[]::new));

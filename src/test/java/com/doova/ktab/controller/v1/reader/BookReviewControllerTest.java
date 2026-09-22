@@ -77,33 +77,7 @@ class BookReviewControllerTest {
     void postReview_canonicalEndpoint_returns201() throws Exception {
         String json = "{\"rating\":5,\"comment\":\"Excellent book\"}";
 
-        mockMvc.perform(post("/reader/books/112/reviews")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isCreated());
-
-        verify(reviewService).createReview(eq(112L), any(ReviewRequestDto.class), eq(testReader));
-    }
-
-    @Test
-    @DisplayName("postReview_reviewsAddReviewAlias_returns201")
-    void postReview_reviewsAddReviewAlias_returns201() throws Exception {
-        String json = "{\"rating\":5,\"comment\":\"Excellent book\"}";
-
-        mockMvc.perform(post("/reviews/addReview/112")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
-                .andExpect(status().isCreated());
-
-        verify(reviewService).createReview(eq(112L), any(ReviewRequestDto.class), eq(testReader));
-    }
-
-    @Test
-    @DisplayName("postReview_readerAddReviewAlias_returns201")
-    void postReview_readerAddReviewAlias_returns201() throws Exception {
-        String json = "{\"rating\":4,\"comment\":\"Very good\"}";
-
-        mockMvc.perform(post("/reader/addReview/112")
+        mockMvc.perform(post("/books/112/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isCreated());

@@ -55,8 +55,8 @@ class BookDiscoveryControllerTest {
     }
 
     @Test
-    @DisplayName("searchBooks_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson")
-    void searchBooks_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
+    @DisplayName("searchBooks_canonical_omitsPdfDownloadUrlAndFileNameInJson")
+    void searchBooks_canonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
         BookResponseDto bookDto = new BookResponseDto();
         bookDto.setId(96L);
         bookDto.setTitle("Palestinian Stories");
@@ -72,8 +72,7 @@ class BookDiscoveryControllerTest {
         BookSearchRequestDto searchDto = new BookSearchRequestDto("Palestine", null, null, null, null, 0, 10);
         String requestJson = objectMapper.writeValueAsString(searchDto);
 
-        // Test alias: POST /reader/search
-        String responseContent = mockMvc.perform(post("/reader/search")
+        String responseContent = mockMvc.perform(post("/books/search")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
                 .andExpect(status().isOk())
@@ -100,7 +99,7 @@ class BookDiscoveryControllerTest {
         // Send search request without bookSource specified in JSON
         String jsonWithoutBookSource = "{\"title\":\"Science\",\"page\":0,\"size\":10}";
 
-        mockMvc.perform(post("/reader/books/search")
+        mockMvc.perform(post("/books/search")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonWithoutBookSource))
                 .andExpect(status().isOk());
@@ -116,8 +115,8 @@ class BookDiscoveryControllerTest {
     }
 
     @Test
-    @DisplayName("getBookById_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson")
-    void getBookById_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
+    @DisplayName("getBookById_canonical_omitsPdfDownloadUrlAndFileNameInJson")
+    void getBookById_canonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
         BookResponseDto bookDto = new BookResponseDto();
         bookDto.setId(96L);
         bookDto.setTitle("Palestinian Stories");
@@ -127,8 +126,7 @@ class BookDiscoveryControllerTest {
 
         when(bookService.getBookById(96L)).thenReturn(bookDto);
 
-        // Test alias: GET /reader/viewBook/96
-        String responseContent = mockMvc.perform(get("/reader/viewBook/96")
+        String responseContent = mockMvc.perform(get("/books/96")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
@@ -145,8 +143,8 @@ class BookDiscoveryControllerTest {
     }
 
     @Test
-    @DisplayName("getSimilarBooks_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson")
-    void getSimilarBooks_aliasAndCanonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
+    @DisplayName("getSimilarBooks_canonical_omitsPdfDownloadUrlAndFileNameInJson")
+    void getSimilarBooks_canonical_omitsPdfDownloadUrlAndFileNameInJson() throws Exception {
         BookResponseDto bookDto = new BookResponseDto();
         bookDto.setId(97L);
         bookDto.setTitle("Similar Palestinian Stories");
@@ -158,8 +156,7 @@ class BookDiscoveryControllerTest {
 
         when(similarityService.getSmartSimilarBooks(eq(96L), anyInt(), anyInt())).thenReturn(pageResponse);
 
-        // Test alias: GET /reader/similar/96
-        String responseContent = mockMvc.perform(get("/reader/similar/96")
+        String responseContent = mockMvc.perform(get("/books/96/similar")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))

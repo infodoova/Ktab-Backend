@@ -34,6 +34,8 @@ public abstract class BookMapper {
     /**
      * Entity → Response DTO
      */
+    @Mapping(target = "reviewNote", ignore = true)
+    @Mapping(target = "reviewedByName", ignore = true)
     public abstract BookResponseDto toResponseDto(Book book);
 
     public abstract List<BookResponseDto> toResponseDto(List<Book> books);
@@ -53,7 +55,8 @@ public abstract class BookMapper {
         book.setAgeRangeMax(dto.getAgeRangeMax());
         book.setPageCount(dto.getPageCount());
         book.setHasAudio(dto.getHasAudio());
-        book.setStatus(dto.getStatus());
+        // Status is not assignable via this DTO — new books always start as DRAFT.
+        // See BookServiceImpl for the editorial review workflow (submit/approve/reject).
 
         book.setMainGenre(
                 mainGenreRepository.findById(dto.getMainGenreId())
@@ -89,8 +92,7 @@ public abstract class BookMapper {
             book.setPageCount(dto.getPageCount());
         if (dto.getHasAudio() != null)
             book.setHasAudio(dto.getHasAudio());
-        if (dto.getStatus() != null)
-            book.setStatus(dto.getStatus());
+        // Status is not assignable via this DTO — see BookServiceImpl review workflow.
 
         if (dto.getMainGenreId() != null) {
             book.setMainGenre(

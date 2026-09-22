@@ -27,7 +27,7 @@ import java.util.List;
 @RestController
 @RequestMapping(path = "/library-admin", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('ADMIN_LIBRARIAN', 'ADMIN')")
+@PreAuthorize("hasAnyAuthority('ADMIN_LIBRARIAN')")
 @Tag(name = "Library Organization Admin API", description = "Endpoints for library organization administrators (ADMIN_LIBRARIAN) to manage their organization profile and staff members.")
 public class LibraryAdminManagementController {
 
@@ -35,50 +35,50 @@ public class LibraryAdminManagementController {
     private final MessageSource messageSource;
 
     @Operation(summary = "Get current administrator's library organization profile")
-    @GetMapping(path = {"/organization", "/my-organization", "/myOrganization", "/profile", ""})
+    @GetMapping(path = "/organization")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> getMyOrganization(
-            @CurrentUser User adminLibrarian
-    ) {
+            @CurrentUser User adminLibrarian) {
         LibraryOrganizationResponseDto dto = libraryOrgService.getMyOrganization(adminLibrarian);
-        return ResponseUtils.success(dto, ApiMessageKey.LIBRARY_ORGANIZATION_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(dto, ApiMessageKey.LIBRARY_ORGANIZATION_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Update current administrator's library organization profile")
-    @PatchMapping(path = {"/organization", "/my-organization", "/myOrganization", "/profile", ""}, consumes = "application/json")
+    @PatchMapping(path = "/organization", consumes = "application/json")
     public ResponseEntity<ApiResponse<LibraryOrganizationResponseDto>> updateMyOrganization(
             @CurrentUser User adminLibrarian,
-            @Valid @RequestBody UpdateLibraryOrganizationRequest req
-    ) {
+            @Valid @RequestBody UpdateLibraryOrganizationRequest req) {
         LibraryOrganizationResponseDto updated = libraryOrgService.updateMyOrganizationProfile(adminLibrarian, req);
-        return ResponseUtils.success(updated, ApiMessageKey.LIBRARY_ORGANIZATION_UPDATED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(updated,
+                ApiMessageKey.LIBRARY_ORGANIZATION_UPDATED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "List all staff members belonging to the library organization")
     @GetMapping("/staff")
     public ResponseEntity<ApiResponse<List<LibrarianStaffResponseDto>>> getStaff(
-            @CurrentUser User adminLibrarian
-    ) {
+            @CurrentUser User adminLibrarian) {
         List<LibrarianStaffResponseDto> staff = libraryOrgService.getStaffMembers(adminLibrarian);
-        return ResponseUtils.success(staff, ApiMessageKey.LIBRARY_STAFF_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(staff, ApiMessageKey.LIBRARY_STAFF_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Invite or assign a new staff member to the library organization")
     @PostMapping(path = "/staff", consumes = "application/json")
     public ResponseEntity<ApiResponse<Void>> addStaff(
             @CurrentUser User adminLibrarian,
-            @Valid @RequestBody AssignLibrarianRequest req
-    ) {
+            @Valid @RequestBody AssignLibrarianRequest req) {
         libraryOrgService.assignStaffByAdminLibrarian(adminLibrarian, req);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_ASSIGNED_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
+        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_ASSIGNED_SUCCESS.getMessage(messageSource),
+                HttpStatus.CREATED);
     }
 
     @Operation(summary = "Remove a staff member from the library organization")
     @DeleteMapping(path = "/staff/{userId}")
     public ResponseEntity<ApiResponse<Void>> removeStaff(
             @CurrentUser User adminLibrarian,
-            @PathVariable Long userId
-    ) {
+            @PathVariable Long userId) {
         libraryOrgService.removeStaffByAdminLibrarian(adminLibrarian, userId);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_REMOVED_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_REMOVED_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 }

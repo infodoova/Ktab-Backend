@@ -25,9 +25,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = "/librarians/books", produces = "application/json")
+@RequestMapping(path = "/librarians/me/books", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN', 'ADMIN')")
+@PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
 @Tag(name = "Librarian Book Management API", description = "Endpoints for librarians to upload, update, and manage books on behalf of their library organization.")
 public class LibrarianBookController {
 
@@ -35,85 +35,90 @@ public class LibrarianBookController {
     private final MessageSource messageSource;
 
     @Operation(summary = "Upload a book for the librarian's library organization")
-    @PostMapping(path = {"", "/createBook"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
             @Valid @RequestPart("bookDto") LibrarianBookUploadRequest bookDto,
             @RequestPart("coverImage") MultipartFile coverImage,
             @RequestPart("pdfFile") MultipartFile pdfFile,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         BookResponseDto created = librarianBookService.createBook(bookDto, coverImage, pdfFile, librarian);
-        return ResponseUtils.success(created, ApiMessageKey.LIBRARIAN_BOOK_CREATE_SUCCESS.getMessage(messageSource), HttpStatus.CREATED);
+        return ResponseUtils.success(created, ApiMessageKey.LIBRARIAN_BOOK_CREATE_SUCCESS.getMessage(messageSource),
+                HttpStatus.CREATED);
     }
 
     @Operation(summary = "Update a library book")
-    @PatchMapping(path = {"/{id}", "/updateBook/{id}"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
             @PathVariable Long id,
             @Valid @RequestPart(value = "bookDto", required = false) UpdateLibrarianBookRequest bookDto,
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
             @RequestPart(value = "pdfFile", required = false) MultipartFile pdfFile,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         UpdateLibrarianBookRequest dto = bookDto != null ? bookDto : new UpdateLibrarianBookRequest();
         BookResponseDto updated = librarianBookService.updateBook(id, dto, coverImage, pdfFile, librarian);
-        return ResponseUtils.success(updated, ApiMessageKey.LIBRARIAN_BOOK_UPDATE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(updated, ApiMessageKey.LIBRARIAN_BOOK_UPDATE_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Get a single library book by ID")
-    @GetMapping({"/{id}", "/viewBook/{id}"})
+    @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(
             @PathVariable Long id,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         BookResponseDto book = librarianBookService.getBookByIdForLibrarian(id, librarian);
-        return ResponseUtils.success(book, ApiMessageKey.LIBRARIAN_BOOK_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(book, ApiMessageKey.LIBRARIAN_BOOK_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "List all books belonging to the librarian's organization")
-    @GetMapping({"", "/books", "/me/books", "/viewBooks"})
+    @GetMapping("")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getMyLibraryBooks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String status,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         PageResponse<BookResponseDto> books = librarianBookService.getBooksForLibrary(page, size, status, librarian);
-        return ResponseUtils.success(books, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(books, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Search library organization inventory with multi-facet filters")
-    @PostMapping({"/search", "/me/search"})
+    @PostMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchLibrarianBooks(
             @Valid @RequestBody com.doova.ktab.dto.book.LibrarianBookSearchRequest requestDto,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
-        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null ? requestDto.sortDirection() : org.springframework.data.domain.Sort.Direction.DESC;
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null
+                ? requestDto.sortDirection()
+                : org.springframework.data.domain.Sort.Direction.DESC;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
 
-        PageResponse<BookResponseDto> result = librarianBookService.searchLibrarianBooks(librarian, requestDto, pageable);
-        return ResponseUtils.success(result, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        PageResponse<BookResponseDto> result = librarianBookService.searchLibrarianBooks(librarian, requestDto,
+                pageable);
+        return ResponseUtils.success(result, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Delete a book from the library organization")
-    @DeleteMapping({"/{id}", "/deleteBook/{id}"})
+    @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteBook(
             @PathVariable Long id,
-            @CurrentUser User librarian
-    ) {
+            @CurrentUser User librarian) {
         librarianBookService.deleteBook(id, librarian);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARIAN_BOOK_DELETE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(null, ApiMessageKey.LIBRARIAN_BOOK_DELETE_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Get secure ephemeral download URL for library book source file")
-    @GetMapping({"/{id}/source-file", "/books/{id}/source-file"})
+    @GetMapping("/{id}/source-file")
     @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN', 'ADMIN')")
     public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
             @PathVariable Long id,
-            @CurrentUser User librarian
-    ) {
-        com.doova.ktab.dto.book.BookSourceFileResponseDto response = librarianBookService.getSourceFileForLibrarian(id, librarian);
-        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+            @CurrentUser User librarian) {
+        com.doova.ktab.dto.book.BookSourceFileResponseDto response = librarianBookService.getSourceFileForLibrarian(id,
+                librarian);
+        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 }

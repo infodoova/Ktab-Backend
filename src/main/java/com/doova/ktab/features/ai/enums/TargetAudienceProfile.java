@@ -5,7 +5,7 @@ import lombok.Getter;
 @Getter
 public enum TargetAudienceProfile {
 
-    KIDS_8_10_ADVENTURE("8-10", """
+    KIDS_8_10_ADVENTURE("8-10", "أطفال (8-10 سنوات) - مغامرة وتشويق", "Kids (8-10 years) - Adventure & Suspense", """
             Age 8–10; early chapter-book readers; enjoys simple adventure and light fantasy;
             short chapters, clear language, and straightforward plots;
             sensitivity: avoid death on-page, no horror, no graphic danger; keep scares mild and quickly resolved;
@@ -13,7 +13,7 @@ public enum TargetAudienceProfile {
             context: primary school readers, often reading with a parent/teacher; familiar with basic fairy-tale and cartoon tropes.
             """),
 
-    MIDDLE_GRADE_10_13_MYSTERY("10-13", """
+    MIDDLE_GRADE_10_13_MYSTERY("10-13", "ناشئة (10-13 سنة) - غموض ومغامرة", "Middle Grade (10-13 years) - Mystery & Adventure", """
             Age 10–13; confident middle-grade readers; enjoys school stories, mysteries, and friend drama;
             can follow multiple POVs and subplots;
             sensitivity: mild peril and arguments okay; avoid graphic violence, romance should stay crush-level and non-explicit;
@@ -21,21 +21,28 @@ public enum TargetAudienceProfile {
             context: middle-school students used to popular MG series and streaming shows with similar tone.
             """),
 
-    TEENS_13_16_DYSTOPIAN("13-16", """
+    TEENS_13_16_DYSTOPIAN("13-16", "يافعين (13-16 سنة) - غموض وإثارة", "Teens (13-16 years) - Mystery & Thrill", """
             Age 13–16; used to YA dystopian and action stories; comfortable with morally gray choices and fast pacing;
             sensitivity: moderate violence and tension acceptable, but avoid gore and explicit torture; romantic tension okay, avoid explicit sexual content;
             desired emotional impact: tense, cathartic, and hopeful by the end; emphasize courage, sacrifice, and found family;
             context: teens familiar with popular YA dystopias and genre tropes from movies, anime, and games.
             """),
 
-    OLDER_TEENS_16_18_DRAMA_ROMANCE("16-18", """
+    YOUTH_16_24_FANTASY("16-24", "شباب (16-24 سنة) - خيال وفانتازيا", "Youth (16-24 years) - Fantasy & World-building", """
+            Age 16–24; youth and young adult readers; enjoys immersive fantasy worlds, complex lore, and high-stakes adventure;
+            sensitivity: mature themes and intense conflicts acceptable; avoid gratuitous explicit content;
+            desired emotional impact: wondrous, epic, and inspiring; strong sense of character agency and world discovery;
+            context: college and young adult readers fond of fantasy fiction, gaming lore, and expansive narratives.
+            """),
+
+    OLDER_TEENS_16_18_DRAMA_ROMANCE("16-18", "شباب (16-18 سنة) - دراما وعواطف", "Older Teens (16-18 years) - Drama & Romance", """
             Age 16–18; advanced YA readers; enjoys character-driven stories, emotional conflict, and slow-burn romance;
             sensitivity: complex emotions, grief, and heartbreak are fine; avoid explicit sexual scenes and explicit self-harm descriptions;
             desired emotional impact: bittersweet but healing; mix of pain, growth, and a sense of emotional closure;
             context: late high-school readers, familiar with contemporary YA novels and streaming dramas.
             """),
 
-    ADULTS_18_25_LITERARY("18-25", """
+    ADULTS_18_25_LITERARY("18-25", "بالغين (18-25 سنة) - أدبي ونفسي", "Adults (18-25 years) - Literary & Psychological", """
             Age 18–25; experienced readers comfortable with literary and psychological fiction;
             can handle nonlinear structure, symbolism, and ambiguity;
             sensitivity: difficult themes (trauma, mental health, loss) acceptable if handled with nuance; avoid gratuitous graphic gore or shock for its own sake;
@@ -43,7 +50,7 @@ public enum TargetAudienceProfile {
             context: adult readers familiar with modern literary novels and festival films, comfortable reading between the lines.
             """),
 
-    ADULTS_25_40_UPMARKET("25-40", """
+    ADULTS_25_40_UPMARKET("25-40", "بالغين (25-40 سنة) - تشويق ودراما", "Adults (25-40 years) - Upmarket Fiction", """
             Age 25–40; comfortable with upmarket genre fiction that blends mystery with family drama;
             expects solid pacing, emotional depth, and believable characters;
             sensitivity: moderate violence and adult themes acceptable; avoid explicit sexual detail and extreme cruelty;
@@ -51,7 +58,14 @@ public enum TargetAudienceProfile {
             context: adult readers who read bestsellers and book-club picks; used to twisty plots but realistic emotions.
             """),
 
-    ADULTS_40_PLUS_HISTORICAL("40+", """
+    ADULTS_25_PLUS_DRAMA("25+", "عام وكبار (+25 سنة) - دراما وأدب عام", "General & Adults (25+ years) - Drama & General Lit", """
+            Age 25+; general and mature readers; appreciates deep human drama, emotional resonance, and reflective themes;
+            sensitivity: real-life struggles, grief, and moral ambiguity handled with sensitivity and nuance;
+            desired emotional impact: emotionally compelling, moving, and thought-provoking; profound resolution;
+            context: adult readers seeking authentic drama, literary substance, and rich personal conflicts.
+            """),
+
+    ADULTS_40_PLUS_HISTORICAL("40+", "كبار (+40 سنة) - تاريخي وتأملي", "Adults (40+ years) - Historical & Reflective", """
             Age 40+; enjoys historical fiction and reflective, slower-paced narratives;
             appreciates rich atmosphere, clear timelines, and emotional maturity;
             sensitivity: can handle loss, illness, and war if portrayed respectfully; avoid gratuitously graphic scenes;
@@ -60,10 +74,14 @@ public enum TargetAudienceProfile {
             """);
 
     private final String ageRangeKey;
+    private final String labelAr;
+    private final String labelEn;
     private final String profileText;
 
-    TargetAudienceProfile(String ageRangeKey, String profileText) {
+    TargetAudienceProfile(String ageRangeKey, String labelAr, String labelEn, String profileText) {
         this.ageRangeKey = ageRangeKey;
+        this.labelAr = labelAr;
+        this.labelEn = labelEn;
         this.profileText = profileText;
     }
 
@@ -81,9 +99,10 @@ public enum TargetAudienceProfile {
 
         String trimmed = key.trim();
 
-        // First: try matching by age range, e.g. "10-13"
+        // First: try matching by age range, e.g. "10-13", "25+", "+25"
         for (TargetAudienceProfile profile : values()) {
-            if (profile.ageRangeKey.equalsIgnoreCase(trimmed)) {
+            if (profile.ageRangeKey.equalsIgnoreCase(trimmed)
+                    || (profile.ageRangeKey.equals("25+") && (trimmed.equals("+25") || trimmed.equals("25")))) {
                 return profile;
             }
         }

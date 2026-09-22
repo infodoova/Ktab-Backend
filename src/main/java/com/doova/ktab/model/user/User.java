@@ -1,5 +1,6 @@
 package com.doova.ktab.model.user;
 
+import com.doova.ktab.validation.ValidPassword;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -39,7 +40,7 @@ public class User extends BaseEntity {
     private String passwordDigest;
 
     @Transient
-    @Size(min = 6, message = "{validation.password.min_size}")
+    @ValidPassword(required = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
