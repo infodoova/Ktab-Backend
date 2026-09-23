@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -57,14 +59,25 @@ public class GenreCommandServiceImpl implements GenreCommandService {
     }
 
     private void syncSubGenres(MainGenre mainGenre, List<SubGenreDTO> subGenreDTOs) {
-        if (subGenreDTOs == null || subGenreDTOs.isEmpty()) {
+        if (subGenreDTOs == null) {
             return;
         }
 
+        // 1. Identify incoming IDs
+        Set<Long> incomingIds = subGenreDTOs.stream()
+                .map(SubGenreDTO::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 2. Orphan removal: remove existing subgenres omitted from the incoming DTO list
+        mainGenre.getSubGenres().removeIf(s -> s.getId() != null && !incomingIds.contains(s.getId()));
+
+        // 3. Map remaining existing subgenres by ID
         Map<Long, SubGenre> existing = mainGenre.getSubGenres().stream()
                 .filter(s -> s.getId() != null)
                 .collect(Collectors.toMap(SubGenre::getId, Function.identity()));
 
+        // 4. Update existing & Insert new
         for (SubGenreDTO dto : subGenreDTOs) {
             SubGenre subGenre = (dto.getId() != null && existing.containsKey(dto.getId()))
                     ? existing.get(dto.getId())

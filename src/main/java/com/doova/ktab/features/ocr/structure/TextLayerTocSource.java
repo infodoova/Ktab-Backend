@@ -10,6 +10,7 @@ import com.doova.ktab.model.attachment.Attachment;
 import com.doova.ktab.model.book.BookPage;
 import com.doova.ktab.repository.book.BookPageRepository;
 import com.doova.ktab.service.file.AttachmentService;
+import com.doova.ktab.util.text.TextLayerQualityAssessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -36,6 +37,7 @@ public class TextLayerTocSource implements TocSource {
     private final BookPageRepository pageRepository;
 
     private static final Pattern TOC_LINE_PATTERN = Pattern.compile("^(.*?)(?:[\\.\\s\\-_]+)(\\d+|[٠-٩]+)$");
+    private static final double ARABIC_SANITY_RATIO = 0.60;
 
     @Override
     public StructureSource source() {
@@ -72,7 +74,9 @@ public class TextLayerTocSource implements TocSource {
                     stripper.setEndPage(pdfPage);
                     String pageText = stripper.getText(doc);
 
-                    if (!passesArabicSanityCheck(pageText)) {
+                    TextLayerQualityAssessor.Assessment assessment =
+                            TextLayerQualityAssessor.assess(pageText, null, ARABIC_SANITY_RATIO);
+                    if (!assessment.passesSanityCheck()) {
                         log.debug("PDF text layer failed Arabic sanity check on page {}", pdfPage);
                         return Optional.empty();
                     }
@@ -89,25 +93,6 @@ public class TextLayerTocSource implements TocSource {
             log.warn("Text layer TOC extraction failed for bookId={}: {}", bookId, e.getMessage());
         }
         return Optional.empty();
-    }
-
-    private boolean passesArabicSanityCheck(String text) {
-        if (text == null || text.isBlank()) return false;
-        int arabicChars = 0;
-        int alphaChars = 0;
-
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (Character.isLetter(c)) {
-                alphaChars++;
-                // Arabic unicode block U+0600 - U+06FF
-                if (c >= '\u0600' && c <= '\u06FF') {
-                    arabicChars++;
-                }
-            }
-        }
-
-        return alphaChars > 30 && ((double) arabicChars / alphaChars) > 0.60;
     }
 
     private void parseTocLines(String text, List<RawToc.RawTocEntry> entries) {

@@ -1,6 +1,6 @@
 package com.doova.ktab.dto.library;
 
-import com.doova.ktab.validation.ValidPassword;
+import com.doova.ktab.annotation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
@@ -21,4 +21,8 @@ public record AssignLibrarianRequest(
         String password,
 
         String role
-) {}
+) {
+    public AssignLibrarianRequest(String email, String firstName, String middleName, String lastName, String password) {
+        this(email, firstName, middleName, lastName, password, null);
+    }
+}

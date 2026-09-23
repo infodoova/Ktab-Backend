@@ -7,6 +7,7 @@ import com.doova.ktab.enums.user.UserRole;
 import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.model.user.UserCode;
+import com.doova.ktab.model.user.UserSettings;
 import com.doova.ktab.repository.user.UserRepository;
 import com.doova.ktab.security.model.UserPrincipal;
 import com.doova.ktab.service.auth.JWTService;
@@ -69,6 +70,7 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         user.setPasswordAndDigest(request.password(), encoder);
+        user.setSettings(new UserSettings(user));
 
         User savedUser = userRepository.save(user);
 

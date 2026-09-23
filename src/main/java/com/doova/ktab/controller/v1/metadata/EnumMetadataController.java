@@ -37,6 +37,13 @@ public class EnumMetadataController {
                 HttpStatus.OK);
     }
 
+    @Operation(summary = "Get registration user roles")
+    @GetMapping("/roles")
+    public ResponseEntity<ApiResponse<List<RoleMetadataDto>>> getRoles() {
+        List<RoleMetadataDto> roles = metadataService.getRoles();
+        return ResponseUtils.success(roles, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
     @Operation(summary = "Get supported languages")
     @GetMapping("/languages")
     public ResponseEntity<ApiResponse<List<LanguageMetadataDto>>> getLanguages() {

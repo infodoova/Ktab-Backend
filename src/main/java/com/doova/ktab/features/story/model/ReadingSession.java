@@ -7,6 +7,8 @@ import com.doova.ktab.model.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -43,6 +45,7 @@ public class ReadingSession extends BaseEntity {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_reading_session_story")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Story story;
 
     // -------------------------------
@@ -56,6 +59,7 @@ public class ReadingSession extends BaseEntity {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_reading_session_reader")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User reader;
 
     @Enumerated(EnumType.STRING)

@@ -8,6 +8,8 @@ import com.doova.ktab.model.base.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Table(
@@ -31,6 +33,7 @@ public class BookPage extends BaseEntity {
      */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "col_book_id", nullable = false, foreignKey = @ForeignKey(name = "fk_book_pages_book"))
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Book book;
 
     /**
@@ -156,6 +159,7 @@ public class BookPage extends BaseEntity {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_section_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private BookSection section;
 
     /**

@@ -110,6 +110,7 @@ public enum ApiMessageKey {
     LIBRARY_ORGANIZATION_FETCH_SUCCESS("library.organization.fetch.success"),
 
     LIBRARY_STAFF_ASSIGNED_SUCCESS("library.staff.assigned.success"),
+    LIBRARY_STAFF_UPDATED_SUCCESS("library.staff.updated.success"),
     LIBRARY_STAFF_REMOVED_SUCCESS("library.staff.removed.success"),
     LIBRARY_STAFF_FETCH_SUCCESS("library.staff.fetch.success"),
     LIBRARY_STAFF_CANNOT_REMOVE_SELF("library.staff.cannot.remove.self"),

@@ -1,6 +1,6 @@
 package com.doova.ktab.dto.user;
 
-import com.doova.ktab.validation.ValidPassword;
+import com.doova.ktab.annotation.ValidPassword;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 

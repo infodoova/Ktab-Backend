@@ -1,7 +1,7 @@
 package com.doova.ktab.model.user;
 
-import com.doova.ktab.validation.ValidPassword;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,11 +16,13 @@ import com.doova.ktab.model.base.BaseEntity;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 @Entity
-@Table(name = "tbl_users", uniqueConstraints = {@UniqueConstraint(name = "uq_users_email", columnNames = "col_email")})
+@Table(name = "tbl_users", uniqueConstraints = {
+        @UniqueConstraint(name = "uq_users_email", columnNames = "col_email") })
 public class User extends BaseEntity {
 
     @NotBlank(message = "{validation.email.required}")
-    @Column(name = "col_email", nullable = false)
+    @Email(message = "{validation.email.invalid}")
+    @Column(name = "col_email", nullable = false, unique = true)
     private String email;
 
     @NotBlank(message = "{validation.first_name.required}")
@@ -30,8 +32,7 @@ public class User extends BaseEntity {
     @Column(name = "col_middle_name")
     private String middleName;
 
-    @NotBlank(message = "{validation.last_name.required}")
-    @Column(name = "col_last_name", nullable = false)
+    @Column(name = "col_last_name")
     private String lastName;
 
     @NotBlank(message = "{validation.password.required}")
@@ -40,7 +41,6 @@ public class User extends BaseEntity {
     private String passwordDigest;
 
     @Transient
-    @ValidPassword(required = false)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
@@ -55,8 +55,19 @@ public class User extends BaseEntity {
     @JoinColumn(name = "col_library_organization_id")
     private com.doova.ktab.model.library.LibraryOrganization libraryOrganization;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private UserSettings settings;
+
+    public void setSettings(UserSettings settings) {
+        this.settings = settings;
+        if (settings != null) {
+            settings.setUser(this);
+        }
+    }
+
     /**
-     * Store encoded password in passwordDigest; keep raw in transient password field.
+     * Store encoded password in passwordDigest; keep raw in transient password
+     * field.
      */
     public void setPasswordAndDigest(String rawPassword, PasswordEncoder encoder) {
         this.password = rawPassword;
@@ -78,5 +89,13 @@ public class User extends BaseEntity {
         }
         fullName.append(" ").append(this.lastName);
         return fullName.toString();
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalizeEmail() {
+        if (this.email != null) {
+            this.email = this.email.trim().toLowerCase();
+        }
     }
 }

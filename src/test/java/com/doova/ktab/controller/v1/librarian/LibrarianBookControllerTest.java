@@ -28,7 +28,9 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -114,5 +116,34 @@ class LibrarianBookControllerTest {
         mockMvc.perform(get("/librarians/me/books"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(100));
+    }
+
+    @Test
+    @DisplayName("getAllLibraryBooks_adminLibrarian_returnsSuccess")
+    void getAllLibraryBooks_adminLibrarian_returnsSuccess() throws Exception {
+        BookResponseDto bookDto = new BookResponseDto();
+        bookDto.setId(200L);
+        bookDto.setTitle("Organization Library Book");
+
+        PageResponse<BookResponseDto> pageResponse = new PageResponse<>(List.of(bookDto), 0, 10, 1, 1, true);
+
+        when(librarianBookService.getAllBooksForLibrary(anyInt(), anyInt(), any(), eq(testLibrarian))).thenReturn(pageResponse);
+
+        mockMvc.perform(get("/librarians/me/books/all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.status").value("OK"))
+                .andExpect(jsonPath("$.data.content[0].id").value(200));
+    }
+
+    @Test
+    @DisplayName("deleteBook_adminLibrarian_returnsSuccess")
+    void deleteBook_adminLibrarian_returnsSuccess() throws Exception {
+        mockMvc.perform(delete("/librarians/me/books/100"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.status").value("OK"));
+
+        verify(librarianBookService).deleteBook(100L, testLibrarian);
     }
 }

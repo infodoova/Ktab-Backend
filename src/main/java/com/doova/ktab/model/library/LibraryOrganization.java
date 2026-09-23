@@ -65,7 +65,7 @@ public class LibraryOrganization extends BaseEntity {
     @Builder.Default
     private Set<User> staff = new HashSet<>();
 
-    @OneToMany(mappedBy = "libraryOrganization", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "libraryOrganization", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private Set<Book> books = new HashSet<>();
 }

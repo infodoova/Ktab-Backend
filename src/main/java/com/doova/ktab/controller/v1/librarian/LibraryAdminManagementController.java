@@ -4,6 +4,7 @@ import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.library.AssignLibrarianRequest;
+import com.doova.ktab.dto.library.UpdateLibrarianStaffRequest;
 import com.doova.ktab.dto.library.UpdateLibraryOrganizationRequest;
 import com.doova.ktab.dto.library.LibrarianStaffResponseDto;
 import com.doova.ktab.dto.library.LibraryOrganizationResponseDto;
@@ -70,6 +71,17 @@ public class LibraryAdminManagementController {
         libraryOrgService.assignStaffByAdminLibrarian(adminLibrarian, req);
         return ResponseUtils.success(null, ApiMessageKey.LIBRARY_STAFF_ASSIGNED_SUCCESS.getMessage(messageSource),
                 HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Update a staff member's information in the library organization")
+    @PatchMapping(path = "/staff/{userId}", consumes = "application/json")
+    public ResponseEntity<ApiResponse<LibrarianStaffResponseDto>> updateStaff(
+            @CurrentUser User adminLibrarian,
+            @PathVariable Long userId,
+            @Valid @RequestBody UpdateLibrarianStaffRequest req) {
+        LibrarianStaffResponseDto updated = libraryOrgService.updateStaffByAdminLibrarian(adminLibrarian, userId, req);
+        return ResponseUtils.success(updated, ApiMessageKey.LIBRARY_STAFF_UPDATED_SUCCESS.getMessage(messageSource),
+                HttpStatus.OK);
     }
 
     @Operation(summary = "Remove a staff member from the library organization")

@@ -38,6 +38,7 @@ public class UserCode extends BaseEntity {
     // Relation with User
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_user_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private User user;
 
     // Helpers

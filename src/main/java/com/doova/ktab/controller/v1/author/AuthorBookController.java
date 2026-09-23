@@ -28,7 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping(path = "/authors", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('AUTHOR', 'ADMIN', 'ADMIN_LIBRARIAN')")
+@PreAuthorize("hasAnyAuthority('AUTHOR')")
 @Tag(name = "Author Book Management API", description = "Endpoints for authors to publish, manage, and inspect their books.")
 public class AuthorBookController {
 
@@ -130,13 +130,35 @@ public class AuthorBookController {
     // =========================================================
     // SUBMIT BOOK FOR REVIEW
     // =========================================================
-    @Operation(summary = "Submit a draft book for publisher review")
-    @PostMapping("/me/books/{id}/submit")
-    public ResponseEntity<ApiResponse<BookResponseDto>> submitForReview(@PathVariable Long id, @CurrentUser User author) {
-        BookResponseDto submitted = bookService.submitForReview(id, author);
+    @Operation(
+            summary = "Submit a book for publisher review",
+            description = """
+                    Two modes:
+                    - **Existing draft**: supply `id` as a query param (no body required).
+                    - **New book**: omit `id` and send a multipart request with `bookDto`, `coverImage`, and `pdfFile`.
+                      The book is created as DRAFT and immediately submitted in a single transaction.
+                    """
+    )
+    @PostMapping(path = "/me/books/submit", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_FORM_URLENCODED_VALUE, MediaType.ALL_VALUE})
+    public ResponseEntity<ApiResponse<BookResponseDto>> submitForReview(
+            @RequestParam(required = false) Long id,
+            @Validated(CreateBook.class) @RequestPart(value = "bookDto", required = false) BookRequestDto bookDto,
+            @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
+            @RequestPart(value = "pdfFile", required = false) MultipartFile pdfFile,
+            @CurrentUser User author) {
 
-        return ResponseUtils.success(submitted, ApiMessageKey.AUTHOR_BOOK_SUBMIT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        BookResponseDto result;
+        if (id != null) {
+            // ── Path A: submit an existing draft book ──
+            result = bookService.submitForReview(id, author);
+        } else {
+            // ── Path B: create a new book and immediately submit it ──
+            result = bookService.createAndSubmit(bookDto, coverImage, pdfFile, author);
+        }
+
+        return ResponseUtils.success(result, ApiMessageKey.AUTHOR_BOOK_SUBMIT_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
+
 
     // =========================================================
     // WITHDRAW BOOK FROM REVIEW

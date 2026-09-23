@@ -48,7 +48,11 @@ public interface LibraryOrganizationService {
 
     void assignStaffByAdminLibrarian(User adminLibrarian, AssignLibrarianRequest req);
 
+    LibrarianStaffResponseDto updateStaffByAdminLibrarian(User adminLibrarian, Long targetUserId, com.doova.ktab.dto.library.UpdateLibrarianStaffRequest req);
+
     void removeStaffByAdminLibrarian(User adminLibrarian, Long targetUserId);
+
+    LibrarianStaffResponseDto updateStaff(Long organizationId, Long targetUserId, com.doova.ktab.dto.library.UpdateLibrarianStaffRequest req);
 
     LibraryOrganizationResponseDto toDto(LibraryOrganization org);
 }

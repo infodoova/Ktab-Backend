@@ -29,7 +29,7 @@ public record PublisherReviewSearchRequest(
     public PublisherReviewSearchRequest {
         if (page < 0) page = 0;
         if (size <= 0 || size > 100) size = 10;
-        if (status == null) status = BookStatus.UNDER_REVIEW;
+        status = BookStatus.UNDER_REVIEW;
         if (sortDirection == null) sortDirection = Sort.Direction.ASC;
         if (sortBy == null || sortBy.isBlank()) sortBy = "submittedAt";
     }

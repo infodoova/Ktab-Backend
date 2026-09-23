@@ -2,6 +2,7 @@ package com.doova.ktab.features.ocr.service.impl;
 
 import com.doova.ktab.features.ocr.batch.PageItem;
 import com.doova.ktab.features.ocr.service.OcrStorageService;
+import com.doova.ktab.service.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class S3OcrStorageService implements OcrStorageService {
+public class S3OcrStorageService implements OcrStorageService, ObjectStorageService {
 
     private final S3Client s3;
     private final S3Presigner s3Presigner;
@@ -175,6 +176,11 @@ public class S3OcrStorageService implements OcrStorageService {
      * Get page bytes directly from S3/R2 (use sparingly - prefer presigned URLs).
      */
     public byte[] getPageBytes(String key) {
+        return getBytes(key);
+    }
+
+    @Override
+    public byte[] getBytes(String key) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)

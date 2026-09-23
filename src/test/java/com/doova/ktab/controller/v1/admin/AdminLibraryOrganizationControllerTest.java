@@ -87,7 +87,7 @@ class AdminLibraryOrganizationControllerTest {
     @DisplayName("createLibrary_validPayload_returnsCreated")
     void createLibrary_validPayload_returnsCreated() throws Exception {
         AssignLibrarianRequest adminReq = new AssignLibrarianRequest(
-                "admin@nl.sa", "Admin", null, "User", "Pass123!", null
+                "admin@nl.sa", "Admin", null, "User", "Pass123!"
         );
         CreateLibraryOrganizationRequest req = new CreateLibraryOrganizationRequest(
                 "National Library", "Historic collection", "Riyadh", "Saudi Arabia", "King Fahd Rd", "https://nl.sa", "info@nl.sa", "+966110000000", adminReq

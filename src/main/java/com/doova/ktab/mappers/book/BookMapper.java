@@ -2,6 +2,7 @@ package com.doova.ktab.mappers.book;
 
 import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookResponseDto;
+import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.genre.MainGenreRepository;
@@ -55,6 +56,7 @@ public abstract class BookMapper {
         book.setAgeRangeMax(dto.getAgeRangeMax());
         book.setPageCount(dto.getPageCount());
         book.setHasAudio(dto.getHasAudio());
+        book.setStatus(dto.getStatus());
         // Status is not assignable via this DTO — new books always start as DRAFT.
         // See BookServiceImpl for the editorial review workflow (submit/approve/reject).
 

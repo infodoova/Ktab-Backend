@@ -28,9 +28,14 @@ public class UserSettings extends BaseEntity {
      * This column serves as the unique key to enforce the One-to-One relationship.
      */
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "col_user_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "col_user_id", nullable = false, unique = true)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private User user;
+
+    public UserSettings(User user) {
+        this.user = user;
+    }
 
     // --- Core Settings Fields ---
 

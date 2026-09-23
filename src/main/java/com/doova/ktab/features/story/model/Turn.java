@@ -36,6 +36,7 @@ public class Turn extends BaseEntity {
             nullable = false,
             foreignKey = @ForeignKey(name = "fk_turn_session")
     )
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private ReadingSession session;
 
     @Column(name = "col_turn_index", nullable = false)

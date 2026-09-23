@@ -6,6 +6,7 @@ import com.doova.ktab.dto.user.UserResponseDto;
 import com.doova.ktab.enums.status.Status;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.user.UserRole;
+import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.user.UserRepository;
@@ -45,26 +46,23 @@ public class PublisherAdminServiceImpl implements PublisherAdminService {
     @Override
     @Transactional
     public void assignPublisher(AssignPublisherRequest req) {
-        User user = userRepository.findByEmail(req.email()).orElseGet(() -> {
-            log.info("Creating new publisher user: {}", req.email());
-            User newUser = User.builder()
-                    .email(req.email())
-                    .firstName(req.firstName())
-                    .middleName(req.middleName())
-                    .lastName(req.lastName())
-                    .role(UserRole.PUBLISHER.getCode())
-                    .active(Status.ACTIVE.getCode())
-                    .build();
+        if (userRepository.existsByEmail(req.email())) {
+            log.warn("Cannot create publisher: email {} is already in use", req.email());
+            throw new BadRequestException(ApiMessageKey.AUTH_EMAIL_ALREADY_USED);
+        }
 
-            newUser.setPasswordAndDigest(req.password(), passwordEncoder);
-            return newUser;
-        });
+        User newUser = User.builder()
+                .email(req.email())
+                .firstName(req.firstName())
+                .middleName(req.middleName())
+                .lastName(req.lastName())
+                .role(UserRole.PUBLISHER.getCode())
+                .active(Status.ACTIVE.getCode())
+                .build();
 
-        user.setRole(UserRole.PUBLISHER.getCode());
-        user.setActive(Status.ACTIVE.getCode());
-
-        userRepository.save(user);
-        log.info("Assigned user {} as PUBLISHER", user.getEmail());
+        newUser.setPasswordAndDigest(req.password(), passwordEncoder);
+        userRepository.save(newUser);
+        log.info("Assigned user {} as PUBLISHER", newUser.getEmail());
     }
 
     @Override

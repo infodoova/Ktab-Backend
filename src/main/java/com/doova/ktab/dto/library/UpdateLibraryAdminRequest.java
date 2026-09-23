@@ -1,6 +1,6 @@
 package com.doova.ktab.dto.library;
 
-import com.doova.ktab.validation.ValidPassword;
+import com.doova.ktab.annotation.ValidPassword;
 import jakarta.validation.constraints.Email;
 
 public record UpdateLibraryAdminRequest(

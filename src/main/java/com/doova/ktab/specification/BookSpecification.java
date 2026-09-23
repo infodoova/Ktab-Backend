@@ -95,11 +95,23 @@ public final class BookSpecification {
      * Builds a specification strictly scoped to the librarian's organization.
      */
     public static Specification<Book> forLibrarian(Long organizationId, LibrarianBookSearchRequest req) {
+        return forLibrarian(organizationId, null, req);
+    }
+
+    /**
+     * Builds a specification strictly scoped to the librarian's organization, optionally isolated to a specific uploader.
+     */
+    public static Specification<Book> forLibrarian(Long organizationId, Long uploaderId, LibrarianBookSearchRequest req) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
             // Strictly isolate to the librarian's organization
             predicates.add(cb.equal(root.get("libraryOrganization").get("id"), organizationId));
+
+            // Isolate to specific uploader if provided (e.g. regular librarian)
+            if (uploaderId != null) {
+                predicates.add(cb.equal(root.get("uploader").get("id"), uploaderId));
+            }
 
             if (StringUtils.hasText(req.q())) {
                 String pattern = ArabicSearchUtils.toNormalizedLikePattern(req.q());

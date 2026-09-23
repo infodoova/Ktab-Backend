@@ -17,6 +17,7 @@ public class OcrFailure extends BaseEntity {
      */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "book_id", nullable = false, foreignKey = @ForeignKey(name = "fk_ocr_failures_book"))
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Book book;
 
     /**

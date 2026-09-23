@@ -27,98 +27,126 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping(path = "/librarians/me/books", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
-@Tag(name = "Librarian Book Management API", description = "Endpoints for librarians to upload, update, and manage books on behalf of their library organization.")
+@Tag(name = "Library Book Management API", description = "Endpoints for Admin/Librarians to upload, update, and manage books on behalf of their library organization.")
 public class LibrarianBookController {
 
-    private final LibrarianBookService librarianBookService;
-    private final MessageSource messageSource;
+        private final LibrarianBookService librarianBookService;
+        private final MessageSource messageSource;
 
-    @Operation(summary = "Upload a book for the librarian's library organization")
-    @PostMapping(path = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
-            @Valid @RequestPart("bookDto") LibrarianBookUploadRequest bookDto,
-            @RequestPart("coverImage") MultipartFile coverImage,
-            @RequestPart("pdfFile") MultipartFile pdfFile,
-            @CurrentUser User librarian) {
-        BookResponseDto created = librarianBookService.createBook(bookDto, coverImage, pdfFile, librarian);
-        return ResponseUtils.success(created, ApiMessageKey.LIBRARIAN_BOOK_CREATE_SUCCESS.getMessage(messageSource),
-                HttpStatus.CREATED);
-    }
+        @Operation(summary = "Upload a book for the librarian's library organization")
+        @PostMapping(path = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PreAuthorize("hasAuthority('LIBRARIAN')")
+        public ResponseEntity<ApiResponse<BookResponseDto>> createBook(
+                        @Valid @RequestPart("bookDto") LibrarianBookUploadRequest bookDto,
+                        @RequestPart("coverImage") MultipartFile coverImage,
+                        @RequestPart("pdfFile") MultipartFile pdfFile,
+                        @CurrentUser User librarian) {
+                BookResponseDto created = librarianBookService.createBook(bookDto, coverImage, pdfFile, librarian);
+                return ResponseUtils.success(created,
+                                ApiMessageKey.LIBRARIAN_BOOK_CREATE_SUCCESS.getMessage(messageSource),
+                                HttpStatus.CREATED);
+        }
 
-    @Operation(summary = "Update a library book")
-    @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
-            @PathVariable Long id,
-            @Valid @RequestPart(value = "bookDto", required = false) UpdateLibrarianBookRequest bookDto,
-            @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
-            @RequestPart(value = "pdfFile", required = false) MultipartFile pdfFile,
-            @CurrentUser User librarian) {
-        UpdateLibrarianBookRequest dto = bookDto != null ? bookDto : new UpdateLibrarianBookRequest();
-        BookResponseDto updated = librarianBookService.updateBook(id, dto, coverImage, pdfFile, librarian);
-        return ResponseUtils.success(updated, ApiMessageKey.LIBRARIAN_BOOK_UPDATE_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+        @Operation(summary = "Update a library book")
+        @PatchMapping(path = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        @PreAuthorize("hasAuthority('LIBRARIAN')")
+        public ResponseEntity<ApiResponse<BookResponseDto>> updateBook(
+                        @PathVariable Long id,
+                        @Valid @RequestPart(value = "bookDto", required = false) UpdateLibrarianBookRequest bookDto,
+                        @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
+                        @RequestPart(value = "pdfFile", required = false) MultipartFile pdfFile,
+                        @CurrentUser User librarian) {
+                UpdateLibrarianBookRequest dto = bookDto != null ? bookDto : new UpdateLibrarianBookRequest();
+                BookResponseDto updated = librarianBookService.updateBook(id, dto, coverImage, pdfFile, librarian);
+                return ResponseUtils.success(updated,
+                                ApiMessageKey.LIBRARIAN_BOOK_UPDATE_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 
-    @Operation(summary = "Get a single library book by ID")
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(
-            @PathVariable Long id,
-            @CurrentUser User librarian) {
-        BookResponseDto book = librarianBookService.getBookByIdForLibrarian(id, librarian);
-        return ResponseUtils.success(book, ApiMessageKey.LIBRARIAN_BOOK_FETCH_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+        @Operation(summary = "Get a single library book by ID")
+        @GetMapping("/{id}")
+        @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<BookResponseDto>> getBookById(
+                        @PathVariable Long id,
+                        @CurrentUser User librarian) {
+                BookResponseDto book = librarianBookService.getBookByIdForLibrarian(id, librarian);
+                return ResponseUtils.success(book, ApiMessageKey.LIBRARIAN_BOOK_FETCH_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 
-    @Operation(summary = "List all books belonging to the librarian's organization")
-    @GetMapping("")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getMyLibraryBooks(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String status,
-            @CurrentUser User librarian) {
-        PageResponse<BookResponseDto> books = librarianBookService.getBooksForLibrary(page, size, status, librarian);
-        return ResponseUtils.success(books, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+        @Operation(summary = "List books (scoped to uploaded books for regular librarian, all organization books for admin librarian)")
+        @GetMapping("")
+        @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getMyLibraryBooks(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(required = false) String status,
+                        @CurrentUser User librarian) {
+                PageResponse<BookResponseDto> books = librarianBookService.getBooksForLibrary(page, size, status,
+                                librarian);
+                return ResponseUtils.success(books,
+                                ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 
-    @Operation(summary = "Search library organization inventory with multi-facet filters")
-    @PostMapping("/search")
-    public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchLibrarianBooks(
-            @Valid @RequestBody com.doova.ktab.dto.book.LibrarianBookSearchRequest requestDto,
-            @CurrentUser User librarian) {
-        String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
-        org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null
-                ? requestDto.sortDirection()
-                : org.springframework.data.domain.Sort.Direction.DESC;
-        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
-                requestDto.page(), requestDto.size(), org.springframework.data.domain.Sort.by(direction, sortProperty));
+        @Operation(summary = "List all books belonging to the library organization (Exclusive to ADMIN_LIBRARIAN)")
+        @GetMapping("/all")
+        @PreAuthorize("hasAuthority('ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> getAllLibraryBooks(
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestParam(required = false) String status,
+                        @CurrentUser User adminLibrarian) {
+                PageResponse<BookResponseDto> books = librarianBookService.getAllBooksForLibrary(page, size, status,
+                                adminLibrarian);
+                return ResponseUtils.success(books,
+                                ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 
-        PageResponse<BookResponseDto> result = librarianBookService.searchLibrarianBooks(librarian, requestDto,
-                pageable);
-        return ResponseUtils.success(result, ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+        @Operation(summary = "Search books with multi-facet filters (scoped to uploaded books for regular librarian, all organization books for admin librarian)")
+        @PostMapping("/search")
+        @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<PageResponse<BookResponseDto>>> searchLibrarianBooks(
+                        @Valid @RequestBody com.doova.ktab.dto.book.LibrarianBookSearchRequest requestDto,
+                        @CurrentUser User librarian) {
+                String sortProperty = requestDto.sortBy() != null ? requestDto.sortBy() : "createdAt";
+                org.springframework.data.domain.Sort.Direction direction = requestDto.sortDirection() != null
+                                ? requestDto.sortDirection()
+                                : org.springframework.data.domain.Sort.Direction.DESC;
+                org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(
+                                requestDto.page(), requestDto.size(),
+                                org.springframework.data.domain.Sort.by(direction, sortProperty));
 
-    @Operation(summary = "Delete a book from the library organization")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteBook(
-            @PathVariable Long id,
-            @CurrentUser User librarian) {
-        librarianBookService.deleteBook(id, librarian);
-        return ResponseUtils.success(null, ApiMessageKey.LIBRARIAN_BOOK_DELETE_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+                PageResponse<BookResponseDto> result = librarianBookService.searchLibrarianBooks(librarian, requestDto,
+                                pageable);
+                return ResponseUtils.success(result,
+                                ApiMessageKey.LIBRARIAN_BOOKS_FETCH_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 
-    @Operation(summary = "Get secure ephemeral download URL for library book source file")
-    @GetMapping("/{id}/source-file")
-    @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN', 'ADMIN')")
-    public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
-            @PathVariable Long id,
-            @CurrentUser User librarian) {
-        com.doova.ktab.dto.book.BookSourceFileResponseDto response = librarianBookService.getSourceFileForLibrarian(id,
-                librarian);
-        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource),
-                HttpStatus.OK);
-    }
+        @Operation(summary = "Delete a book from the library organization (Exclusive to ADMIN_LIBRARIAN)")
+        @DeleteMapping("/{id}")
+        @PreAuthorize("hasAuthority('ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<Void>> deleteBook(
+                        @PathVariable Long id,
+                        @CurrentUser User adminLibrarian) {
+                librarianBookService.deleteBook(id, adminLibrarian);
+                return ResponseUtils.success(null,
+                                ApiMessageKey.LIBRARIAN_BOOK_DELETE_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
+
+        @Operation(summary = "Get secure ephemeral download URL for library book source file")
+        @GetMapping("/{id}/source-file")
+        @PreAuthorize("hasAnyAuthority('LIBRARIAN', 'ADMIN_LIBRARIAN')")
+        public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSourceFileResponseDto>> getSourceFile(
+                        @PathVariable Long id,
+                        @CurrentUser User librarian) {
+                com.doova.ktab.dto.book.BookSourceFileResponseDto response = librarianBookService
+                                .getSourceFileForLibrarian(id,
+                                                librarian);
+                return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource),
+                                HttpStatus.OK);
+        }
 }

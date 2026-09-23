@@ -6,8 +6,10 @@ import com.doova.ktab.dto.book.BookResponseDto;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.book.BookSource;
 import com.doova.ktab.enums.status.BookStatus;
+import com.doova.ktab.enums.user.UserRole;
 import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.library.LibraryOrganization;
 import com.doova.ktab.model.user.User;
@@ -202,23 +204,85 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
     }
 
     // =========================================================================
-    // LIST BOOKS FOR CURRENT LIBRARIAN'S ORGANIZATION
+    // =========================================================================
+    // LIST BOOKS UPLOADED BY CURRENT LIBRARIAN
     // =========================================================================
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<BookResponseDto> getBooksForLibrary(int page, int size, String status, User librarian) {
-        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+    public PageResponse<BookResponseDto> getMyUploadedBooks(int page, int size, String status, User librarian) {
+        User managedLibrarian = requireManagedLibrarian(librarian);
+        LibraryOrganization libraryOrg = managedLibrarian.getLibraryOrganization();
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
         Page<Book> pageResult;
         if (StringUtils.hasText(status)) {
-            pageResult = bookRepository.findAllByLibraryOrganizationIdAndStatus(
+            pageResult = bookRepository.findAllByLibraryOrganizationIdAndUploaderIdAndStatus(
                     libraryOrg.getId(),
+                    managedLibrarian.getId(),
                     BookStatus.valueOf(status.toUpperCase()),
                     pageable
             );
         } else {
-            pageResult = bookRepository.findAllByLibraryOrganizationId(libraryOrg.getId(), pageable);
+            pageResult = bookRepository.findAllByLibraryOrganizationIdAndUploaderId(
+                    libraryOrg.getId(),
+                    managedLibrarian.getId(),
+                    pageable
+            );
+        }
+
+        return PageResponse.fromPage(pageResult.map(b -> responseBuilder.build(b, true)));
+    }
+
+    // =========================================================================
+    // LIST ALL BOOKS FOR CURRENT LIBRARIAN'S ORGANIZATION (ADMIN_LIBRARIAN)
+    // =========================================================================
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> getAllBooksForLibrary(int page, int size, String status, User adminLibrarian) {
+        return getBooksForLibrary(page, size, status, adminLibrarian);
+    }
+
+    // =========================================================================
+    // LIST BOOKS FOR LIBRARIAN (SCOPED BY ROLE)
+    // =========================================================================
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponseDto> getBooksForLibrary(int page, int size, String status, User librarian) {
+        User managedLibrarian = requireManagedLibrarian(librarian);
+        LibraryOrganization libraryOrg = managedLibrarian.getLibraryOrganization();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+
+        boolean isAdminLibrarian = UserRole.ADMIN_LIBRARIAN.getCode().equals(managedLibrarian.getRole())
+                || UserRole.ADMIN.getCode().equals(managedLibrarian.getRole());
+
+        Page<Book> pageResult;
+        if (isAdminLibrarian) {
+            // Admin Librarian sees all books in the organization
+            if (StringUtils.hasText(status)) {
+                pageResult = bookRepository.findAllByLibraryOrganizationIdAndStatus(
+                        libraryOrg.getId(),
+                        BookStatus.valueOf(status.toUpperCase()),
+                        pageable
+                );
+            } else {
+                pageResult = bookRepository.findAllByLibraryOrganizationId(libraryOrg.getId(), pageable);
+            }
+        } else {
+            // Regular Librarian sees only books they uploaded
+            if (StringUtils.hasText(status)) {
+                pageResult = bookRepository.findAllByLibraryOrganizationIdAndUploaderIdAndStatus(
+                        libraryOrg.getId(),
+                        managedLibrarian.getId(),
+                        BookStatus.valueOf(status.toUpperCase()),
+                        pageable
+                );
+            } else {
+                pageResult = bookRepository.findAllByLibraryOrganizationIdAndUploaderId(
+                        libraryOrg.getId(),
+                        managedLibrarian.getId(),
+                        pageable
+                );
+            }
         }
 
         return PageResponse.fromPage(pageResult.map(b -> responseBuilder.build(b, true)));
@@ -230,14 +294,20 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
     @Override
     @Transactional
     public void deleteBook(Long id, User librarian) {
-        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+        User managedLibrarian = requireManagedLibrarian(librarian);
+        if (!UserRole.ADMIN_LIBRARIAN.getCode().equals(managedLibrarian.getRole())
+                && !UserRole.ADMIN.getCode().equals(managedLibrarian.getRole())) {
+            throw new AccessDeniedException("Only ADMIN_LIBRARIAN can delete library books");
+        }
+
+        LibraryOrganization libraryOrg = managedLibrarian.getLibraryOrganization();
 
         Book book = bookRepository.findByIdAndLibraryOrganizationId(id, libraryOrg.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARIAN_BOOK_NOT_FOUND));
 
         bookFileService.handleDeleteFiles(book);
         bookRepository.delete(book);
-        log.info("Librarian {} deleted book {} from library {}", librarian.getEmail(), id, libraryOrg.getName());
+        log.info("Admin Librarian {} deleted book {} from library {}", librarian.getEmail(), id, libraryOrg.getName());
     }
 
     // =========================================================================
@@ -266,9 +336,18 @@ public class LibrarianBookServiceImpl implements LibrarianBookService {
             com.doova.ktab.dto.book.LibrarianBookSearchRequest req,
             Pageable pageable
     ) {
-        LibraryOrganization libraryOrg = requireLibrarianOrganization(librarian);
+        User managedLibrarian = requireManagedLibrarian(librarian);
+        LibraryOrganization libraryOrg = managedLibrarian.getLibraryOrganization();
+
+        Long uploaderId = null;
+        if (!UserRole.ADMIN_LIBRARIAN.getCode().equals(managedLibrarian.getRole())
+                && !UserRole.ADMIN.getCode().equals(managedLibrarian.getRole())) {
+            // Regular librarian searches only books they uploaded
+            uploaderId = managedLibrarian.getId();
+        }
+
         Page<Book> pageResult = bookRepository.findAll(
-                com.doova.ktab.specification.BookSpecification.forLibrarian(libraryOrg.getId(), req),
+                com.doova.ktab.specification.BookSpecification.forLibrarian(libraryOrg.getId(), uploaderId, req),
                 pageable
         );
         return PageResponse.fromPage(pageResult.map(b -> responseBuilder.build(b, true)));

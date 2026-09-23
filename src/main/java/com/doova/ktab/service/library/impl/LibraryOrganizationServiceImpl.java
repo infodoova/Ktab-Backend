@@ -2,6 +2,7 @@ package com.doova.ktab.service.library.impl;
 
 import com.doova.ktab.dto.library.AssignLibrarianRequest;
 import com.doova.ktab.dto.library.CreateLibraryOrganizationRequest;
+import com.doova.ktab.dto.library.UpdateLibrarianStaffRequest;
 import com.doova.ktab.dto.library.UpdateLibraryOrganizationRequest;
 import com.doova.ktab.dto.library.LibrarianStaffResponseDto;
 import com.doova.ktab.dto.library.LibraryOrganizationResponseDto;
@@ -89,14 +90,22 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
         if (req.name() != null && !req.name().isBlank()) {
             org.setName(req.name());
         }
-        if (req.description() != null) org.setDescription(req.description());
-        if (req.city() != null) org.setCity(req.city());
-        if (req.country() != null) org.setCountry(req.country());
-        if (req.address() != null) org.setAddress(req.address());
-        if (req.website() != null) org.setWebsite(req.website());
-        if (req.email() != null) org.setEmail(req.email());
-        if (req.phone() != null) org.setPhone(req.phone());
-        if (req.status() != null && !req.status().isBlank()) org.setStatus(req.status().toUpperCase());
+        if (req.description() != null)
+            org.setDescription(req.description());
+        if (req.city() != null)
+            org.setCity(req.city());
+        if (req.country() != null)
+            org.setCountry(req.country());
+        if (req.address() != null)
+            org.setAddress(req.address());
+        if (req.website() != null)
+            org.setWebsite(req.website());
+        if (req.email() != null)
+            org.setEmail(req.email());
+        if (req.phone() != null)
+            org.setPhone(req.phone());
+        if (req.status() != null && !req.status().isBlank())
+            org.setStatus(req.status().toUpperCase());
 
         LibraryOrganization updated = libraryOrgRepository.save(org);
 
@@ -116,7 +125,7 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
         LibraryOrganization org = libraryOrgRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_FOUND));
 
-        // 1. Delete all books and clean up their files in storage
+        // 1. Clean up book files in storage before DB cascade
         List<Book> books = bookRepository.findAllByLibraryOrganizationId(id);
         for (Book book : books) {
             try {
@@ -125,34 +134,14 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                 log.warn("Failed to delete storage files for book {}: {}", book.getId(), e.getMessage());
             }
         }
-        bookRepository.deleteAll(books);
-        bookRepository.flush();
 
-        // 2. Fetch all staff and admin users for this organization
-        List<User> staffUsers = userRepository.findAllByLibraryOrganizationId(id);
-
-        // 3. Null out the FK on every staff/admin user BEFORE removing the org.
-        //    Without this, Hibernate sees managed User entities that still reference
-        //    the to-be-removed LibraryOrganization and throws TransientObjectException
-        //    on flush.
-        for (User user : staffUsers) {
-            user.setLibraryOrganization(null);
-        }
-        userRepository.saveAll(staffUsers);
-        userRepository.flush();
-
-        // 4. Now it is safe to delete the organization (no FK references remain)
+        // 2. Delete organization (books cascade via JPA orphanRemoval & DB cascade; staff unlinked via DB ON DELETE SET NULL)
         libraryOrgRepository.delete(org);
         libraryOrgRepository.flush();
 
-        // 5. Delete the former staff/admin user accounts
-        userRepository.deleteAll(staffUsers);
-        userRepository.flush();
-
-        log.info("Deleted library organization id={}, name={}, along with {} books and {} staff/admin users",
-                id, org.getName(), books.size(), staffUsers.size());
+        log.info("Deleted library organization id={}, name={}, along with storage cleanup for {} books",
+                id, org.getName(), books.size());
     }
-
 
     // =========================================================================
     // GET BY ID / SLUG
@@ -183,7 +172,8 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
 
         Page<LibraryOrganization> pageResult;
         if (search != null && !search.isBlank()) {
-            pageResult = libraryOrgRepository.findByNameContainingIgnoreCaseAndStatus(search.trim(), Status.ACTIVE.getCode(), pageable);
+            pageResult = libraryOrgRepository.findByNameContainingIgnoreCaseAndStatus(search.trim(),
+                    Status.ACTIVE.getCode(), pageable);
         } else {
             pageResult = libraryOrgRepository.findAllByStatus(Status.ACTIVE.getCode(), pageable);
         }
@@ -213,12 +203,10 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
     @Transactional(readOnly = true)
     public PageResponse<LibraryOrganizationResponseDto> searchOrganizations(
             com.doova.ktab.dto.library.LibraryOrganizationSearchRequest req,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Page<LibraryOrganization> pageResult = libraryOrgRepository.findAll(
                 com.doova.ktab.specification.LibraryOrganizationSpecification.forActiveDirectory(req),
-                pageable
-        );
+                pageable);
         return PageResponse.fromPage(pageResult.map(this::toDto));
     }
 
@@ -228,59 +216,37 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
     @Override
     @Transactional
     public void assignLibrarian(Long organizationId, AssignLibrarianRequest req) {
-        LibraryOrganization org = libraryOrgRepository.findById(organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_FOUND));
-
-        UserRole targetRole = UserRole.LIBRARIAN;
-        if (req.role() != null && !req.role().isBlank()) {
-            UserRole requested = UserRole.fromCode(req.role());
-            if (requested == UserRole.ADMIN_LIBRARIAN) {
-                targetRole = UserRole.ADMIN_LIBRARIAN;
-            }
-        }
-
-        final UserRole finalRole = targetRole;
-
-        User user = userRepository.findByEmail(req.email()).orElseGet(() -> {
-            log.info("Creating new library staff user: {} with role {}", req.email(), finalRole.name());
-            User newUser = User.builder()
-                    .email(req.email())
-                    .firstName(req.firstName())
-                    .middleName(req.middleName())
-                    .lastName(req.lastName())
-                    .role(finalRole.getCode())
-                    .active(Status.ACTIVE.getCode())
-                    .build();
-
-            newUser.setPasswordAndDigest(req.password(), passwordEncoder);
-            return newUser;
-        });
-
-        if (user.getLibraryOrganization() != null && !user.getLibraryOrganization().getId().equals(org.getId())) {
-            throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_ACCESS_DENIED);
-        }
-
-        user.setRole(targetRole.getCode());
-        user.setActive(Status.ACTIVE.getCode());
-        user.setLibraryOrganization(org);
-        if (req.firstName() != null && !req.firstName().isBlank()) user.setFirstName(req.firstName());
-        if (req.lastName() != null && !req.lastName().isBlank()) user.setLastName(req.lastName());
-        if (req.middleName() != null) user.setMiddleName(req.middleName());
-        if (req.password() != null && !req.password().isBlank()) {
-            user.setPasswordAndDigest(req.password(), passwordEncoder);
-        }
-
-        userRepository.save(user);
-        log.info("Assigned user {} as {} to organization {}", user.getEmail(), targetRole.name(), org.getName());
+        assignLibrarianWithRole(organizationId, req, UserRole.LIBRARIAN);
     }
 
     @Override
     @Transactional
     public void assignAdminLibrarian(Long organizationId, AssignLibrarianRequest req) {
-        AssignLibrarianRequest adminReq = new AssignLibrarianRequest(
-                req.email(), req.firstName(), req.middleName(), req.lastName(), req.password(), UserRole.ADMIN_LIBRARIAN.getCode()
-        );
-        assignLibrarian(organizationId, adminReq);
+        assignLibrarianWithRole(organizationId, req, UserRole.ADMIN_LIBRARIAN);
+    }
+
+    private void assignLibrarianWithRole(Long organizationId, AssignLibrarianRequest req, UserRole role) {
+        LibraryOrganization org = libraryOrgRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_ORGANIZATION_NOT_FOUND));
+
+        if (userRepository.existsByEmail(req.email())) {
+            log.warn("Cannot create {} staff: email {} is already in use", role.name(), req.email());
+            throw new BadRequestException(ApiMessageKey.AUTH_EMAIL_ALREADY_USED);
+        }
+
+        User newUser = User.builder()
+                .email(req.email())
+                .firstName(req.firstName())
+                .middleName(req.middleName())
+                .lastName(req.lastName())
+                .role(role.getCode())
+                .active(Status.ACTIVE.getCode())
+                .libraryOrganization(org)
+                .build();
+
+        newUser.setPasswordAndDigest(req.password(), passwordEncoder);
+        userRepository.save(newUser);
+        log.info("Created and assigned user {} as {} to organization {}", newUser.getEmail(), role.name(), org.getName());
     }
 
     // =========================================================================
@@ -292,12 +258,17 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.USER_NOT_FOUND));
 
-        if (user.getLibraryOrganization() != null && user.getLibraryOrganization().getId().equals(organizationId)) {
-            user.setLibraryOrganization(null);
-            user.setRole(UserRole.READER.getCode()); // safe fallback to reader
-            userRepository.save(user);
-            log.info("Removed librarian {} from organization {}", user.getEmail(), organizationId);
+        if (user.getLibraryOrganization() == null || !user.getLibraryOrganization().getId().equals(organizationId)) {
+            log.warn("Staff user {} does not belong to organization {}", userId, organizationId);
+            throw new ResourceNotFoundException(ApiMessageKey.LIBRARY_STAFF_NOT_FOUND);
         }
+
+        // Permanently delete user from tbl_users.
+        // DB cascading handles child records (user codes, settings, tokens, reviews, library entries)
+        // and sets uploader/author to NULL on uploaded books via ON DELETE SET NULL.
+        userRepository.delete(user);
+        userRepository.flush();
+        log.info("Permanently deleted staff member {} (id={}) from organization {}", user.getEmail(), userId, organizationId);
     }
 
     // =========================================================================
@@ -327,7 +298,8 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
 
     @Override
     @Transactional
-    public LibraryOrganizationResponseDto updateMyOrganizationProfile(User adminLibrarian, UpdateLibraryOrganizationRequest req) {
+    public LibraryOrganizationResponseDto updateMyOrganizationProfile(User adminLibrarian,
+            UpdateLibraryOrganizationRequest req) {
         LibraryOrganization org = requireAdminLibrarianOrganization(adminLibrarian);
         return updateOrganization(org.getId(), req);
     }
@@ -358,6 +330,63 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
         removeLibrarian(org.getId(), targetUserId);
     }
 
+    @Override
+    @Transactional
+    public LibrarianStaffResponseDto updateStaffByAdminLibrarian(User adminLibrarian, Long targetUserId,
+            UpdateLibrarianStaffRequest req) {
+        LibraryOrganization org = requireAdminLibrarianOrganization(adminLibrarian);
+        return updateStaff(org.getId(), targetUserId, req);
+    }
+
+    @Override
+    @Transactional
+    public LibrarianStaffResponseDto updateStaff(Long organizationId, Long targetUserId,
+            UpdateLibrarianStaffRequest req) {
+        User staffUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.LIBRARY_STAFF_NOT_FOUND));
+
+        if (staffUser.getLibraryOrganization() == null
+                || !organizationId.equals(staffUser.getLibraryOrganization().getId())) {
+            log.warn("Staff user {} does not belong to organization {}", targetUserId, organizationId);
+            throw new ResourceNotFoundException(ApiMessageKey.LIBRARY_STAFF_NOT_FOUND);
+        }
+
+        if (req.email() != null && !req.email().isBlank()) {
+            String newEmail = req.email().trim().toLowerCase();
+            if (!newEmail.equalsIgnoreCase(staffUser.getEmail())) {
+                if (userRepository.existsByEmail(newEmail)) {
+                    log.warn("Cannot update staff email to {}: email already in use", newEmail);
+                    throw new BadRequestException(ApiMessageKey.AUTH_EMAIL_ALREADY_USED);
+                }
+                staffUser.setEmail(newEmail);
+            }
+        }
+
+        if (req.firstName() != null && !req.firstName().isBlank()) {
+            staffUser.setFirstName(req.firstName().trim());
+        }
+        if (req.middleName() != null) {
+            staffUser.setMiddleName(req.middleName().isBlank() ? null : req.middleName().trim());
+        }
+        if (req.lastName() != null && !req.lastName().isBlank()) {
+            staffUser.setLastName(req.lastName().trim());
+        }
+        if (req.password() != null && !req.password().isBlank()) {
+            staffUser.setPasswordAndDigest(req.password(), passwordEncoder);
+        }
+        if (req.role() != null && !req.role().isBlank()) {
+            UserRole targetRole = UserRole.fromCode(req.role().trim());
+            if (targetRole != UserRole.LIBRARIAN && targetRole != UserRole.ADMIN_LIBRARIAN) {
+                throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
+            }
+            staffUser.setRole(targetRole.getCode());
+        }
+
+        User saved = userRepository.save(staffUser);
+        log.info("Updated staff member {} (id={}) for library organization id={}", saved.getEmail(), saved.getId(), organizationId);
+        return toStaffDto(saved);
+    }
+
     private LibrarianStaffResponseDto toStaffDto(User user) {
         UserRole role = UserRole.fromCode(user.getRole());
         return LibrarianStaffResponseDto.builder()
@@ -369,8 +398,10 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                 .role(role != null ? role.name() : user.getRole())
                 .roleCode(user.getRole())
                 .active(user.getActive())
-                .libraryOrganizationId(user.getLibraryOrganization() != null ? user.getLibraryOrganization().getId() : null)
-                .libraryOrganizationName(user.getLibraryOrganization() != null ? user.getLibraryOrganization().getName() : null)
+                .libraryOrganizationId(
+                        user.getLibraryOrganization() != null ? user.getLibraryOrganization().getId() : null)
+                .libraryOrganizationName(
+                        user.getLibraryOrganization() != null ? user.getLibraryOrganization().getName() : null)
                 .build();
     }
 
@@ -411,7 +442,8 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                 Optional<User> existingUserWithNewEmail = userRepository.findByEmail(newEmail);
                 if (existingUserWithNewEmail.isPresent()) {
                     User newAdmin = existingUserWithNewEmail.get();
-                    if (newAdmin.getLibraryOrganization() != null && !newAdmin.getLibraryOrganization().getId().equals(org.getId())) {
+                    if (newAdmin.getLibraryOrganization() != null
+                            && !newAdmin.getLibraryOrganization().getId().equals(org.getId())) {
                         throw new BadRequestException(ApiMessageKey.LIBRARY_ORGANIZATION_ACCESS_DENIED);
                     }
 
@@ -424,23 +456,30 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                     newAdmin.setLibraryOrganization(org);
                     newAdmin.setRole(UserRole.ADMIN_LIBRARIAN.getCode());
                     newAdmin.setActive(Status.ACTIVE.getCode());
-                    if (adminReq.firstName() != null && !adminReq.firstName().isBlank()) newAdmin.setFirstName(adminReq.firstName().trim());
-                    if (adminReq.lastName() != null && !adminReq.lastName().isBlank()) newAdmin.setLastName(adminReq.lastName().trim());
-                    if (adminReq.middleName() != null) newAdmin.setMiddleName(adminReq.middleName().trim());
+                    if (adminReq.firstName() != null && !adminReq.firstName().isBlank())
+                        newAdmin.setFirstName(adminReq.firstName().trim());
+                    if (adminReq.lastName() != null && !adminReq.lastName().isBlank())
+                        newAdmin.setLastName(adminReq.lastName().trim());
+                    if (adminReq.middleName() != null)
+                        newAdmin.setMiddleName(adminReq.middleName().trim());
                     if (adminReq.password() != null && !adminReq.password().isBlank()) {
                         newAdmin.setPasswordAndDigest(adminReq.password(), passwordEncoder);
                     }
                     userRepository.save(newAdmin);
-                    log.info("Reassigned library admin for org {} from {} to existing user {}", org.getName(), currentAdmin.getEmail(), newAdmin.getEmail());
+                    log.info("Reassigned library admin for org {} from {} to existing user {}", org.getName(),
+                            currentAdmin.getEmail(), newAdmin.getEmail());
                     return;
                 } else {
                     currentAdmin.setEmail(newEmail);
                 }
             }
 
-            if (adminReq.firstName() != null && !adminReq.firstName().isBlank()) currentAdmin.setFirstName(adminReq.firstName().trim());
-            if (adminReq.lastName() != null && !adminReq.lastName().isBlank()) currentAdmin.setLastName(adminReq.lastName().trim());
-            if (adminReq.middleName() != null) currentAdmin.setMiddleName(adminReq.middleName().trim());
+            if (adminReq.firstName() != null && !adminReq.firstName().isBlank())
+                currentAdmin.setFirstName(adminReq.firstName().trim());
+            if (adminReq.lastName() != null && !adminReq.lastName().isBlank())
+                currentAdmin.setLastName(adminReq.lastName().trim());
+            if (adminReq.middleName() != null)
+                currentAdmin.setMiddleName(adminReq.middleName().trim());
             if (adminReq.password() != null && !adminReq.password().isBlank()) {
                 currentAdmin.setPasswordAndDigest(adminReq.password(), passwordEncoder);
             }
@@ -455,9 +494,8 @@ public class LibraryOrganizationServiceImpl implements LibraryOrganizationServic
                     adminReq.firstName() != null ? adminReq.firstName().trim() : "Admin",
                     adminReq.middleName() != null ? adminReq.middleName().trim() : null,
                     adminReq.lastName() != null ? adminReq.lastName().trim() : org.getName(),
-                    adminReq.password() != null && !adminReq.password().isBlank() ? adminReq.password() : "DefaultPassword123!",
-                    UserRole.ADMIN_LIBRARIAN.getCode()
-            );
+                    adminReq.password() != null && !adminReq.password().isBlank() ? adminReq.password()
+                            : "DefaultPassword123!");
             assignAdminLibrarian(org.getId(), assignReq);
         }
     }

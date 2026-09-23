@@ -27,6 +27,9 @@ public interface BookService {
 
     BookResponseDto submitForReview(Long id, User author);
 
+    /** Create a new draft book and immediately submit it for review in a single atomic operation. */
+    BookResponseDto createAndSubmit(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author);
+
     BookResponseDto withdrawFromReview(Long id, User author);
 
     PageResponse<BookResponseDto> getAllBooksPaginated(int page, int size);

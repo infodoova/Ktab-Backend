@@ -220,6 +220,11 @@ public class GlobalExceptionHandler {
             String sqlMsg = sqlEx.getMessage() != null ? sqlEx.getMessage().toLowerCase() : "";
             isEmailViolation = sqlMsg.contains("email") || sqlMsg.contains("col_email");
         }
+        if (!isEmailViolation) {
+            String fullMsg = ((ex.getMessage() != null ? ex.getMessage() : "") + " "
+                    + (root != null && root.getMessage() != null ? root.getMessage() : "")).toLowerCase();
+            isEmailViolation = fullMsg.contains("uq_users_email") || fullMsg.contains("col_email");
+        }
 
         if (isEmailViolation) {
             return ResponseEntity.status(HttpStatus.CONFLICT)

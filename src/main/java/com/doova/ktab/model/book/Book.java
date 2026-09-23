@@ -1,6 +1,8 @@
 package com.doova.ktab.model.book;
 
 import com.doova.ktab.enums.book.BookSource;
+import com.doova.ktab.enums.book.IngestionRoute;
+import com.doova.ktab.enums.book.PdfType;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.model.base.BaseEntity;
@@ -15,6 +17,8 @@ import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.ParamDef;
 
 import java.math.BigDecimal;
@@ -41,6 +45,7 @@ public class Book extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_author_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User author;
 
     @Enumerated(EnumType.STRING)
@@ -49,6 +54,7 @@ public class Book extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_library_organization_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private LibraryOrganization libraryOrganization;
 
     @Column(name = "col_custom_author_name")
@@ -56,6 +62,7 @@ public class Book extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_uploader_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User uploader;
 
     @NotBlank(message = "{validation.book.title.required}")
@@ -103,6 +110,7 @@ public class Book extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_reviewed_by")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User reviewedBy;
 
     @Column(name = "col_reviewed_at")
@@ -116,6 +124,7 @@ public class Book extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_genre_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private MainGenre mainGenre;
 
     @Enumerated(EnumType.STRING)
@@ -123,8 +132,24 @@ public class Book extends BaseEntity {
     @ColumnDefault("'PENDING'")
     private OcrStatus ocrStatus = OcrStatus.PENDING;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_pdf_type", length = 20)
+    private PdfType pdfType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "col_ingestion_route", length = 20)
+    private IngestionRoute ingestionRoute;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "col_pdf_classification", columnDefinition = "JSONB")
+    private String pdfClassification;
+
+    @Column(name = "col_classifier_version", length = 10)
+    private String classifierVersion;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_genre_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private SubGenre subGenre;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)

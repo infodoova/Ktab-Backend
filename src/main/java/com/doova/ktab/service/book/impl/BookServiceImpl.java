@@ -99,9 +99,9 @@ public class BookServiceImpl implements BookService {
         bookMapper.updateBookFromDto(dto, book);
         bookFileService.handleUpdateFiles(book, cover, pdf);
 
-        bookRepository.save(book);
+        Book savedBook = bookRepository.save(book);
 
-        return responseBuilder.build(book, true);
+        return responseBuilder.build(savedBook, true);
     }
 
     // =========================================================
@@ -185,6 +185,29 @@ public class BookServiceImpl implements BookService {
         book.setReviewNote(null);
 
         Book savedBook = bookRepository.save(book);
+        return responseBuilder.build(savedBook, true);
+    }
+
+    @Override
+    @Transactional
+    public BookResponseDto createAndSubmit(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) {
+        assertStatusAssignable(dto);
+
+        Book book = bookMapper.toEntity(dto);
+        book.setAuthor(author);
+        // Force DRAFT first so the status-transition guard can validate DRAFT → UNDER_REVIEW
+        book.setStatus(BookStatus.DRAFT);
+
+        Book savedBook = bookRepository.save(book);
+        bookFileService.handleCreateFiles(savedBook, cover, pdf);
+
+        // Transition DRAFT → UNDER_REVIEW through the same guard used by standalone submit
+        BookStatusTransition.assertAllowed(savedBook.getStatus(), BookStatus.UNDER_REVIEW);
+        savedBook.setStatus(BookStatus.UNDER_REVIEW);
+        savedBook.setSubmittedAt(Instant.now());
+        savedBook.setReviewNote(null);
+
+        savedBook = bookRepository.save(savedBook);
         return responseBuilder.build(savedBook, true);
     }
 

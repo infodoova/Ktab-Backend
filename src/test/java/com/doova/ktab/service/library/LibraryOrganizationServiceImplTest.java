@@ -3,12 +3,15 @@ package com.doova.ktab.service.library;
 import com.doova.ktab.dto.library.AssignLibrarianRequest;
 import com.doova.ktab.dto.library.CreateLibraryOrganizationRequest;
 import com.doova.ktab.dto.library.LibraryOrganizationResponseDto;
+import com.doova.ktab.dto.library.LibrarianStaffResponseDto;
+import com.doova.ktab.dto.library.UpdateLibrarianStaffRequest;
 import com.doova.ktab.dto.library.UpdateLibraryAdminRequest;
 import com.doova.ktab.dto.library.UpdateLibraryOrganizationRequest;
 import com.doova.ktab.enums.book.BookSource;
 import com.doova.ktab.enums.status.BookStatus;
 import com.doova.ktab.enums.status.Status;
 import com.doova.ktab.enums.user.UserRole;
+import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.library.LibraryOrganization;
@@ -87,7 +90,7 @@ class LibraryOrganizationServiceImplTest {
     @DisplayName("createOrganization_withAdmin_createsLibraryAndAdminLibrarianInOneRequest")
     void createOrganization_withAdmin_createsLibraryAndAdminLibrarianInOneRequest() {
         AssignLibrarianRequest adminReq = new AssignLibrarianRequest(
-                "admin@alexlib.org", "Ahmed", null, "Hassan", "Secret123!", null
+                "admin@alexlib.org", "Ahmed", null, "Hassan", "Secret123!"
         );
         CreateLibraryOrganizationRequest req = new CreateLibraryOrganizationRequest(
                 "Alexandria Library", "Great Library", "Alexandria", "Egypt", "Corniche", "https://bibalex.org", "info@bibalex.org", "+2030000000", adminReq
@@ -100,7 +103,7 @@ class LibraryOrganizationServiceImplTest {
             return saved;
         });
         when(libraryOrgRepository.findById(1L)).thenReturn(Optional.of(org));
-        when(userRepository.findByEmail("admin@alexlib.org")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("admin@alexlib.org")).thenReturn(false);
         when(passwordEncoder.encode("Secret123!")).thenReturn("hashed-pwd");
         when(userRepository.findAllByLibraryOrganizationId(1L)).thenReturn(List.of(adminUser));
         when(bookRepository.countByLibraryOrganizationId(1L)).thenReturn(0L);
@@ -121,6 +124,20 @@ class LibraryOrganizationServiceImplTest {
         assertThat(createdUser.getEmail()).isEqualTo("admin@alexlib.org");
         assertThat(createdUser.getRole()).isEqualTo(UserRole.ADMIN_LIBRARIAN.getCode());
         assertThat(createdUser.getLibraryOrganization().getId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("assignLibrarian_existingEmail_throwsBadRequestException")
+    void assignLibrarian_existingEmail_throwsBadRequestException() {
+        AssignLibrarianRequest req = new AssignLibrarianRequest(
+                "reader@domain.com", "Reader", null, "User", "Secret123!"
+        );
+
+        when(libraryOrgRepository.findById(1L)).thenReturn(Optional.of(org));
+        when(userRepository.existsByEmail("reader@domain.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.assignLibrarian(1L, req))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -186,8 +203,8 @@ class LibraryOrganizationServiceImplTest {
     }
 
     @Test
-    @DisplayName("deleteOrganization_validId_deletesBooksStorageFilesOrgAndStaffInOneRequest")
-    void deleteOrganization_validId_deletesBooksStorageFilesOrgAndStaffInOneRequest() {
+    @DisplayName("deleteOrganization_validId_cleansStorageFilesAndDeleteOrganization")
+    void deleteOrganization_validId_cleansStorageFilesAndDeleteOrganization() {
         Book book1 = new Book();
         book1.setId(501L);
         book1.setTitle("Book 1");
@@ -202,37 +219,20 @@ class LibraryOrganizationServiceImplTest {
         book2.setStatus(BookStatus.PUBLISHED);
         book2.setLibraryOrganization(org);
 
-        User staffUser = User.builder()
-                .email("staff@alexlib.org")
-                .role(UserRole.LIBRARIAN.getCode())
-                .libraryOrganization(org)
-                .build();
-        staffUser.setId(101L);
-
         List<Book> books = List.of(book1, book2);
-        List<User> staffMembers = List.of(adminUser, staffUser);
 
         when(libraryOrgRepository.findById(1L)).thenReturn(Optional.of(org));
         when(bookRepository.findAllByLibraryOrganizationId(1L)).thenReturn(books);
-        when(userRepository.findAllByLibraryOrganizationId(1L)).thenReturn(staffMembers);
 
         service.deleteOrganization(1L);
 
-        // 1. Files cleaned up for each book
+        // 1. Files cleaned up for each book before DB cascade
         verify(bookFileService).handleDeleteFiles(book1);
         verify(bookFileService).handleDeleteFiles(book2);
 
-        // 2. Books deleted
-        verify(bookRepository).deleteAll(books);
-        verify(bookRepository).flush();
-
-        // 3. Organization deleted
+        // 2. Organization deleted (books cascade via orphanRemoval/DB FK; users unlinked via ON DELETE SET NULL)
         verify(libraryOrgRepository).delete(org);
         verify(libraryOrgRepository).flush();
-
-        // 4. Staff & Admin users deleted
-        verify(userRepository).deleteAll(staffMembers);
-        verify(userRepository).flush();
     }
 
     @Test
@@ -268,5 +268,122 @@ class LibraryOrganizationServiceImplTest {
         assertThat(response.getContent().get(0).getAdmin()).isNotNull();
         assertThat(response.getContent().get(0).getAdmin().getEmail()).isEqualTo("admin@alexlib.org");
         assertThat(response.getContent().get(0).getAdmin().getRole()).isEqualTo(UserRole.ADMIN_LIBRARIAN.name());
+    }
+
+    @Test
+    @DisplayName("updateStaff_validRequest_updatesStaffSuccessfully")
+    void updateStaff_validRequest_updatesStaffSuccessfully() {
+        User staffUser = User.builder()
+                .email("staff@alexlib.org")
+                .firstName("Staff")
+                .lastName("Old")
+                .role(UserRole.LIBRARIAN.getCode())
+                .libraryOrganization(org)
+                .build();
+        staffUser.setId(201L);
+
+        UpdateLibrarianStaffRequest req = new UpdateLibrarianStaffRequest(
+                "staff.updated@alexlib.org", "UpdatedStaff", null, "UpdatedLast", "NewPass123!", "ADMIN_LIBRARIAN"
+        );
+
+        when(userRepository.findById(201L)).thenReturn(Optional.of(staffUser));
+        when(userRepository.existsByEmail("staff.updated@alexlib.org")).thenReturn(false);
+        when(passwordEncoder.encode("NewPass123!")).thenReturn("encoded-new-pass");
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LibrarianStaffResponseDto result = service.updateStaff(1L, 201L, req);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getEmail()).isEqualTo("staff.updated@alexlib.org");
+        assertThat(result.getFirstName()).isEqualTo("UpdatedStaff");
+        assertThat(result.getLastName()).isEqualTo("UpdatedLast");
+        assertThat(result.getRole()).isEqualTo(UserRole.ADMIN_LIBRARIAN.name());
+        verify(userRepository).save(staffUser);
+    }
+
+    @Test
+    @DisplayName("updateStaff_emailAlreadyExists_throwsBadRequestException")
+    void updateStaff_emailAlreadyExists_throwsBadRequestException() {
+        User staffUser = User.builder()
+                .email("staff@alexlib.org")
+                .role(UserRole.LIBRARIAN.getCode())
+                .libraryOrganization(org)
+                .build();
+        staffUser.setId(201L);
+
+        UpdateLibrarianStaffRequest req = new UpdateLibrarianStaffRequest(
+                "taken@domain.com", null, null, null, null, null
+        );
+
+        when(userRepository.findById(201L)).thenReturn(Optional.of(staffUser));
+        when(userRepository.existsByEmail("taken@domain.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateStaff(1L, 201L, req))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("updateStaff_wrongOrg_throwsResourceNotFoundException")
+    void updateStaff_wrongOrg_throwsResourceNotFoundException() {
+        LibraryOrganization otherOrg = LibraryOrganization.builder().name("Other Lib").build();
+        otherOrg.setId(99L);
+
+        User staffUser = User.builder()
+                .email("staff@other.org")
+                .role(UserRole.LIBRARIAN.getCode())
+                .libraryOrganization(otherOrg)
+                .build();
+        staffUser.setId(201L);
+
+        UpdateLibrarianStaffRequest req = new UpdateLibrarianStaffRequest(
+                "new@alexlib.org", null, null, null, null, null
+        );
+
+        when(userRepository.findById(201L)).thenReturn(Optional.of(staffUser));
+
+        assertThatThrownBy(() -> service.updateStaff(1L, 201L, req))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("removeLibrarian_validStaff_permanentlyDeletesStaffAccount")
+    void removeLibrarian_validStaff_permanentlyDeletesStaffAccount() {
+        User staffUser = User.builder()
+                .email("staff@alexlib.org")
+                .role(UserRole.LIBRARIAN.getCode())
+                .libraryOrganization(org)
+                .build();
+        staffUser.setId(201L);
+
+        when(userRepository.findById(201L)).thenReturn(Optional.of(staffUser));
+
+        service.removeLibrarian(1L, 201L);
+
+        verify(userRepository).delete(staffUser);
+    }
+
+    @Test
+    @DisplayName("removeLibrarian_wrongOrg_throwsResourceNotFoundException")
+    void removeLibrarian_wrongOrg_throwsResourceNotFoundException() {
+        LibraryOrganization otherOrg = LibraryOrganization.builder().name("Other Lib").build();
+        otherOrg.setId(99L);
+
+        User staffUser = User.builder()
+                .email("staff@other.org")
+                .role(UserRole.LIBRARIAN.getCode())
+                .libraryOrganization(otherOrg)
+                .build();
+        staffUser.setId(201L);
+
+        when(userRepository.findById(201L)).thenReturn(Optional.of(staffUser));
+
+        assertThatThrownBy(() -> service.removeLibrarian(1L, 201L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).delete(any());
     }
 }

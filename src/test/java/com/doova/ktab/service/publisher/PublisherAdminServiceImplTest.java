@@ -4,6 +4,7 @@ import com.doova.ktab.dto.user.AssignPublisherRequest;
 import com.doova.ktab.enums.status.Status;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.enums.user.UserRole;
+import com.doova.ktab.exception.BadRequestException;
 import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.user.UserRepository;
@@ -52,7 +53,7 @@ class PublisherAdminServiceImplTest {
     @Test
     @DisplayName("assignPublisher_newUser_createsAndAssignsPublisherRole")
     void assignPublisher_newUser_createsAndAssignsPublisherRole() {
-        when(userRepository.findByEmail("newpublisher@ktab.com")).thenReturn(Optional.empty());
+        when(userRepository.existsByEmail("newpublisher@ktab.com")).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
 
         publisherAdminService.assignPublisher(request);
@@ -64,19 +65,15 @@ class PublisherAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("assignPublisher_existingUser_promotesToPublisherRole")
-    void assignPublisher_existingUser_promotesToPublisherRole() {
-        User existing = new User();
-        existing.setId(70L);
-        existing.setEmail("newpublisher@ktab.com");
-        existing.setRole(UserRole.READER.getCode());
+    @DisplayName("assignPublisher_existingEmail_throwsBadRequestException")
+    void assignPublisher_existingEmail_throwsBadRequestException() {
+        when(userRepository.existsByEmail("newpublisher@ktab.com")).thenReturn(true);
 
-        when(userRepository.findByEmail("newpublisher@ktab.com")).thenReturn(Optional.of(existing));
+        assertThatThrownBy(() -> publisherAdminService.assignPublisher(request))
+                .isInstanceOf(BadRequestException.class)
+                .satisfies(e -> assertThat(((BadRequestException) e).getMessageKey()).isEqualTo(ApiMessageKey.AUTH_EMAIL_ALREADY_USED));
 
-        publisherAdminService.assignPublisher(request);
-
-        assertThat(existing.getRole()).isEqualTo(UserRole.PUBLISHER.getCode());
-        verify(userRepository).save(existing);
+        verify(userRepository, never()).save(any());
     }
 
     @Test

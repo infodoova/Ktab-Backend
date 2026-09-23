@@ -98,6 +98,28 @@ class BookSpecificationTest {
     }
 
     @Test
+    @DisplayName("forLibrarian_withUploaderId_isolatesToOrgAndUploader")
+    void forLibrarian_withUploaderId_isolatesToOrgAndUploader() {
+        LibrarianBookSearchRequest request = new LibrarianBookSearchRequest(
+                "مخطوطة",
+                "ابن خلدون",
+                "ar",
+                1L,
+                null,
+                false,
+                OcrStatus.COMPLETED,
+                BookStatus.PUBLISHED,
+                0,
+                10,
+                "createdAt",
+                null
+        );
+
+        Specification<Book> spec = BookSpecification.forLibrarian(99L, 45L, request);
+        assertThat(spec).isNotNull();
+    }
+
+    @Test
     @DisplayName("forReviewQueue_buildsSpecification_notNull")
     void forReviewQueue_buildsSpecification_notNull() {
         com.doova.ktab.dto.book.PublisherReviewSearchRequest request = new com.doova.ktab.dto.book.PublisherReviewSearchRequest(

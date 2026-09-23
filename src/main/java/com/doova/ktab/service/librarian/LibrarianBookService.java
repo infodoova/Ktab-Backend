@@ -26,6 +26,10 @@ public interface LibrarianBookService {
 
     BookResponseDto getBookByIdForLibrarian(Long id, User librarian);
 
+    PageResponse<BookResponseDto> getMyUploadedBooks(int page, int size, String status, User librarian);
+ 
+    PageResponse<BookResponseDto> getAllBooksForLibrary(int page, int size, String status, User adminLibrarian);
+
     PageResponse<BookResponseDto> getBooksForLibrary(int page, int size, String status, User librarian);
 
     void deleteBook(Long id, User librarian);

@@ -51,6 +51,7 @@ public class Story extends BaseEntity {
     @NotNull(message = "{validation.story.author.required}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "col_author_id", nullable = false, foreignKey = @ForeignKey(name = "fk_story_author"))
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User author;
 

@@ -74,7 +74,11 @@ public class BookPageWriter implements ItemWriter<OcrResult> {
             page.setRotationDegrees(result.rotationDegrees());
             page.setErrorMessage(null);
 
-            em.persist(page);
+            if (page.getId() == null) {
+                em.persist(page);
+            } else {
+                em.merge(page);
+            }
             written++;
 
             if (written > 0 && written % batchSize == 0) {

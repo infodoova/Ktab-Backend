@@ -21,6 +21,7 @@ public class SubGenre extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "main_genre_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private MainGenre mainGenre;
 
     @PrePersist

@@ -27,12 +27,14 @@ public class BookLibraryEntry extends BaseEntity {
     @NotNull(message = "{validation.user.required}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_user_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private User user;
 
     // --- Foreign Key: Book ---
     @NotNull(message = "{validation.book.required}")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "col_book_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Book book;
 
     // --- Core Library Fields ---

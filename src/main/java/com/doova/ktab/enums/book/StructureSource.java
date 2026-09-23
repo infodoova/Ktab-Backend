@@ -5,5 +5,7 @@ public enum StructureSource {
     TEXT_LAYER,
     TOC_VISION,
     HEADINGS,
-    MANUAL
+    MANUAL,
+    /** Section was projected verbatim from an ElevenLabs Studio chapter; see docs/ocr_engine_v3.md. */
+    STUDIO
 }
