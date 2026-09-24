@@ -93,7 +93,11 @@ class UserServiceImplTest {
         assertThat(captured.getSettings().getNotificationsInApp()).isTrue();
         assertThat(captured.getSettings().getPrivacyProfilePublic()).isFalse();
 
-        verify(emailService).sendHtml(eq("john.doe@example.com"), anyString(), eq("verify-email"), anyMap());
+        ArgumentCaptor<com.doova.ktab.dto.mail.EmailRequest> mailCaptor = ArgumentCaptor.forClass(com.doova.ktab.dto.mail.EmailRequest.class);
+        verify(emailService).sendAfterCommit(mailCaptor.capture());
+        assertThat(mailCaptor.getValue().to()).containsExactly("john.doe@example.com");
+        assertThat(mailCaptor.getValue().templateName()).isEqualTo("verify-email");
+        assertThat(mailCaptor.getValue().templateVariables()).containsEntry("CODE", "123456");
     }
 
     @Test
@@ -121,5 +125,51 @@ class UserServiceImplTest {
 
         assertThatThrownBy(() -> userService.register(adminRequest))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("sendResetCode_validEmail_dispatchesResetEmailAfterCommit")
+    void sendResetCode_validEmail_dispatchesResetEmailAfterCommit() {
+        User user = new User();
+        user.setEmail("reset@example.com");
+        user.setFirstName("Alice");
+
+        when(userRepository.findByEmail("reset@example.com")).thenReturn(java.util.Optional.of(user));
+
+        UserCode mockCode = UserCode.builder()
+                .code("654321")
+                .codeType("RESET_PASSWORD")
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build();
+        when(userCodeService.createCode(eq(user), eq("RESET_PASSWORD"), eq(10))).thenReturn(mockCode);
+
+        userService.sendResetCode(new com.doova.ktab.dto.user.SendResetPasswordRequest("reset@example.com"));
+
+        ArgumentCaptor<com.doova.ktab.dto.mail.EmailRequest> mailCaptor = ArgumentCaptor.forClass(com.doova.ktab.dto.mail.EmailRequest.class);
+        verify(emailService).sendAfterCommit(mailCaptor.capture());
+        assertThat(mailCaptor.getValue().to()).containsExactly("reset@example.com");
+        assertThat(mailCaptor.getValue().templateName()).isEqualTo("reset-password");
+        assertThat(mailCaptor.getValue().templateVariables()).containsEntry("RESET_CODE", "654321");
+    }
+
+    @Test
+    @DisplayName("resetPassword_validCode_savesPasswordAndSendsConfirmationEmail")
+    void resetPassword_validCode_savesPasswordAndSendsConfirmationEmail() {
+        User user = new User();
+        user.setEmail("alice@example.com");
+        user.setFirstName("Alice");
+
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(java.util.Optional.of(user));
+        when(userCodeService.verify(eq(user), eq("654321"), eq("RESET_PASSWORD"))).thenReturn(true);
+        when(passwordEncoder.encode("NewPassword123!")).thenReturn("newHashedPassword");
+
+        userService.resetPassword(new com.doova.ktab.dto.user.ResetPasswordRequest("alice@example.com", "654321", "NewPassword123!"));
+
+        verify(userRepository).save(user);
+        ArgumentCaptor<com.doova.ktab.dto.mail.EmailRequest> mailCaptor = ArgumentCaptor.forClass(com.doova.ktab.dto.mail.EmailRequest.class);
+        verify(emailService).sendAfterCommit(mailCaptor.capture());
+        assertThat(mailCaptor.getValue().to()).containsExactly("alice@example.com");
+        assertThat(mailCaptor.getValue().templateName()).isEqualTo("password-reset-success");
+        assertThat(mailCaptor.getValue().templateVariables()).containsEntry("NAME", "Alice");
     }
 }

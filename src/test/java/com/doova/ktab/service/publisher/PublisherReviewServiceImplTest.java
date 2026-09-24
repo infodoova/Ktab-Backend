@@ -60,6 +60,9 @@ class PublisherReviewServiceImplTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private PublisherReviewServiceImpl publisherReviewService;
 
@@ -214,6 +217,7 @@ class PublisherReviewServiceImplTest {
         assertThat(testBook.getReviewedBy()).isEqualTo(testPublisher);
         assertThat(testBook.getReviewNote()).isEqualTo("Please improve chapter 2 formatting.");
         verify(bookRepository).save(testBook);
+        verify(eventPublisher).publishEvent(any(com.doova.ktab.event.model.BookRejectedEvent.class));
     }
 
     @Test

@@ -3,52 +3,158 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+    <title>Verify Your Ktab Account</title>
+    <style>
+        /* Base resets */
+        body,
+        table,
+        td,
+        p,
+        a,
+        li,
+        blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table,
+        td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        /* Mobile responsiveness */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                padding: 16px 8px !important;
+            }
+
+            .email-card {
+                padding: 24px 20px !important;
+                border-radius: 8px !important;
+            }
+
+            .email-title {
+                font-size: 22px !important;
+            }
+
+            .code-box {
+                font-size: 28px !important;
+                letter-spacing: 6px !important;
+                padding: 14px 18px !important;
+            }
+        }
+    </style>
 </head>
 
-<body style="margin:0; background:#f7f4ef; font-family:Arial, sans-serif;">
+<body
+    style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111;">
 
-<table width="100%" cellpadding="0" cellspacing="0" style="padding:30px 0;">
-    <tr>
-        <td align="center">
+    <!-- Outer Table -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-wrapper"
+        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px;">
+        <tr>
+            <td align="center">
 
-            <table width="100%"
-                   style="max-width:480px; background:#ffffff; border-radius:12px; padding:30px; border:1px solid #e6e0d9;">
+                <!-- Card Container -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-card"
+                    style="max-width: 520px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 40px 36px;">
 
-                <!-- Logo -->
-                <tr>
-                    <td style="text-align:center; padding-bottom:20px;">
-                        <h2 style="margin:10px 0; color:#5a4633;">Verify Your Ktab Account</h2>
-                    </td>
-                </tr>
+                    <!-- Header / Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 24px;">
+                            <table cellpadding="0" cellspacing="0" border="0" align="center">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 14px;">
+                                        <img src="cid:ktabLogo" alt="Ktab" width="56" height="56"
+                                            style="display: block; width: 56px; height: 56px; max-width: 56px; border: 0; outline: none; text-decoration: none;" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center">
+                                        <p
+                                            style="margin: 6px 0 0 0; color: #777777; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
+                                            Account Verification</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
 
-                <tr>
-                    <td style="color:#4b463e; font-size:15px; line-height:1.6;">
-                        <p>Hello,</p>
-                        <p>Use the verification code below to activate your Ktab account:</p>
-                    </td>
-                </tr>
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 28px;"></td>
+                    </tr>
 
-                <tr>
-                    <td align="center" style="padding:25px 0;">
-                        <div style="font-size:32px; font-weight:700; letter-spacing:6px; color:#5a4633; background:#f2eee8; padding:12px 24px; border-radius:10px; border:1px solid #e4ded4;">
-                            <span th:text="${CODE}"></span>
-                        </div>
-                    </td>
-                </tr>
+                    <!-- Greeting & Instructions -->
+                    <tr>
+                        <td style="color: #222222; font-size: 15px; line-height: 1.65; padding-bottom: 24px;">
+                            <p style="margin: 0 0 16px 0;">Hello <strong style="color: #000000;"
+                                    th:text="${NAME != null ? NAME : 'Reader'}">Reader</strong>,</p>
+                            <p style="margin: 0 0 8px 0;">
+                                Welcome to Ktab. Please use the verification code below to confirm your email address
+                                and activate your account:
+                            </p>
+                        </td>
+                    </tr>
 
-                <tr>
-                    <td style="color:#4b463e; font-size:14px;">
-                        <p>This code expires in 10 minutes.</p>
-                        <p style="margin-top:25px; font-size:13px; color:#7a746b;">— The Ktab Team</p>
-                    </td>
-                </tr>
+                    <!-- Code Block -->
+                    <tr>
+                        <td align="center" style="padding: 6px 0 28px 0;">
+                            <div class="code-box"
+                                style="display: inline-block; background-color: #000000; color: #ffffff; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; padding: 16px 32px; border-radius: 6px;">
+                                <span th:text="${CODE}">123456</span>
+                            </div>
+                        </td>
+                    </tr>
 
-            </table>
+                    <!-- Security / Expiry Notice -->
+                    <tr>
+                        <td style="padding-bottom: 28px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                                style="background-color: #fcfcfc; border: 1px solid #e8e8e8; border-radius: 6px; padding: 14px 16px;">
+                                <tr>
+                                    <td style="color: #555555; font-size: 13px; line-height: 1.5; text-align: center;">
+                                        This code will expire in <strong>10 minutes</strong>. If you did not create a
+                                        Ktab account, you can safely ignore this message.
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
 
-        </td>
-    </tr>
-</table>
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 24px;"></td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.6;">
+                            <p style="margin: 0 0 4px 0; color: #555555; font-weight: 500;">— The Ktab Team</p>
+                            <p style="margin: 0;">This is an automated security message. Please do not reply directly to
+                                this email.</p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
 
 </body>
+
 </html>

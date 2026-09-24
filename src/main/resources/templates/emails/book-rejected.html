@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+    <title>Editorial Review Update - Ktab</title>
+    <style>
+        body,
+        table,
+        td,
+        p,
+        a,
+        li,
+        blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table,
+        td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                padding: 16px 8px !important;
+            }
+
+            .email-card {
+                padding: 24px 20px !important;
+                border-radius: 8px !important;
+            }
+
+            .email-title {
+                font-size: 22px !important;
+            }
+
+            .cta-button {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                text-align: center !important;
+            }
+        }
+    </style>
+</head>
+
+<body
+    style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-wrapper"
+        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px;">
+        <tr>
+            <td align="center">
+
+                <!-- Card Container -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-card"
+                    style="max-width: 560px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 40px 36px;">
+
+                    <!-- Header / Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 24px;">
+                            <table cellpadding="0" cellspacing="0" border="0" align="center">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 14px;">
+                                        <img src="cid:ktabLogo" alt="Ktab" width="56" height="56"
+                                            style="display: block; width: 56px; height: 56px; max-width: 56px; border: 0; outline: none; text-decoration: none;" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center">
+                                        <p
+                                            style="margin: 6px 0 0 0; color: #777777; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
+                                            Editorial Review</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 28px;"></td>
+                    </tr>
+
+                    <!-- Greeting & Overview -->
+                    <tr>
+                        <td style="color: #222222; font-size: 15px; line-height: 1.65; padding-bottom: 24px;">
+                            <p style="margin: 0 0 16px 0;">Hello <strong style="color: #000000;"
+                                    th:text="${NAME != null ? NAME : 'Author'}">Author</strong>,</p>
+                            <p style="margin: 0 0 16px 0;">
+                                Thank you for submitting your book <strong style="color: #000000;"
+                                    th:text="${'« ' + BOOK_TITLE + ' »'}">« Title »</strong> for publication on Ktab.
+                            </p>
+                            <p style="margin: 0;">
+                                Our editorial team has reviewed your submission. At this time, revisions are requested
+                                before the manuscript can be approved for public release. The status of your book has
+                                been returned to <strong>Draft</strong> so you can make the necessary updates.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Editorial Feedback Box -->
+                    <tr>
+                        <td style="padding-bottom: 28px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                                style="background-color: #fafafa; border-left: 4px solid #000000; border-top: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; border-radius: 0 6px 6px 0; padding: 18px 20px;">
+                                <tr>
+                                    <td>
+                                        <p
+                                            style="margin: 0 0 8px 0; color: #000000; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                            Editorial Feedback & Notes:
+                                        </p>
+                                        <p style="margin: 0; color: #222222; font-size: 15px; line-height: 1.6; white-space: pre-wrap;"
+                                            th:text="${REVIEW_NOTE}">Review notes provided by the editorial team will
+                                            appear here.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Call to Action -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 28px;">
+                            <p style="margin: 0 0 16px 0; color: #555555; font-size: 14px;">
+                                Review the feedback and edit your manuscript in Ktab Creator Studio:
+                            </p>
+                            <a th:href="${STUDIO_URL != null ? STUDIO_URL : 'https://ktab-rho.vercel.app'}"
+                                class="cta-button"
+                                style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 14px 32px; border-radius: 6px; letter-spacing: 0.2px;">
+                                Open Ktab Studio to Edit Draft
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Support Guidance -->
+                    <tr>
+                        <td style="color: #666666; font-size: 13px; line-height: 1.55; padding-bottom: 28px;">
+                            <p style="margin: 0;">
+                                Once you have completed your revisions, re-submit your book from the Studio. If you have
+                                questions about the editorial notes, feel free to contact us at <a
+                                    href="mailto:support@ktab.app"
+                                    style="color: #000000; text-decoration: underline; font-weight: 600;">support@ktab.app</a>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 24px;"></td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.6;">
+                            <p style="margin: 0 0 4px 0; color: #555555; font-weight: 500;">— The Ktab Editorial Team
+                            </p>
+                            <p style="margin: 0;">This email was sent regarding your book submission on Ktab.</p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

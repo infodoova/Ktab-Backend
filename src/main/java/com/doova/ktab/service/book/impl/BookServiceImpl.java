@@ -191,7 +191,6 @@ public class BookServiceImpl implements BookService {
     @Override
     @Transactional
     public BookResponseDto createAndSubmit(BookRequestDto dto, MultipartFile cover, MultipartFile pdf, User author) {
-        assertStatusAssignable(dto);
 
         Book book = bookMapper.toEntity(dto);
         book.setAuthor(author);

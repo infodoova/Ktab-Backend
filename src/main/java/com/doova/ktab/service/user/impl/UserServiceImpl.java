@@ -11,6 +11,7 @@ import com.doova.ktab.model.user.UserSettings;
 import com.doova.ktab.repository.user.UserRepository;
 import com.doova.ktab.security.model.UserPrincipal;
 import com.doova.ktab.service.auth.JWTService;
+import com.doova.ktab.dto.mail.EmailRequest;
 import com.doova.ktab.service.email.EmailService;
 import com.doova.ktab.service.user.UserCodeService;
 import com.doova.ktab.service.user.UserService;
@@ -76,9 +77,13 @@ public class UserServiceImpl implements UserService {
 
         UserCode code = userCodeService.createCode(savedUser, "EMAIL_VERIFY", 10);
 
-        Map<String, Object> model = Map.of("CODE", code.getCode(), "NAME", savedUser.getFirstName());
-
-        emailService.sendHtml(savedUser.getEmail(), "Ktab — Verify Your Account", "verify-email", model);
+        emailService.sendAfterCommit(EmailRequest.builder()
+                .to(savedUser.getEmail())
+                .subject("Ktab — Verify Your Account")
+                .template("verify-email")
+                .variable("CODE", code.getCode())
+                .variable("NAME", savedUser.getFirstName() != null ? savedUser.getFirstName() : "Reader")
+                .build());
 
         log.info("User registered: {}", email);
         return savedUser;
@@ -142,9 +147,13 @@ public class UserServiceImpl implements UserService {
 
         UserCode code = userCodeService.createCode(user, "RESET_PASSWORD", 10);
 
-        Map<String, Object> model = Map.of("RESET_CODE", code.getCode(), "NAME", user.getFirstName());
-
-        emailService.sendHtml(user.getEmail(), "Reset Your Ktab Password", "reset-password", model);
+        emailService.sendAfterCommit(EmailRequest.builder()
+                .to(user.getEmail())
+                .subject("Reset Your Ktab Password")
+                .template("reset-password")
+                .variable("RESET_CODE", code.getCode())
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "User")
+                .build());
     }
 
     // ============================
@@ -163,9 +172,13 @@ public class UserServiceImpl implements UserService {
 
         UserCode code = userCodeService.createCode(user, "EMAIL_VERIFY", 10);
 
-        Map<String, Object> model = Map.of("CODE", code.getCode(), "NAME", user.getFirstName());
-
-        emailService.sendHtml(user.getEmail(), "Ktab — Verify Your Account", "verify-email", model);
+        emailService.sendAfterCommit(EmailRequest.builder()
+                .to(user.getEmail())
+                .subject("Ktab — Verify Your Account")
+                .template("verify-email")
+                .variable("CODE", code.getCode())
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "Reader")
+                .build());
     }
 
     // ============================
@@ -187,6 +200,14 @@ public class UserServiceImpl implements UserService {
         user.setPasswordAndDigest(req.newPassword(), encoder);
 
         userRepository.save(user);
+
+        // Security notification: alert user that password was updated
+        emailService.sendAfterCommit(EmailRequest.builder()
+                .to(user.getEmail())
+                .subject("Your Ktab Password Has Been Changed")
+                .template("password-reset-success")
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "User")
+                .build());
     }
 
 }

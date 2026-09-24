@@ -83,6 +83,14 @@ public class BookSection extends BaseEntity {
     @Column(name = "col_needs_review", nullable = false)
     private boolean needsReview = false;
 
+    /**
+     * Set only for sections projected from a Studio chapter (col_source = STUDIO). Makes
+     * re-projection an idempotent upsert instead of a rebuild: re-syncing a book keeps the
+     * same section col_id every time. See docs/ocr_engine_v3.md, Phase 3.4.
+     */
+    @Column(name = "col_external_chapter_id", length = 64)
+    private String externalChapterId;
+
     public void addChild(BookSection child) {
         if (child != null) {
             child.setParent(this);

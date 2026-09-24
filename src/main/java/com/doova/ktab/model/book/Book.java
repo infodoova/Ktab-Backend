@@ -147,6 +147,10 @@ public class Book extends BaseEntity {
     @Column(name = "col_classifier_version", length = 10)
     private String classifierVersion;
 
+    @Column(name = "col_ingestion_route_locked", nullable = false)
+    @ColumnDefault("false")
+    private boolean ingestionRouteLocked = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sub_genre_id")
     @OnDelete(action = OnDeleteAction.SET_NULL)

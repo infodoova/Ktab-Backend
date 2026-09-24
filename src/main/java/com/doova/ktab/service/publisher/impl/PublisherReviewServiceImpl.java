@@ -43,6 +43,7 @@ public class PublisherReviewServiceImpl implements PublisherReviewService {
     private final BookPublicationService bookPublicationService;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -137,6 +138,20 @@ public class PublisherReviewServiceImpl implements PublisherReviewService {
         book.setReviewNote(req.note().trim());
 
         Book saved = bookRepository.save(book);
+
+        User recipient = saved.getUploader() != null ? saved.getUploader() : saved.getAuthor();
+        String recipientEmail = recipient != null ? recipient.getEmail() : null;
+        String recipientName = recipient != null ? (recipient.getFirstName() != null ? recipient.getFirstName() : "Author") : "Author";
+        String reviewerName = (publisher != null && publisher.getFirstName() != null) ? publisher.getFirstName() : "Editorial Team";
+
+        eventPublisher.publishEvent(new com.doova.ktab.event.model.BookRejectedEvent(
+                saved.getId(),
+                saved.getTitle(),
+                recipientEmail,
+                recipientName,
+                saved.getReviewNote(),
+                reviewerName
+        ));
 
         log.info("Publisher {} rejected book {} with note", publisher.getEmail(), saved.getId());
         return responseBuilder.build(saved, true);

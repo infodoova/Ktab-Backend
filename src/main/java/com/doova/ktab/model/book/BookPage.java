@@ -186,6 +186,18 @@ public class BookPage extends BaseEntity {
     private String promptVersion;
 
     /**
+     * Set only for pages synthesized from a Studio chapter's projected text. Paired with
+     * {@link #chapterPageOrdinal} to make re-projection an idempotent upsert instead of a
+     * rebuild. See docs/ocr_engine_v3.md, Phase 3.4/3.6.
+     */
+    @Column(name = "col_external_chapter_id", length = 64)
+    private String externalChapterId;
+
+    /** This page's position (0-based) within its Studio chapter's synthetic pagination. */
+    @Column(name = "col_chapter_page_ordinal")
+    private Integer chapterPageOrdinal;
+
+    /**
      * Optional error message if OCR failed
      */
     @Column(name = "col_error_message", length = 2000)

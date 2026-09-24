@@ -1,36 +1,32 @@
 package com.doova.ktab.event.listener;
 
+import com.doova.ktab.enums.book.IngestionRoute;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.event.model.BookPublishedEvent;
+import com.doova.ktab.features.ingestion.routing.IngestionRouter;
 import com.doova.ktab.features.ocr.sqs.OcrQueueService;
 import com.doova.ktab.repository.book.BookRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.*;
-import org.springframework.batch.core.explore.JobExplorer;
-import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-import java.util.Optional;
-
 /**
- * Event listener that triggers OCR processing when a book is published.
- * Supports both Spring Batch (single instance) and SQS-based (distributed) processing.
+ * Event listener that triggers ingestion when a book is published.
+ * Supports both Spring Batch (single instance, via {@link IngestionRouter}) and
+ * SQS-based (distributed) processing.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OcrEventListener {
 
-    private final JobLauncher jobLauncher;
-    private final Job ocrJob;
-    private final JobExplorer jobExplorer;
+    private final IngestionRouter ingestionRouter;
     private final BookRepository bookRepository;
     private final OcrQueueService queueService;
     private final MeterRegistry meterRegistry;
@@ -39,7 +35,7 @@ public class OcrEventListener {
     private boolean queueWorkerEnabled;
 
     /**
-     * Handle book published event - triggers OCR pipeline.
+     * Handle book published event - triggers ingestion.
      * Runs asynchronously after the publishing transaction commits.
      * Includes fallbackExecution = true to prevent silent event drop if published outside a transaction.
      */
@@ -50,46 +46,36 @@ public class OcrEventListener {
         log.info("Received BookPublishedEvent for bookId={}, pdfKey={}", event.bookId(), event.pdfKey());
 
         try {
-            // Check if OCR job is already running for this book
-            Optional<JobExecution> running = jobExplorer.findRunningJobExecutions("ocrJob")
-                    .stream()
-                    .filter(exec -> event.bookId().equals(exec.getJobParameters().getLong("bookId")))
-                    .findFirst();
-
-            if (running.isPresent()) {
-                log.warn("OCR job already running for bookId={}, executionId={}", 
-                        event.bookId(), running.get().getId());
-                meterRegistry.counter("ocr.events.skipped", "reason", "already_running").increment();
-                return;
-            }
-
             // Update book status to PENDING
             bookRepository.updateOcrStatus(event.bookId(), OcrStatus.PENDING);
 
             if (queueWorkerEnabled && queueService != null && queueService.isEnabled()) {
+                // NOTE: the distributed queue path bypasses classification entirely and always
+                // goes straight to OCR page-by-page dispatch. Wiring classification into
+                // OcrQueueService is future work — see docs/ocr_engine_v3.md, Phase 2.
                 log.info("Dispatching OCR pages via queue for bookId={}", event.bookId());
                 int queuedPages = queueService.publishBookPages(event.bookId());
                 log.info("Queued {} pages for OCR processing via queue for bookId={}", queuedPages, event.bookId());
             } else {
-                // Launch local Spring Batch job
-                JobParameters params = new JobParametersBuilder()
-                        .addLong("bookId", event.bookId())
-                        .addString("pdfKey", event.pdfKey())
-                        .addLong("run.id", System.currentTimeMillis())
-                        .toJobParameters();
+                // Classify, resolve route, purge, and launch. IngestionRouter owns the
+                // already-running check for both ocrJob and studioIngestionJob.
+                IngestionRoute route = ingestionRouter.ingest(event.bookId(), event.pdfKey());
 
-                JobExecution execution = jobLauncher.run(ocrJob, params);
-                
-                log.info("Started local OCR batch job for bookId={}, executionId={}, status={}", 
-                        event.bookId(), execution.getId(), execution.getStatus());
+                if (route == null) {
+                    log.warn("Ingestion already running for bookId={}, skipping", event.bookId());
+                    meterRegistry.counter("ocr.events.skipped", "reason", "already_running").increment();
+                    return;
+                }
+
+                log.info("Ingestion started for bookId={} via route={}", event.bookId(), route);
             }
-            
+
             meterRegistry.counter("ocr.events.processed", "status", "success").increment();
             sample.stop(meterRegistry.timer("ocr.event.handling.duration", "status", "success"));
 
         } catch (Exception e) {
             log.error("Failed to start OCR processing for bookId={}: {}", event.bookId(), e.getMessage(), e);
-            
+
             // Update book OCR status to FAILED
             try {
                 bookRepository.updateOcrStatus(event.bookId(), OcrStatus.FAILED);

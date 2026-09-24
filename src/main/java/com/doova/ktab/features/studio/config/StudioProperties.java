@@ -21,7 +21,7 @@ public class StudioProperties {
     private String apiKey;
     private String baseUrl = "https://api.elevenlabs.io";
 
-    private String defaultModelId = "eleven_v3";
+    private String defaultModelId = "eleven_v2_multilingual";
     private String defaultTitleVoiceId;
     private String defaultParagraphVoiceId;
     private String qualityPreset = "high";
