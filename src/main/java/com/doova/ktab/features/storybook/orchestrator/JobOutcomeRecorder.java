@@ -45,6 +45,7 @@ public class JobOutcomeRecorder {
             }
             case FAIL -> kill(job, outcome.reason());
         }
+        com.doova.ktab.features.storybook.metrics.StorybookMetrics.jobOutcome(job.getStep(), outcome.type());
     }
 
     private void kill(StorybookJob job, String reason) {

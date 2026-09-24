@@ -63,6 +63,9 @@ public class AiCallLedger {
         row.setSuccess(e.success());
         row.setError(e.error() == null ? null : e.error().substring(0, Math.min(2000, e.error().length())));
         calls.save(row);
+        if (e.success()) {
+            com.doova.ktab.features.storybook.metrics.StorybookMetrics.aiCost(e.purpose(), e.model(), e.costUsd());
+        }
         if (e.storybookId() != null && e.costUsd().signum() > 0) {
             books.addCost(e.storybookId(), e.costUsd());
         }

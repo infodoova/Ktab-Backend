@@ -146,13 +146,16 @@ public class IllustrationPersistence {
         if (verdict.passed()) {
             image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_PASSED);
             page.setCurrentImage(image);
+            com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("pass");
         } else if (attemptInRound < properties.getImage().getMaxGenerations()) {
             image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_FAILED);
             page.setGeneration(generation + 1);
             enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, page.getPageIndex(), generation + 1);
+            com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("retry");
         } else {
             image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED);
             page.setCurrentImage(image);
+            com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("flagged");
         }
         advance(book);
     }
