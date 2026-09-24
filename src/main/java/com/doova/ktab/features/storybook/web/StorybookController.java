@@ -37,6 +37,7 @@ public class StorybookController {
     private final com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService;
     private final com.doova.ktab.features.storybook.illustration.LookService lookService;
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService;
+    private final com.doova.ktab.features.storybook.reader.StorybookReaderService readerService;
 
     @PostMapping("/books/{bookId}/pages/{pageIndex}/regenerate")
     public ResponseEntity<ApiResponse<Void>> regeneratePage(@CurrentUser User user, @PathVariable Long bookId,
@@ -98,5 +99,19 @@ public class StorybookController {
     public ResponseEntity<ApiResponse<List<BlueprintSummary>>> blueprints(@RequestParam AgeBand ageBand) {
         return ResponseUtils.success(service.blueprints(ageBand),
                 ApiMessageKey.STORYBOOK_BLUEPRINTS_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @GetMapping("/books/{bookId}/reader")
+    public ResponseEntity<ApiResponse<com.doova.ktab.features.storybook.reader.dto.StorybookReaderManifest>> getReader(
+            @CurrentUser User user, @PathVariable Long bookId) {
+        return ResponseUtils.success(readerService.getReaderManifest(user, bookId),
+                ApiMessageKey.STORYBOOK_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @GetMapping("/books/{bookId}/download")
+    public ResponseEntity<ApiResponse<com.doova.ktab.features.storybook.reader.dto.StorybookDownloadResponse>> getDownloadUrl(
+            @CurrentUser User user, @PathVariable Long bookId) {
+        return ResponseUtils.success(readerService.getDownloadUrl(user, bookId),
+                ApiMessageKey.STORYBOOK_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 }

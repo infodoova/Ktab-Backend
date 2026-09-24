@@ -9,18 +9,21 @@ public final class TashkeelFilter {
     }
 
     public static String apply(String text, TashkeelLevel level) {
-        return switch (level) {
-            case FULL -> text;
-            case NONE -> ArabicText.stripTashkeel(text);
-            case PARTIAL -> {
-                StringBuilder sb = new StringBuilder(text.length());
-                for (char c : text.toCharArray()) {
-                    if (!ArabicText.isTashkeel(c) || ArabicText.isShadda(c) || ArabicText.isTanween(c)) {
-                        sb.append(c);
-                    }
+        if (level == null || level == TashkeelLevel.FULL) {
+            return text;
+        }
+        if (level == TashkeelLevel.NONE) {
+            return ArabicText.stripTashkeel(text);
+        }
+        if (level == TashkeelLevel.PARTIAL) {
+            StringBuilder sb = new StringBuilder(text.length());
+            for (char c : text.toCharArray()) {
+                if (!ArabicText.isTashkeel(c) || ArabicText.isShadda(c) || ArabicText.isTanween(c)) {
+                    sb.append(c);
                 }
-                yield sb.toString();
             }
-        };
+            return sb.toString();
+        }
+        return text;
     }
 }

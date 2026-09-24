@@ -40,6 +40,7 @@ class StorybookControllerTest {
     private final com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService = mock(com.doova.ktab.features.storybook.character.PhotoIntakeService.class);
     private final com.doova.ktab.features.storybook.illustration.LookService lookService = mock(com.doova.ktab.features.storybook.illustration.LookService.class);
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService = mock(com.doova.ktab.features.storybook.illustration.PageRegenerationService.class);
+    private final com.doova.ktab.features.storybook.reader.StorybookReaderService readerService = mock(com.doova.ktab.features.storybook.reader.StorybookReaderService.class);
     private MockMvc mvc;
     private final User user = new User();
 
@@ -50,7 +51,8 @@ class StorybookControllerTest {
             public boolean supportsParameter(MethodParameter p) { return p.hasParameterAnnotation(CurrentUser.class); }
             public Object resolveArgument(MethodParameter p, ModelAndViewContainer m, NativeWebRequest r, WebDataBinderFactory f) { return user; }
         };
-        mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService, photoIntakeService, lookService, pageRegenerationService))
+        mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService,
+                photoIntakeService, lookService, pageRegenerationService, readerService))
                 .setCustomArgumentResolvers(currentUser).build();
     }
 
@@ -129,5 +131,25 @@ class StorybookControllerTest {
     void regeneratePageReturns202Accepted() throws Exception {
         mvc.perform(post("/storybook/books/42/pages/3/regenerate"))
                 .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void getReaderReturns200Ok() throws Exception {
+        when(readerService.getReaderManifest(eq(user), eq(42L))).thenReturn(
+                new com.doova.ktab.features.storybook.reader.dto.StorybookReaderManifest(
+                        42L, StorybookStatus.READY, "عنوان", "سامي", 10, List.of()));
+        mvc.perform(get("/storybook/books/42/reader"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bookId").value(42));
+    }
+
+    @Test
+    void getDownloadUrlReturns200Ok() throws Exception {
+        when(readerService.getDownloadUrl(eq(user), eq(42L))).thenReturn(
+                new com.doova.ktab.features.storybook.reader.dto.StorybookDownloadResponse(
+                        "https://r2.ktab.app/pdf", "ktab-sami-42.pdf", java.time.Instant.now()));
+        mvc.perform(get("/storybook/books/42/download"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.downloadUrl").value("https://r2.ktab.app/pdf"));
     }
 }
