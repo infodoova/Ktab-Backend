@@ -1,275 +1,57 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <title th:text="${title}">قصة الأطفال</title>
+    <title th:text="${model.titleAr()}">title</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Amiri:wght@400;700&display=swap');
-
-        @page {
-            size: 210mm 210mm;
-            margin: 0;
+        @font-face {
+            font-family: "BookNaskh";
+            src: url("fonts/NotoNaskhArabic-Regular.ttf") format("truetype");
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Cairo', 'Amiri', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            direction: rtl;
-            background-color: #fdfaf6;
-            color: #2c2523;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
+        @page { size: 21cm 21cm; margin: 0; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body { font-family: "BookNaskh", serif; color: #2b2118; }
         .page {
-            width: 210mm;
-            height: 210mm;
-            page-break-after: always;
-            position: relative;
-            overflow: hidden;
-            background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
+            width: 21cm; height: 21cm; position: relative; overflow: hidden;
+            page-break-after: always; break-after: page;
         }
-
-        .page:last-child {
-            page-break-after: avoid;
+        .page:last-child { page-break-after: auto; break-after: auto; }
+        .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+        .text {
+            position: absolute; left: 1.4cm; right: 1.4cm;
+            font-size: 22pt; line-height: 1.9; text-align: center;
+            padding: 0.4cm 0.7cm; border-radius: 0.5cm;
+            background: rgba(255, 252, 245, 0.78);
+            white-space: pre-line; unicode-bidi: plaintext;
         }
-
-        /* Full Bleed Image */
-        .page-illustration {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
-
-        /* Cover Page */
-        .cover-page {
-            background: linear-gradient(135deg, #fef6e4 0%, #f3d2c1 100%);
-            align-items: center;
-            justify-content: space-between;
-            padding: 30mm 20mm 20mm 20mm;
-            text-align: center;
-            z-index: 2;
-        }
-
-        .cover-header {
-            position: relative;
-            z-index: 3;
-            background: rgba(255, 255, 255, 0.92);
-            padding: 16px 28px;
-            border-radius: 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            border: 2px solid rgba(235, 148, 134, 0.3);
-            max-width: 90%;
-            margin: 0 auto;
-        }
-
-        .cover-title {
-            font-size: 32pt;
-            font-weight: 800;
-            color: #001858;
-            line-height: 1.3;
-            margin-bottom: 8px;
-        }
-
-        .cover-child-name {
-            font-size: 20pt;
-            font-weight: 600;
-            color: #f582ae;
-            letter-spacing: 0.5px;
-        }
-
-        .cover-footer {
-            position: relative;
-            z-index: 3;
-            background: rgba(255, 255, 255, 0.88);
-            padding: 8px 24px;
-            border-radius: 16px;
-            font-size: 13pt;
-            color: #172c66;
-            font-weight: 600;
-        }
-
-        /* Dedication Page */
-        .dedication-page {
-            background: #fffdf9;
-            align-items: center;
-            justify-content: center;
-            padding: 35mm 25mm;
-            text-align: center;
-            z-index: 2;
-        }
-
-        .dedication-card {
-            border: 3px dashed #f3d2c1;
-            border-radius: 32px;
-            padding: 35px 30px;
-            background: #ffffff;
-            box-shadow: 0 8px 32px rgba(243, 210, 193, 0.25);
-            max-width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .dedication-badge {
-            font-size: 16pt;
-            font-weight: 700;
-            color: #f582ae;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .dedication-text {
-            font-size: 18pt;
-            font-weight: 500;
-            color: #001858;
-            line-height: 1.8;
-            font-family: 'Amiri', serif;
-        }
-
-        .dedication-recipient {
-            font-size: 16pt;
-            font-weight: 700;
-            color: #172c66;
-            margin-top: 10px;
-        }
-
-        /* Story Page Layout */
-        .story-page {
-            justify-content: flex-end;
-            padding: 20mm 15mm;
-            z-index: 2;
-        }
-
-        .story-page.zone-top {
-            justify-content: flex-start;
-        }
-
-        .story-page.zone-bottom {
-            justify-content: flex-end;
-        }
-
-        .text-card {
-            position: relative;
-            z-index: 3;
-            background: rgba(255, 255, 255, 0.93);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 20px 28px;
-            border-radius: 20px;
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.6);
-            margin: 0 auto;
-            max-width: 92%;
-        }
-
-        .story-text {
-            font-size: 19pt;
-            line-height: 1.85;
-            font-weight: 600;
-            color: #0f172a;
-            text-align: right;
-            word-spacing: 1px;
-        }
-
-        .page-number {
-            position: absolute;
-            bottom: 8mm;
-            left: 10mm;
-            z-index: 4;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 11pt;
-            font-weight: 700;
-            color: #475569;
-        }
-
-        /* Back Cover Page */
-        .back-page {
-            background: linear-gradient(135deg, #fef6e4 0%, #f3d2c1 100%);
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 30mm 20mm;
-            z-index: 2;
-        }
-
-        .back-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 35px;
-            border-radius: 28px;
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            max-width: 85%;
-        }
-
-        .back-brand {
-            font-size: 26pt;
-            font-weight: 800;
-            color: #001858;
-            letter-spacing: 1px;
-        }
-
-        .back-tagline {
-            font-size: 14pt;
-            font-weight: 500;
-            color: #64748b;
-            line-height: 1.6;
-        }
+        .zone-top { top: 1.2cm; }
+        .zone-bottom { bottom: 1.2cm; }
+        .cover-title { font-size: 34pt; line-height: 1.5; }
+        .cover-name { font-size: 20pt; margin-top: 0.2cm; }
+        .plain { background: #fbf6ec; display: flex; align-items: center; justify-content: center; }
+        .plain .message { font-size: 24pt; line-height: 2; text-align: center; padding: 3cm; white-space: pre-line; }
     </style>
 </head>
 <body>
-
-    <!-- Cover Page (Index 0) -->
-    <div class="page cover-page">
-        <img th:if="${coverImageUrl != null}" th:src="${coverImageUrl}" class="page-illustration" alt="Cover" />
-        <div class="cover-header">
-            <h1 class="cover-title" th:text="${title}">عنوان القصة</h1>
-            <div class="cover-child-name" th:text="${childName}">اسم الطفل</div>
+<th:block th:each="p : ${model.pages()}">
+    <section th:if="${p.kind().name() == 'COVER'}" class="page cover">
+        <img class="art" th:src="${p.imageFile()}" alt="">
+        <div class="text zone-top">
+            <div class="cover-title" th:text="${model.titleAr()}">title</div>
+            <div class="cover-name" th:text="${model.childNameAr()}">name</div>
         </div>
-        <div class="cover-footer">كِتاب • Ktab Storybooks</div>
-    </div>
-
-    <!-- Dedication Page -->
-    <div class="page dedication-page" th:if="${dedication != null and !#strings.isEmpty(dedication)}">
-        <div class="dedication-card">
-            <div class="dedication-badge">إهداء خاص</div>
-            <div class="dedication-text" th:text="${dedication}">إهداء من القلب إلى طفلي الغالي.</div>
-            <div class="dedication-recipient" th:text="${'إلى ' + childName}">إلى البطل</div>
-        </div>
-    </div>
-
-    <!-- Story Pages -->
-    <div th:each="p : ${storyPages}" th:class="${'page story-page ' + (p.textZone == 'TOP' ? 'zone-top' : 'zone-bottom')}">
-        <img th:if="${p.imageUrl != null}" th:src="${p.imageUrl}" class="page-illustration" th:alt="${'Page ' + p.pageNumber}" />
-        <div class="text-card">
-            <p class="story-text" th:text="${p.text}">نص القصة للصفحة...</p>
-        </div>
-        <div class="page-number" th:text="${p.pageNumber}">1</div>
-    </div>
-
-    <!-- Back Page -->
-    <div class="page back-page">
-        <div class="back-card">
-            <div class="back-brand">كِتاب • Ktab</div>
-            <div class="back-tagline">قصص مصممة خصيصاً لتلهم خيال أطفالنا بحروف عربية جميلة.</div>
-        </div>
-    </div>
-
+    </section>
+    <section th:if="${p.kind().name() == 'DEDICATION'}" class="page plain dedication">
+        <div class="message" th:text="${p.textAr()}">dedication</div>
+    </section>
+    <section th:if="${p.kind().name() == 'STORY'}" class="page story">
+        <img class="art" th:src="${p.imageFile()}" alt="">
+        <div th:class="${'text zone-' + #strings.toLowerCase(p.textZone().name())}" th:text="${p.textAr()}">text</div>
+    </section>
+    <section th:if="${p.kind().name() == 'BACK'}" class="page plain back">
+        <div class="message" th:text="${p.textAr()}">the end</div>
+    </section>
+</th:block>
 </body>
 </html>

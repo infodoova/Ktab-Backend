@@ -12,16 +12,30 @@ RUN mvn dependency:go-offline -B || true
 COPY src ./src
 RUN mvn clean package -DskipTests -B
 
+# Collect the Playwright jars so the runtime stage can run its installer
+RUN mvn -q dependency:copy-dependencies -DincludeGroupIds=com.microsoft.playwright -DoutputDirectory=/build/playwright-jars
+
 # ==========================================
 # Stage 2: Runtime stage
 # ==========================================
 FROM eclipse-temurin:21-jre-jammy
 WORKDIR /app
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Install fontconfig and fonts required for PDFBox rendering & headless AWT graphics
 RUN apt-get update && \
     apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core curl && \
     rm -rf /var/lib/apt/lists/*
+
+# Chromium + its system libraries for the storybook PDF renderer
+COPY --from=builder /build/playwright-jars /opt/playwright-jars
+RUN java -cp "/opt/playwright-jars/*" com.microsoft.playwright.CLI install --with-deps chromium && \
+    chmod -R a+rX /ms-playwright && \
+    rm -rf /var/lib/apt/lists/*
+
+# From here on the app must never try to download a browser at runtime
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # Run as non-root user for security
 RUN groupadd -r ktab && useradd -r -g ktab -m ktab

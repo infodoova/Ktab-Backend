@@ -40,7 +40,7 @@ class StorybookControllerTest {
     private final com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService = mock(com.doova.ktab.features.storybook.character.PhotoIntakeService.class);
     private final com.doova.ktab.features.storybook.illustration.LookService lookService = mock(com.doova.ktab.features.storybook.illustration.LookService.class);
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService = mock(com.doova.ktab.features.storybook.illustration.PageRegenerationService.class);
-    private final com.doova.ktab.features.storybook.reader.StorybookReaderService readerService = mock(com.doova.ktab.features.storybook.reader.StorybookReaderService.class);
+    private final com.doova.ktab.features.storybook.render.ReaderService readerService = mock(com.doova.ktab.features.storybook.render.ReaderService.class);
     private MockMvc mvc;
     private final User user = new User();
 
@@ -135,21 +135,20 @@ class StorybookControllerTest {
 
     @Test
     void getReaderReturns200Ok() throws Exception {
-        when(readerService.getReaderManifest(eq(user), eq(42L))).thenReturn(
-                new com.doova.ktab.features.storybook.reader.dto.StorybookReaderManifest(
-                        42L, StorybookStatus.READY, "عنوان", "سامي", 10, List.of()));
+        when(readerService.manifest(eq(user), eq(42L))).thenReturn(
+                new com.doova.ktab.features.storybook.render.ReaderManifest(
+                        42L, "rtl", "عنوان", List.of()));
         mvc.perform(get("/storybook/books/42/reader"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.bookId").value(42));
+                .andExpect(jsonPath("$.data.bookId").value(42))
+                .andExpect(jsonPath("$.data.dir").value("rtl"));
     }
 
     @Test
     void getDownloadUrlReturns200Ok() throws Exception {
-        when(readerService.getDownloadUrl(eq(user), eq(42L))).thenReturn(
-                new com.doova.ktab.features.storybook.reader.dto.StorybookDownloadResponse(
-                        "https://r2.ktab.app/pdf", "ktab-sami-42.pdf", java.time.Instant.now()));
+        when(readerService.downloadUrl(eq(user), eq(42L))).thenReturn("https://r2.ktab.app/pdf");
         mvc.perform(get("/storybook/books/42/download"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.downloadUrl").value("https://r2.ktab.app/pdf"));
+                .andExpect(jsonPath("$.data.url").value("https://r2.ktab.app/pdf"));
     }
 }
