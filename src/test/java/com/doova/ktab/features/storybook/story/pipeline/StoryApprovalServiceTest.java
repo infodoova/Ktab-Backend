@@ -26,13 +26,16 @@ class StoryApprovalServiceTest {
     private StorybookAccessGuard guard;
     @Mock
     private JobEnqueuer enqueuer;
+    @Mock
+    private com.doova.ktab.features.storybook.billing.StorybookCreditPort credits;
 
     private StoryApprovalService service;
     private User owner;
 
     @BeforeEach
     void setUp() {
-        service = new StoryApprovalService(guard, enqueuer);
+        com.doova.ktab.features.storybook.config.StorybookProperties properties = new com.doova.ktab.features.storybook.config.StorybookProperties();
+        service = new StoryApprovalService(guard, enqueuer, credits, properties);
         owner = new User();
         owner.setId(1L);
     }

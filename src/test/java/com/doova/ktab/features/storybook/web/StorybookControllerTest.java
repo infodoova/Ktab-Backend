@@ -41,6 +41,7 @@ class StorybookControllerTest {
     private final com.doova.ktab.features.storybook.illustration.LookService lookService = mock(com.doova.ktab.features.storybook.illustration.LookService.class);
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService = mock(com.doova.ktab.features.storybook.illustration.PageRegenerationService.class);
     private final com.doova.ktab.features.storybook.render.ReaderService readerService = mock(com.doova.ktab.features.storybook.render.ReaderService.class);
+    private final CancelService cancelService = mock(CancelService.class);
     private MockMvc mvc;
     private final User user = new User();
 
@@ -52,7 +53,7 @@ class StorybookControllerTest {
             public Object resolveArgument(MethodParameter p, ModelAndViewContainer m, NativeWebRequest r, WebDataBinderFactory f) { return user; }
         };
         mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService,
-                photoIntakeService, lookService, pageRegenerationService, readerService))
+                photoIntakeService, lookService, pageRegenerationService, readerService, cancelService))
                 .setCustomArgumentResolvers(currentUser).build();
     }
 
@@ -150,5 +151,11 @@ class StorybookControllerTest {
         mvc.perform(get("/storybook/books/42/download"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.url").value("https://r2.ktab.app/pdf"));
+    }
+
+    @Test
+    void cancelReturns202Accepted() throws Exception {
+        mvc.perform(post("/storybook/books/42/cancel"))
+                .andExpect(status().isAccepted());
     }
 }

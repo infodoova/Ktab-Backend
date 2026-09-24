@@ -77,4 +77,18 @@ class StorybookStateMachineTest {
         machine.fail(b, "x".repeat(5000));
         assertThat(b.getFailureReason()).hasSize(1000);
     }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = StorybookStatus.class, names = {"DRAFT", "STORY_READY", "CHARACTER_READY", "FAILED"})
+    void cancellableStatuses(StorybookStatus from) {
+        Storybook b = book(from);
+        machine.cancel(b);
+        assertThat(b.getStatus()).isEqualTo(CANCELLED);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = StorybookStatus.class, names = {"ILLUSTRATING", "QA", "RENDERING", "READY", "CANCELLED"})
+    void notCancellableOnceImagesAreBeingMade(StorybookStatus from) {
+        assertThatThrownBy(() -> machine.cancel(book(from))).isInstanceOf(StorybookStateConflictException.class);
+    }
 }

@@ -61,4 +61,13 @@ public class StorybookStateMachine {
         book.setFailureReason(reason == null ? null : reason.substring(0, Math.min(1000, reason.length())));
         book.setStatus(FAILED);
     }
+
+    private static final Set<StorybookStatus> CANCELLABLE = EnumSet.of(DRAFT, STORY_READY, CHARACTER_READY, FAILED);
+
+    public void cancel(Storybook book) {
+        if (!CANCELLABLE.contains(book.getStatus())) {
+            throw new StorybookStateConflictException(ApiMessageKey.STORYBOOK_INVALID_STATE);
+        }
+        book.setStatus(CANCELLED);
+    }
 }

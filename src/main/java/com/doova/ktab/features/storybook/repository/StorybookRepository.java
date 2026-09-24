@@ -23,6 +23,8 @@ public interface StorybookRepository extends JpaRepository<Storybook, Long> {
 
     long countByOwner_IdAndCreatedAtAfter(Long ownerId, LocalDateTime since);
 
+    List<Storybook> findByChildProfile_Id(Long childProfileId);
+
     @Modifying
     @Query("update Storybook b set b.totalCostUsd = b.totalCostUsd + :cost where b.id = :id")
     int addCost(@Param("id") Long id, @Param("cost") BigDecimal cost);

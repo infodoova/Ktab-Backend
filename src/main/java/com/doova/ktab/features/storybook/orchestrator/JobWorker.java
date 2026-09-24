@@ -26,16 +26,19 @@ public class JobWorker {
     private final StepHandlerRegistry handlers;
     private final TaskExecutor executor;
     private final StorybookProperties properties;
+    private final StorybookCostGuard costGuard;
     private final String workerId;
     private final AtomicInteger inFlight = new AtomicInteger();
 
     public JobWorker(JobClaimer claimer, JobOutcomeRecorder recorder, StepHandlerRegistry handlers,
-                     @Qualifier("storybookJobExecutor") TaskExecutor executor, StorybookProperties properties) {
+                     @Qualifier("storybookJobExecutor") TaskExecutor executor, StorybookProperties properties,
+                     StorybookCostGuard costGuard) {
         this.claimer = claimer;
         this.recorder = recorder;
         this.handlers = handlers;
         this.executor = executor;
         this.properties = properties;
+        this.costGuard = costGuard;
         this.workerId = hostname() + ":" + UUID.randomUUID().toString().substring(0, 8);
     }
 
@@ -67,7 +70,12 @@ public class JobWorker {
     void runOne(StorybookJob job) {
         StepOutcome outcome;
         StepHandler handler = handlers.get(job.getStep());
-        if (handler == null) {
+        if (job.getStep() != com.doova.ktab.features.storybook.enums.JobStep.PURGE_PHOTO
+                && costGuard.exceeded(job.getStorybookId())) {
+            log.error("storybook book {} exceeded its AI cost cap; failing job {} ({})",
+                    job.getStorybookId(), job.getId(), job.getStep());
+            outcome = StepOutcome.fail("Book AI cost exceeded $" + properties.getLimits().getMaxBookCostUsd());
+        } else if (handler == null) {
             outcome = StepOutcome.fail("No handler for " + job.getStep());
         } else {
             try {

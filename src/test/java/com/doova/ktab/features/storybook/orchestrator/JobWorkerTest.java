@@ -28,7 +28,7 @@ class JobWorkerTest {
             public StepOutcome handle(StorybookJob job) { return behaviour.apply(job); }
         };
         return new JobWorker(claimer, recorder, new StepHandlerRegistry(List.of(handler)),
-                new SyncTaskExecutor(), new StorybookProperties());
+                new SyncTaskExecutor(), new StorybookProperties(), mock(StorybookCostGuard.class));
     }
 
     private static StorybookJob job(JobStep step) {

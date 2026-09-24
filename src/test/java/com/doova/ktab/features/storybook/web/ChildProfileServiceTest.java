@@ -9,6 +9,9 @@ import com.doova.ktab.features.storybook.support.StoryFixtures;
 import com.doova.ktab.features.storybook.web.dto.ChildProfileResponse;
 import com.doova.ktab.features.storybook.web.dto.CreateChildProfileRequest;
 import com.doova.ktab.model.user.User;
+import com.doova.ktab.features.storybook.billing.StorybookCreditPort;
+import com.doova.ktab.features.storybook.model.Storybook;
+import com.doova.ktab.features.storybook.repository.StorybookRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +32,8 @@ import static org.mockito.Mockito.when;
 class ChildProfileServiceTest {
 
     @Mock ChildProfileRepository repository;
+    @Mock StorybookRepository books;
+    @Mock StorybookCreditPort credits;
     @InjectMocks ChildProfileService service;
 
     private User owner;
@@ -55,8 +61,13 @@ class ChildProfileServiceTest {
     @Test
     void deleteRemovesOnlyAnOwnedProfile() {
         ChildProfile p = new ChildProfile();
+        p.setId(5L);
         when(repository.findByIdAndOwner_Id(5L, 7L)).thenReturn(Optional.of(p));
+        Storybook b = new Storybook();
+        b.setId(33L);
+        when(books.findByChildProfile_Id(any())).thenReturn(List.of(b));
         service.delete(owner, 5L);
+        verify(credits).release(33L);
         verify(repository).delete(p);
     }
 }

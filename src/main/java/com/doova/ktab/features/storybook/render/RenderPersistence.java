@@ -21,6 +21,7 @@ public class RenderPersistence {
     private final StorybookRepository books;
     private final StorybookPageRepository pages;
     private final StorybookStateMachine stateMachine;
+    private final com.doova.ktab.features.storybook.billing.StorybookCreditPort credits;
 
     @Transactional(readOnly = true)
     public RenderContext context(Long bookId) {
@@ -46,5 +47,6 @@ public class RenderPersistence {
         }
         book.setPdfKey(pdfKey);
         stateMachine.transition(book, StorybookStatus.READY);
+        credits.commit(bookId);
     }
 }

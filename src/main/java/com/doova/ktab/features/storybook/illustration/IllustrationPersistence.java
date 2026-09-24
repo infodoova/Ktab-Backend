@@ -163,7 +163,7 @@ public class IllustrationPersistence {
     }
 
     private void advance(Storybook book) {
-        if (book.getStatus() != StorybookStatus.ILLUSTRATING) {
+        if (book.getStatus() != StorybookStatus.ILLUSTRATING && book.getStatus() != StorybookStatus.QA) {
             return;
         }
         boolean allOk = true;
@@ -183,7 +183,7 @@ public class IllustrationPersistence {
         if (allOk) {
             stateMachine.transition(book, StorybookStatus.RENDERING);
             enqueuer.enqueue(book.getId(), JobStep.RENDER_PDF, -1, book.getPageRegenerations());
-        } else if (anyFlagged) {
+        } else if (anyFlagged && book.getStatus() == StorybookStatus.ILLUSTRATING) {
             stateMachine.transition(book, StorybookStatus.QA);
         }
     }

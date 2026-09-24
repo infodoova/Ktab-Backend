@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Import({RenderPersistence.class, StorybookStateMachine.class, StoryPersistence.class, JobEnqueuer.class})
+@Import({RenderPersistence.class, StorybookStateMachine.class, StoryPersistence.class, JobEnqueuer.class,
+        com.doova.ktab.features.storybook.billing.AdminGrantedCreditAdapter.class})
 class RenderPersistenceIT extends StorybookJpaIT {
 
     @Autowired RenderPersistence persistence;

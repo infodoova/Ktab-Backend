@@ -47,9 +47,15 @@ public class StorybookService {
     private final StorybookRepository books;
     private final StorybookPageRepository pages;
     private final StorybookCharacterRepository characters;
+    private final com.doova.ktab.features.storybook.config.StorybookProperties properties;
 
     /** Deliberately not @Transactional: moderation calls an LLM and must not hold a DB connection. */
     public StorybookDetail create(User owner, CreateStorybookRequest r) {
+        long recent = books.countByOwner_IdAndCreatedAtAfter(owner.getId(), java.time.LocalDateTime.now().minusDays(1));
+        if (recent >= properties.getLimits().getDraftsPerUserPerDay()) {
+            throw new BadRequestException(ApiMessageKey.STORYBOOK_LIMIT_REACHED);
+        }
+
         ChildProfile child = children.requireOwned(owner, r.childProfileId());
 
         if (!PAGE_COUNTS.contains(r.pageCount())) {

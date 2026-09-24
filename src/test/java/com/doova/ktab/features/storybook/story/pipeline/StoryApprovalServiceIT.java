@@ -16,21 +16,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 
+import com.doova.ktab.features.storybook.billing.AdminGrantedCreditAdapter;
+import com.doova.ktab.features.storybook.billing.StorybookCreditPort;
+import com.doova.ktab.features.storybook.config.StorybookProperties;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Import({StoryApprovalService.class, StorybookAccessGuard.class, JobEnqueuer.class})
+@Import({StoryApprovalService.class, StorybookAccessGuard.class, JobEnqueuer.class,
+        AdminGrantedCreditAdapter.class, StorybookProperties.class})
 class StoryApprovalServiceIT extends StorybookJpaIT {
 
     @Autowired StoryApprovalService approvals;
     @Autowired StorybookJobRepository jobs;
     @Autowired StorybookRepository books;
+    @Autowired StorybookCreditPort credits;
 
     @Test
     void approvingTwiceIsAConflictAndEnqueuesOneSheetJob() {
         User owner = UserFixtures.reader(em, "approve@example.com");
         Storybook book = StorybookEntityFixtures.newBook(em, owner);
         book.setStatus(StorybookStatus.STORY_READY);
+        credits.grant(owner.getId(), 1);
         em.flush();
 
         approvals.approveStory(owner, book.getId());
@@ -41,6 +48,17 @@ class StoryApprovalServiceIT extends StorybookJpaIT {
         assertThat(jobs.findByStorybookIdOrderByIdAsc(book.getId()))
                 .extracting(j -> j.getStep() + ":" + j.getGeneration())
                 .containsExactly(JobStep.CHARACTER_SHEET + ":1");
+    }
+
+    @Test
+    void approvalWithoutCreditIsPaymentRequired() {
+        User owner = UserFixtures.reader(em, "broke@example.com");
+        Storybook book = StorybookEntityFixtures.newBook(em, owner);
+        book.setStatus(StorybookStatus.STORY_READY);
+        em.flush();
+        assertThatThrownBy(() -> approvals.approveStory(owner, book.getId()))
+                .isInstanceOf(com.doova.ktab.features.storybook.billing.StorybookPaymentRequiredException.class);
+        assertThat(book.getStoryApprovedAt()).isNull();
     }
 
     @Test

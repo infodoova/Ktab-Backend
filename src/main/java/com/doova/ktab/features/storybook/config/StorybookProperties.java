@@ -31,6 +31,15 @@ public class StorybookProperties {
     private Limits limits = new Limits();
     private Worker worker = new Worker();
     private Photo photo = new Photo();
+    private Credits credits = new Credits();
+
+    @Getter
+    @Setter
+    public static class Credits {
+        /** false only for internal testing: approvals then never touch credits. */
+        private boolean required = true;
+        private int unitsPerBook = 1;
+    }
 
     @Getter
     @Setter

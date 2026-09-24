@@ -18,6 +18,8 @@ import java.util.List;
 public class ChildProfileService {
 
     private final ChildProfileRepository repository;
+    private final com.doova.ktab.features.storybook.repository.StorybookRepository books;
+    private final com.doova.ktab.features.storybook.billing.StorybookCreditPort credits;
 
     @Transactional
     public ChildProfileResponse create(User owner, CreateChildProfileRequest r) {
@@ -40,10 +42,12 @@ public class ChildProfileService {
         return ChildProfileResponse.from(p);
     }
 
-    /** Deleting a profile cascades to its books (FK ON DELETE CASCADE). */
+    /** Deleting a profile cascades to its books (FK ON DELETE CASCADE), but we refund held credits first. */
     @Transactional
     public void delete(User owner, Long id) {
-        repository.delete(requireOwned(owner, id));
+        ChildProfile profile = requireOwned(owner, id);
+        books.findByChildProfile_Id(profile.getId()).forEach(b -> credits.release(b.getId()));
+        repository.delete(profile);
     }
 
     @Transactional(readOnly = true)

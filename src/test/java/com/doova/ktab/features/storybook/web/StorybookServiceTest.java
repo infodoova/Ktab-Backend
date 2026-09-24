@@ -31,11 +31,14 @@ class StorybookServiceTest {
     private final AiCallLedger ledger = mock(AiCallLedger.class);
     private final StorybookDraftWriter writer = mock(StorybookDraftWriter.class);
     private final StorybookViewMapper mapper = mock(StorybookViewMapper.class);
+    private final com.doova.ktab.features.storybook.repository.StorybookRepository books =
+            mock(com.doova.ktab.features.storybook.repository.StorybookRepository.class);
     private final StorybookService service = new StorybookService(children, StoryFixtures.CATALOG, moderation, ledger,
             writer, mapper, mock(StorybookAccessGuard.class),
-            mock(com.doova.ktab.features.storybook.repository.StorybookRepository.class),
+            books,
             mock(com.doova.ktab.features.storybook.repository.StorybookPageRepository.class),
-            mock(com.doova.ktab.features.storybook.repository.StorybookCharacterRepository.class));
+            mock(com.doova.ktab.features.storybook.repository.StorybookCharacterRepository.class),
+            new StorybookProperties());
 
     private final User owner = new User();
     private final ChildProfile child = new ChildProfile();
@@ -60,6 +63,14 @@ class StorybookServiceTest {
                                            List<Interest> interests, StorySetting setting, String dedication) {
         return new CreateStorybookRequest(5L, "first-day-of-school", interests, null, setting,
                 ArtStyle.SOFT_WATERCOLOR, pages, variety, level, dedication);
+    }
+
+    @Test
+    void fourthDraftInADayIsRejectedBeforeAnyLlmCall() {
+        when(books.countByOwner_IdAndCreatedAtAfter(eq(1L), any())).thenReturn(3L);
+        assertThatThrownBy(() -> service.create(owner, request(10, LanguageVariety.MSA, TashkeelLevel.FULL,
+                List.of(), null, "إلى سامي"))).hasMessage("STORYBOOK_LIMIT_REACHED");
+        verifyNoInteractions(moderation);
     }
 
     @Test
