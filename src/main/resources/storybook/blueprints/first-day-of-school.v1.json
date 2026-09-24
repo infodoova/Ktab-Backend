@@ -1,0 +1,27 @@
+{
+  "key": "first-day-of-school",
+  "version": 1,
+  "titleAr": "يومي الأول في المدرسة",
+  "titleEn": "My First Day at School",
+  "theme": "school",
+  "ageBands": ["AGE_3_5", "AGE_6_8"],
+  "allowedSettings": ["BEIRUT", "CAIRO", "RIYADH", "DUBAI", "AMMAN", "GENERIC_CITY", "COUNTRYSIDE"],
+  "religious": false,
+  "beats": [
+    {"order": 1,  "minPageCount": 10, "beat": "The CHILD wakes up early, excited and a little nervous: today is the first day of school."},
+    {"order": 2,  "minPageCount": 10, "beat": "The CHILD gets ready: new clothes, a new school bag, breakfast with the family."},
+    {"order": 3,  "minPageCount": 15, "beat": "The CHILD checks the school bag twice: pencils, a lunch box, and a favourite small toy for courage."},
+    {"order": 4,  "minPageCount": 10, "beat": "On the way to school the CHILD holds a parent's hand and notices the busy, friendly streets of the setting."},
+    {"order": 5,  "minPageCount": 10, "beat": "At the school gate the CHILD hesitates; the building looks very big."},
+    {"order": 6,  "minPageCount": 12, "beat": "The parent kneels down, hugs the CHILD and says something encouraging about being brave."},
+    {"order": 7,  "minPageCount": 10, "beat": "The kind teacher welcomes the CHILD with a warm smile and shows the classroom."},
+    {"order": 8,  "minPageCount": 15, "beat": "The classroom is full of colour: drawings on the walls, a reading corner, a plant by the window."},
+    {"order": 9,  "minPageCount": 10, "beat": "The CHILD sits next to another child who is also shy; they share a small smile."},
+    {"order": 10, "minPageCount": 12, "beat": "During the lesson the CHILD answers a question and the teacher praises the answer."},
+    {"order": 11, "minPageCount": 10, "beat": "At break time the CHILD and the new friend play together, connected to the CHILD's interests."},
+    {"order": 12, "minPageCount": 15, "beat": "The two friends share their snacks and laugh about something funny that happened."},
+    {"order": 13, "minPageCount": 10, "beat": "The CHILD draws a picture of the new friend and the school during the art activity."},
+    {"order": 14, "minPageCount": 10, "beat": "When the parent comes to pick them up, the CHILD runs over proudly to show the drawing."},
+    {"order": 15, "minPageCount": 10, "beat": "At home the CHILD happily says they cannot wait to go back to school tomorrow."}
+  ]
+}

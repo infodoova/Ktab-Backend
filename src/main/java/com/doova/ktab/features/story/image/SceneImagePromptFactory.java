@@ -17,13 +17,14 @@ import com.doova.ktab.features.story.scd.SceneCanonicalDescription;
  */
 public final class SceneImagePromptFactory {
 
-    private static final String ASPECT_RATIO = "16:9";
+    private static final String ASPECT_RATIO = "1:1";
 
     private SceneImagePromptFactory() {
     }
 
     public static String fromSCD(SceneCanonicalDescription scd, boolean hasReferenceImage, String languageHint) {
-        if (scd == null) return "";
+        if (scd == null)
+            return "";
 
         String lang = (languageHint == null || languageHint.isBlank()) ? "Arabic" : languageHint;
 
@@ -40,34 +41,39 @@ public final class SceneImagePromptFactory {
                 ==================================================
                 CORE VISUAL GOAL:
                 %s
-                
+
                 SCENE CONTEXT:
                 Type: %s | Time: %s
-                
+
                 %s
-                
+
                 TECHNICAL SPECIFICATIONS:
                 - Aspect Ratio: %s
                 - Lighting: %s
                 - Camera Angle: %s
-                
+
                 SPATIAL COMPOSITION:
                 - Foreground: %s
                 - Midground: %s
                 - Background: %s
-                
+
                 VISUAL ANCHORS:
                 - Color Palette: %s
                 - Key Props: %s
-                
+
                 LANGUAGE_HINT_FOR_SIGNS:
                 %s (avoid readable text)
-                
+
                 NEGATIVE CONSTRAINTS:
                 - %s
                 - No text, watermarks, or typography.
                 ==================================================
-                """.formatted(clean(scd.safetyCompliantPrompt()), clean(scd.meta().sceneType()), clean(scd.meta().timeOfDay()), continuityBlock, ASPECT_RATIO, clean(scd.meta().lightingStyle()), clean(scd.composition().cameraAngle()), clean(scd.composition().foreground()), clean(scd.composition().midground()), clean(scd.composition().background()), clean(scd.visualAnchors().colorPalette()), clean(scd.visualAnchors().consistencyObjects()), clean(lang), clean(scd.negativeConstraints()));
+                """.formatted(clean(scd.safetyCompliantPrompt()), clean(scd.meta().sceneType()),
+                clean(scd.meta().timeOfDay()), continuityBlock, ASPECT_RATIO, clean(scd.meta().lightingStyle()),
+                clean(scd.composition().cameraAngle()), clean(scd.composition().foreground()),
+                clean(scd.composition().midground()), clean(scd.composition().background()),
+                clean(scd.visualAnchors().colorPalette()), clean(scd.visualAnchors().consistencyObjects()), clean(lang),
+                clean(scd.negativeConstraints()));
     }
 
     private static String clean(String input) {

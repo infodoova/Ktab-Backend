@@ -16,8 +16,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * HTTP client for the ElevenLabs Studio API (REST, not the WebSocket TTS path handled by
@@ -84,18 +87,41 @@ public class ElevenLabsStudioClient {
             String titleVoiceId,
             String paragraphVoiceId
     ) {
-        Map<String, Object> body = Map.of(
-                "name", title,
-                "from_url", fromUrl,
-                "default_model_id", coalesce(modelId, props.getDefaultModelId()),
-                "default_title_voice_id", coalesce(titleVoiceId, props.getDefaultTitleVoiceId()),
-                "default_paragraph_voice_id", coalesce(paragraphVoiceId, props.getDefaultParagraphVoiceId()),
-                "quality_preset", props.getQualityPreset()
-        );
+        // POST /v1/studio/projects requires multipart/form-data (verified from OpenAPI spec)
+        Map<String, String> fields = new LinkedHashMap<>();
+        fields.put("name", (title != null && !title.isBlank()) ? title : "Untitled Project");
 
-        HttpRequest request = buildJson(post(BASE_PROJECTS_PATH), body);
+        if (fromUrl != null && !fromUrl.isBlank()) {
+            fields.put("from_url", fromUrl);
+        }
+
+        String resolvedModel = coalesce(modelId, props.getDefaultModelId());
+        if (resolvedModel != null && !resolvedModel.isBlank()) {
+            fields.put("default_model_id", resolvedModel);
+        }
+
+        String resolvedTitleVoice = coalesce(titleVoiceId, props.getDefaultTitleVoiceId());
+        if (resolvedTitleVoice != null && !resolvedTitleVoice.isBlank()) {
+            fields.put("default_title_voice_id", resolvedTitleVoice);
+        }
+
+        String resolvedParaVoice = coalesce(paragraphVoiceId, props.getDefaultParagraphVoiceId());
+        if (resolvedParaVoice != null && !resolvedParaVoice.isBlank()) {
+            fields.put("default_paragraph_voice_id", resolvedParaVoice);
+        }
+
+        if (props.getQualityPreset() != null && !props.getQualityPreset().isBlank()) {
+            fields.put("quality_preset", props.getQualityPreset());
+        }
+
+        String boundary = UUID.randomUUID().toString().replace("-", "");
+        HttpRequest request = buildMultipart(post(BASE_PROJECTS_PATH), fields, boundary);
         log.debug("studio.createProject title={}", title);
-        return execute(request, StudioProjectResponse.class);
+        JsonNode root = execute(request, JsonNode.class);
+        if (root != null && root.has("project")) {
+            return parseObject(root.get("project"), StudioProjectResponse.class);
+        }
+        return parseObject(root, StudioProjectResponse.class);
     }
 
     /**
@@ -104,7 +130,11 @@ public class ElevenLabsStudioClient {
     public StudioProjectResponse getProject(String externalProjectId) {
         HttpRequest request = buildGet(BASE_PROJECTS_PATH + "/" + externalProjectId);
         log.debug("studio.getProject projectId={}", externalProjectId);
-        return execute(request, StudioProjectResponse.class);
+        JsonNode root = execute(request, JsonNode.class);
+        if (root != null && root.has("project")) {
+            return parseObject(root.get("project"), StudioProjectResponse.class);
+        }
+        return parseObject(root, StudioProjectResponse.class);
     }
 
     /**
@@ -161,30 +191,66 @@ public class ElevenLabsStudioClient {
                 + "/chapters/" + externalChapterId;
         HttpRequest request = buildGet(path);
         log.debug("studio.getChapter projectId={} chapterId={}", externalProjectId, externalChapterId);
-        return execute(request, StudioChapterDetail.class);
+        JsonNode root = execute(request, JsonNode.class);
+        if (root != null && root.has("chapter")) {
+            return parseObject(root.get("chapter"), StudioChapterDetail.class);
+        }
+        return parseObject(root, StudioChapterDetail.class);
     }
 
     /**
-     * Create a chapter inside an existing project with our own content (OCR push path —
-     * Phase 4.1). The caller writes {@code col_external_chapter_id} onto the section row
+     * Create a chapter inside an existing project (OCR push path — Phase 4.1).
+     * The caller writes {@code col_external_chapter_id} onto the section row
      * in the same transaction after a successful response.
      *
-     * @param name    chapter display name
-     * @param content HTML/Markdown; headings become {@code h1/h2/h3}, paragraphs become {@code p}
+     * <p><strong>Spec:</strong> {@code POST .../chapters} only accepts {@code name}
+     * and {@code from_url}. Chapter text content is not uploadable at creation time;
+     * use {@link #updateChapterContent} to push OCR text after the chapter exists.
+     *
+     * @param name chapter display name
      */
     public StudioChapterDetail createChapter(
             String externalProjectId,
-            String name,
-            String content
+            String name
     ) {
-        Map<String, Object> body = Map.of(
-                "name", name,
-                "content", content
-        );
-        String path = BASE_PROJECTS_PATH + "/" + externalProjectId + "/chapters/";
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("name", (name != null && !name.isBlank()) ? name : "Untitled Chapter");
+
+        String path = BASE_PROJECTS_PATH + "/" + externalProjectId + "/chapters";
         HttpRequest request = buildJson(post(path), body);
         log.debug("studio.createChapter projectId={} name={}", externalProjectId, name);
-        return execute(request, StudioChapterDetail.class);
+        JsonNode root = execute(request, JsonNode.class);
+        if (root != null && root.has("chapter")) {
+            return parseObject(root.get("chapter"), StudioChapterDetail.class);
+        }
+        return parseObject(root, StudioChapterDetail.class);
+    }
+
+    /**
+     * Update an existing chapter's text content via the Studio project editor
+     * (POST /v1/studio/projects/{project_id}/chapters/{chapter_id}).
+     * This is the correct path for pushing OCR'd text after chapter creation.
+     *
+     * @param externalProjectId the Studio project ID
+     * @param externalChapterId the Studio chapter ID (from createChapter response)
+     * @param content           HTML/Markdown text; becomes the chapter body
+     */
+    public StudioChapterDetail updateChapterContent(
+            String externalProjectId,
+            String externalChapterId,
+            String content
+    ) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("content", (content != null) ? content : "");
+
+        String path = BASE_PROJECTS_PATH + "/" + externalProjectId + "/chapters/" + externalChapterId;
+        HttpRequest request = buildJson(post(path), body);
+        log.debug("studio.updateChapterContent projectId={} chapterId={}", externalProjectId, externalChapterId);
+        JsonNode root = execute(request, JsonNode.class);
+        if (root != null && root.has("chapter")) {
+            return parseObject(root.get("chapter"), StudioChapterDetail.class);
+        }
+        return parseObject(root, StudioChapterDetail.class);
     }
 
     // =========================================================================
@@ -195,10 +261,13 @@ public class ElevenLabsStudioClient {
      * Fire TTS conversion for the whole project. One call per book; subsequent status
      * polling is done via {@link #listChapters}. Returns immediately — conversion is
      * asynchronous on ElevenLabs' side (Phase 4 convertStep).
+     *
+     * <p><strong>Spec:</strong> {@code POST /v1/studio/projects/{project_id}/convert} has
+     * no request body — sending {@code application/json} with an empty object causes a 422.
      */
     public void convertProject(String externalProjectId) {
         String path = BASE_PROJECTS_PATH + "/" + externalProjectId + "/convert";
-        HttpRequest request = buildJson(post(path), Map.of());
+        HttpRequest request = buildPost(post(path));
         log.info("studio.convertProject projectId={}", externalProjectId);
         executeVoid(request);
     }
@@ -228,6 +297,10 @@ public class ElevenLabsStudioClient {
      * Open an {@link InputStream} over the MP3 audio for a chapter snapshot. The caller
      * <em>must</em> close the stream. Pass directly to an S3 multipart upload to avoid
      * buffering to local disk (Phase 4.3).
+     *
+     * <p><strong>Spec:</strong> {@code POST .../snapshots/{id}/stream} — the endpoint
+     * is a POST (not GET) that accepts an optional {@code convert_to_mpeg} JSON boolean.
+     * We always request MPEG output for compatibility.
      */
     public InputStream streamAudio(
             String externalProjectId,
@@ -237,7 +310,9 @@ public class ElevenLabsStudioClient {
         String path = BASE_PROJECTS_PATH + "/" + externalProjectId
                 + "/chapters/" + externalChapterId
                 + "/snapshots/" + snapshotId + "/stream";
-        HttpRequest request = buildGet(path);
+        Map<String, Object> streamBody = new LinkedHashMap<>();
+        streamBody.put("convert_to_mpeg", true);
+        HttpRequest request = buildJson(post(path), streamBody);
         log.debug("studio.streamAudio projectId={} chapterId={} snapshotId={}",
                 externalProjectId, externalChapterId, snapshotId);
         return executeStream(request);
@@ -347,10 +422,24 @@ public class ElevenLabsStudioClient {
         }
     }
 
-    private <T> List<T> parseList(JsonNode root, String field, TypeReference<List<T>> ref) {
-        JsonNode node = root.path(field);
+    private <T> T parseObject(JsonNode node, Class<T> type) {
         try {
-            return objectMapper.convertValue(node, ref);
+            return objectMapper.treeToValue(node, type);
+        } catch (Exception e) {
+            throw new StudioApiException.Fatal(
+                    "Failed to deserialise JSON node into " + type.getSimpleName()
+                            + ": " + e.getMessage(), -1);
+        }
+    }
+
+    private <T> List<T> parseList(JsonNode root, String field, TypeReference<List<T>> ref) {
+        if (root == null || root.isNull() || root.isMissingNode()) {
+            return List.of();
+        }
+        JsonNode node = root.has(field) ? root.path(field) : (root.isArray() ? root : root.path(field));
+        try {
+            List<T> result = objectMapper.convertValue(node, ref);
+            return result != null ? result : List.of();
         } catch (IllegalArgumentException e) {
             throw new StudioApiException.Fatal(
                     "Failed to parse '" + field + "' list: " + e.getMessage(), -1);
@@ -361,11 +450,20 @@ public class ElevenLabsStudioClient {
     // Request builders
     // =========================================================================
 
+    private String requireApiKey() {
+        String key = props.getApiKey();
+        if (key == null || key.isBlank()) {
+            throw new StudioApiException.Fatal(
+                    "ElevenLabs API key is missing. Set ktab.studio.api-key or ELEVENLABS_API_KEY in .env / application.properties.", 401);
+        }
+        return key;
+    }
+
     private HttpRequest buildGet(String path) {
         return HttpRequest.newBuilder()
                 .GET()
                 .uri(uri(path))
-                .header("xi-api-key", props.getApiKey())
+                .header("xi-api-key", requireApiKey())
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(60))
                 .build();
@@ -375,7 +473,7 @@ public class ElevenLabsStudioClient {
         return HttpRequest.newBuilder()
                 .DELETE()
                 .uri(uri(path))
-                .header("xi-api-key", props.getApiKey())
+                .header("xi-api-key", requireApiKey())
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(30))
                 .build();
@@ -385,7 +483,7 @@ public class ElevenLabsStudioClient {
     private HttpRequest.Builder post(String path) {
         return HttpRequest.newBuilder()
                 .uri(uri(path))
-                .header("xi-api-key", props.getApiKey())
+                .header("xi-api-key", requireApiKey())
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(60));
     }
@@ -403,8 +501,45 @@ public class ElevenLabsStudioClient {
         }
     }
 
+    /**
+     * Build a POST request with no body (for endpoints like {@code /convert} that
+     * take no request body per the OpenAPI spec — sending {@code {}} causes a 422).
+     */
+    private HttpRequest buildPost(HttpRequest.Builder builder) {
+        return builder
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+    }
+
+    /**
+     * Build a {@code multipart/form-data} request (text fields only).
+     * Java's built-in {@link java.net.http.HttpClient} has no multipart helper,
+     * so we construct the body manually following RFC 2046.
+     */
+    private HttpRequest buildMultipart(HttpRequest.Builder builder,
+                                       Map<String, String> fields,
+                                       String boundary) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> e : fields.entrySet()) {
+            sb.append("--").append(boundary).append("\r\n");
+            sb.append("Content-Disposition: form-data; name=\"").append(e.getKey()).append("\"\r\n");
+            sb.append("\r\n");
+            sb.append(e.getValue()).append("\r\n");
+        }
+        sb.append("--").append(boundary).append("--\r\n");
+        byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
+        return builder
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+    }
+
     private URI uri(String path) {
-        return URI.create(props.getBaseUrl() + path);
+        String base = props.getBaseUrl();
+        if (base == null || base.isBlank()) {
+            base = "https://api.elevenlabs.io";
+        }
+        return URI.create(base + path);
     }
 
     private static String coalesce(String first, String second) {

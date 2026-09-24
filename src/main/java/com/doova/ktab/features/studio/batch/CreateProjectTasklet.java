@@ -83,6 +83,10 @@ public class CreateProjectTasklet implements Tasklet {
                 props.getDefaultParagraphVoiceId()
         );
 
+        if (response == null || response.projectId() == null || response.projectId().isBlank()) {
+            throw new IllegalStateException("ElevenLabs did not return a valid projectId for bookId=" + bookId);
+        }
+
         // Persist in the SAME transaction before returning — crash after this point
         // means the reconciler will find and clean up the orphaned remote project.
         StudioProject project = existing.orElseGet(() -> {
@@ -92,10 +96,10 @@ public class CreateProjectTasklet implements Tasklet {
         });
         project.setExternalProjectId(response.projectId());
         project.setLifecycle(StudioProjectLifecycle.CREATED);
-        project.setModelId(response.defaultModelId());
-        project.setTitleVoiceId(response.defaultTitleVoiceId());
-        project.setParagraphVoiceId(response.defaultParagraphVoiceId());
-        project.setQualityPreset(response.qualityPreset());
+        project.setModelId(response.defaultModelId() != null ? response.defaultModelId() : props.getDefaultModelId());
+        project.setTitleVoiceId(response.defaultTitleVoiceId() != null ? response.defaultTitleVoiceId() : props.getDefaultTitleVoiceId());
+        project.setParagraphVoiceId(response.defaultParagraphVoiceId() != null ? response.defaultParagraphVoiceId() : props.getDefaultParagraphVoiceId());
+        project.setQualityPreset(response.qualityPreset() != null ? response.qualityPreset() : props.getQualityPreset());
         projectRepository.save(project);
 
         log.info("studio.createProject.done bookId={} extProjectId={}", bookId, response.projectId());

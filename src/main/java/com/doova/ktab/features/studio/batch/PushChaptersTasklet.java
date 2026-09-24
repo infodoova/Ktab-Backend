@@ -89,9 +89,12 @@ public class PushChaptersTasklet implements Tasklet {
 
             StringBuilder contentBuilder = new StringBuilder();
             for (BookPage p : pages) {
-                if (p.getMarkdownClean() != null && !p.getMarkdownClean().isBlank()) {
+                String pageText = (p.getMarkdownClean() != null && !p.getMarkdownClean().isBlank())
+                        ? p.getMarkdownClean()
+                        : p.getMarkdownContent();
+                if (pageText != null && !pageText.isBlank()) {
                     if (!contentBuilder.isEmpty()) contentBuilder.append("\n\n");
-                    contentBuilder.append(p.getMarkdownClean());
+                    contentBuilder.append(pageText);
                 }
             }
             String content = contentBuilder.toString();
@@ -101,8 +104,14 @@ public class PushChaptersTasklet implements Tasklet {
             String title = section.getTitle() != null && !section.getTitle().isBlank()
                     ? section.getTitle() : "Chapter " + (currentOrder + 1);
 
-            // External HTTP call outside DB transaction (senior backend standard)
-            StudioChapterDetail detail = client.createChapter(extProjectId, title, content);
+            // External HTTP calls outside DB transaction (senior backend standard)
+            // Step 1: Create the chapter (name only — API does not accept content at creation time)
+            StudioChapterDetail detail = client.createChapter(extProjectId, title);
+
+            // Step 2: Push OCR text content to the created chapter
+            if (!content.isBlank()) {
+                client.updateChapterContent(extProjectId, detail.chapterId(), content);
+            }
 
             // Commit section and chapter link in a short transaction
             transactionTemplate.executeWithoutResult(status -> {

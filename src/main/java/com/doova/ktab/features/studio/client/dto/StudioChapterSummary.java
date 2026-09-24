@@ -1,5 +1,6 @@
 package com.doova.ktab.features.studio.client.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -10,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record StudioChapterSummary(
-        @JsonProperty("chapter_id") String chapterId,
+        @JsonProperty("chapter_id") @JsonAlias({"chapterId", "id"}) String chapterId,
         String name,
         String state,
         @JsonProperty("can_be_downloaded") boolean canBeDownloaded,

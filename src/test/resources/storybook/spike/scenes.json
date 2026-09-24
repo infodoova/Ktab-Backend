@@ -1,0 +1,17 @@
+[
+  {"zone": "TOP",    "scene": "The CHILD wakes up in bed, stretching and smiling, morning light through the window."},
+  {"zone": "BOTTOM", "scene": "Close-up of the CHILD's face, laughing, eyes closed with joy."},
+  {"zone": "TOP",    "scene": "The CHILD runs across a green park, seen from far away, small in the frame."},
+  {"zone": "TOP",    "scene": "The CHILD, seen from behind and slightly to the side, looks at the sea at sunset."},
+  {"zone": "BOTTOM", "scene": "The CHILD sits cross-legged on a rug, building a tower of wooden blocks."},
+  {"zone": "TOP",    "scene": "The CHILD kicks a football, mid-motion, in a sunny courtyard."},
+  {"zone": "TOP",    "scene": "The CHILD climbs a small tree in an orchard, reaching for an orange."},
+  {"zone": "BOTTOM", "scene": "The CHILD eats breakfast at a kitchen table with bread, olives and tea."},
+  {"zone": "TOP",    "scene": "The CHILD waves goodbye from a school gate, in soft rain with an umbrella."},
+  {"zone": "BOTTOM", "scene": "The CHILD lies on the grass at night, looking up at the stars."},
+  {"zone": "TOP",    "scene": "The CHILD paints a picture at an easel, colourful paint on the hands."},
+  {"zone": "BOTTOM", "scene": "The CHILD rides a bicycle down a quiet street lined with palm trees."},
+  {"zone": "TOP",    "scene": "The CHILD, surprised, opens a gift box in a living room."},
+  {"zone": "TOP",    "scene": "The CHILD swims in a calm pool wearing modest swimwear, splashing happily."},
+  {"zone": "BOTTOM", "scene": "The CHILD sleeps in bed hugging a teddy bear, a night light glowing."}
+]

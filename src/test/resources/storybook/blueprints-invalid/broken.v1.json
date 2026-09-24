@@ -1,0 +1,14 @@
+{
+  "key": "broken", "version": 1, "titleAr": "خطأ", "titleEn": "Broken", "theme": "test",
+  "ageBands": ["AGE_6_8"], "allowedSettings": ["GENERIC_CITY"], "religious": false,
+  "beats": [
+    {"order": 1, "minPageCount": 10, "beat": "a"}, {"order": 2, "minPageCount": 10, "beat": "b"},
+    {"order": 3, "minPageCount": 10, "beat": "c"}, {"order": 4, "minPageCount": 10, "beat": "d"},
+    {"order": 5, "minPageCount": 10, "beat": "e"}, {"order": 6, "minPageCount": 10, "beat": "f"},
+    {"order": 7, "minPageCount": 10, "beat": "g"}, {"order": 8, "minPageCount": 10, "beat": "h"},
+    {"order": 9, "minPageCount": 10, "beat": "i"}, {"order": 10, "minPageCount": 10, "beat": "j"},
+    {"order": 11, "minPageCount": 10, "beat": "k"}, {"order": 12, "minPageCount": 12, "beat": "l"},
+    {"order": 13, "minPageCount": 15, "beat": "m"}, {"order": 14, "minPageCount": 15, "beat": "n"},
+    {"order": 15, "minPageCount": 15, "beat": "o"}
+  ]
+}

@@ -6,9 +6,7 @@ import lombok.Getter;
 public enum AppLanguage {
     ARABIC("ar", "العربية", "Arabic"),
     ENGLISH("en", "الإنجليزية", "English"),
-    FRENCH("fr", "الفرنسية", "French"),
-    SPANISH("es", "الإسبانية", "Spanish"),
-    GERMAN("de", "الألمانية", "German");
+    FRENCH("fr", "الفرنسية", "French");
 
     private final String code;
     private final String labelAr;

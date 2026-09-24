@@ -40,8 +40,8 @@ class ElevenLabsStudioClientTest {
     }
 
     @Test
-    @DisplayName("createProject builds JSON request and deserializes response")
-    void createProject_validResponse_returnsProject() throws Exception {
+    @DisplayName("createProject sends multipart/form-data with correct fields")
+    void createProject_validResponse_sendsMultipartAndDeserializesProject() throws Exception {
         String json = """
                 {
                     "project_id": "proj-abc-123",
@@ -70,6 +70,34 @@ class ElevenLabsStudioClientTest {
         assertEquals("POST", sent.method());
         assertEquals(URI.create("https://api.elevenlabs.io/v1/studio/projects"), sent.uri());
         assertEquals("test-key-12345", sent.headers().firstValue("xi-api-key").orElse(null));
+        // Verify it is multipart/form-data, not application/json
+        String contentType = sent.headers().firstValue("Content-Type").orElse("");
+        assertTrue(contentType.startsWith("multipart/form-data"),
+                "Expected multipart/form-data but got: " + contentType);
+    }
+
+    @Test
+    @DisplayName("createProject with null voice IDs succeeds without NullPointerException")
+    void createProject_nullVoiceIds_succeedsWithoutNpe() throws Exception {
+        String json = """
+                {
+                    "project_id": "proj-xyz-789",
+                    "name": "Book With Null Voices",
+                    "default_model_id": "eleven_v2_multilingual",
+                    "quality_preset": "high",
+                    "state": "created"
+                }
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        // Both titleVoiceId and paragraphVoiceId are null; defaultTitleVoiceId in props is null
+        StudioProjectResponse result = client.createProject("Book With Null Voices", "https://s3.example.com/null.pdf", null, null, null);
+
+        assertNotNull(result);
+        assertEquals("proj-xyz-789", result.projectId());
+        assertEquals("Book With Null Voices", result.name());
     }
 
     @Test
@@ -254,6 +282,154 @@ class ElevenLabsStudioClientTest {
                 () -> client.getProject("proj-123"));
         assertEquals(-1, ex.statusCode());
         assertTrue(ex.getMessage().contains("Connection reset"));
+    }
+
+    @Test
+    @DisplayName("createProject unwraps { project: { ... } } response envelope from ElevenLabs")
+    void createProject_wrappedResponse_returnsUnwrappedProject() throws Exception {
+        String json = """
+                {
+                    "project": {
+                        "project_id": "proj-wrapped-123",
+                        "name": "Wrapped Project",
+                        "default_model_id": "eleven_v2_multilingual",
+                        "quality_preset": "high",
+                        "state": "created"
+                    }
+                }
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        StudioProjectResponse result = client.createProject("Wrapped Project", "https://s3.example.com/test.pdf", null, null, null);
+
+        assertNotNull(result);
+        assertEquals("proj-wrapped-123", result.projectId());
+        assertEquals("Wrapped Project", result.name());
+    }
+
+    @Test
+    @DisplayName("createChapter unwraps { chapter: { ... } } response envelope from ElevenLabs")
+    void createChapter_wrappedResponse_returnsUnwrappedChapter() throws Exception {
+        String json = """
+                {
+                    "chapter": {
+                        "chapter_id": "chap-wrapped-456",
+                        "name": "Chapter 1",
+                        "state": "default"
+                    }
+                }
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        // createChapter now takes only name — content must be pushed via updateChapterContent
+        StudioChapterDetail result = client.createChapter("proj-123", "Chapter 1");
+
+        assertNotNull(result);
+        assertEquals("chap-wrapped-456", result.chapterId());
+        assertEquals("Chapter 1", result.name());
+
+        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(mockHttpClient).send(captor.capture(), any());
+        HttpRequest sent = captor.getValue();
+        assertEquals("POST", sent.method());
+        assertTrue(sent.uri().toString().endsWith("/chapters"), "URI should end with /chapters");
+        assertEquals("application/json", sent.headers().firstValue("Content-Type").orElse(null));
+    }
+
+    @Test
+    @DisplayName("updateChapterContent POSTs to /chapters/{id} with content body")
+    void updateChapterContent_validInput_sendsJsonToChapterId() throws Exception {
+        String json = """
+                {
+                    "chapter": {
+                        "chapter_id": "chap-upd-789",
+                        "name": "Chapter 1",
+                        "state": "draft"
+                    }
+                }
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        StudioChapterDetail result = client.updateChapterContent("proj-123", "chap-upd-789", "<p>Hello</p>");
+
+        assertNotNull(result);
+        assertEquals("chap-upd-789", result.chapterId());
+
+        ArgumentCaptor<HttpRequest> captor = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(mockHttpClient).send(captor.capture(), any());
+        HttpRequest sent = captor.getValue();
+        assertEquals("POST", sent.method());
+        assertTrue(sent.uri().toString().endsWith("/chapters/chap-upd-789"), "URI should end with /chapters/{id}");
+        assertEquals("application/json", sent.headers().firstValue("Content-Type").orElse(null));
+    }
+
+    @Test
+    @DisplayName("missing API key throws StudioApiException.Fatal with 401 code")
+    void requireApiKey_missingKey_throwsFatal401() {
+        props.setApiKey(null);
+
+        StudioApiException.Fatal ex = assertThrows(StudioApiException.Fatal.class,
+                () -> client.createProject("Title", "url", null, null, null));
+        assertEquals(401, ex.statusCode());
+        assertTrue(ex.getMessage().contains("ElevenLabs API key is missing"));
+    }
+
+    @Test
+    @DisplayName("listChapters unwraps { chapters: [ ... ] } response envelope")
+    void listChapters_wrappedEnvelope_returnsChapterSummaries() throws Exception {
+        String json = """
+                {
+                    "chapters": [
+                        {
+                            "chapter_id": "chap-1",
+                            "name": "Chapter 1",
+                            "conversion_progress": 1.0,
+                            "can_be_downloaded": true
+                        }
+                    ]
+                }
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        List<StudioChapterSummary> result = client.listChapters("proj-123");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("chap-1", result.get(0).chapterId());
+        assertEquals("Chapter 1", result.get(0).name());
+    }
+
+    @Test
+    @DisplayName("listChapters parses direct JSON array [ ... ] without error")
+    void listChapters_directArray_returnsChapterSummaries() throws Exception {
+        String json = """
+                [
+                    {
+                        "chapter_id": "chap-direct-1",
+                        "name": "Direct Chapter 1",
+                        "conversion_progress": 0.5,
+                        "can_be_downloaded": false
+                    }
+                ]
+                """;
+
+        HttpResponse<String> response = mockResponse(200, json);
+        doReturn(response).when(mockHttpClient).send(any(), any());
+
+        List<StudioChapterSummary> result = client.listChapters("proj-123");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("chap-direct-1", result.get(0).chapterId());
+        assertEquals("Direct Chapter 1", result.get(0).name());
     }
 
     @SuppressWarnings("unchecked")

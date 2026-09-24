@@ -22,8 +22,8 @@ public class StudioProperties {
     private String baseUrl = "https://api.elevenlabs.io";
 
     private String defaultModelId = "eleven_v2_multilingual";
-    private String defaultTitleVoiceId;
-    private String defaultParagraphVoiceId;
+    private String defaultTitleVoiceId = "21m00Tcm4TlvDq8ikWAM";
+    private String defaultParagraphVoiceId = "21m00Tcm4TlvDq8ikWAM";
     private String qualityPreset = "high";
 
     /** Synthetic pagination target for projected digital-book pages (docs Phase 3.6). */

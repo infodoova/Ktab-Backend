@@ -33,6 +33,13 @@ public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSp
             """)
     int getTotalWordCount(@Param("bookId") Long bookId);
 
+    @Query("""
+                select cast(coalesce(sum(length(coalesce(bp.markdownClean, bp.markdownContent))), 0) as long)
+                from BookPage bp
+                where bp.book.id = :bookId
+            """)
+    long getTotalCharacterCount(@Param("bookId") Long bookId);
+
     java.util.Optional<BookPage> findByBookIdAndPageNumber(Long bookId, int pageNumber);
 
     List<BookPage> findByBookIdAndStatusInOrderByPageNumberAsc(Long bookId, java.util.Collection<com.doova.ktab.enums.status.OcrStatus> statuses);

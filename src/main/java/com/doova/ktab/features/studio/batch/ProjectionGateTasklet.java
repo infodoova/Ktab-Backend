@@ -75,8 +75,11 @@ public class ProjectionGateTasklet implements Tasklet {
 
                 long chars = 0;
                 for (BookPage p : pages) {
-                    if (p.getMarkdownClean() != null) {
-                        chars += p.getMarkdownClean().length();
+                    String pageText = (p.getMarkdownClean() != null && !p.getMarkdownClean().isBlank())
+                            ? p.getMarkdownClean()
+                            : p.getMarkdownContent();
+                    if (pageText != null) {
+                        chars += pageText.length();
                     }
                 }
 

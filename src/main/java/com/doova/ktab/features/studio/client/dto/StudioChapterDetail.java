@@ -1,5 +1,6 @@
 package com.doova.ktab.features.studio.client.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -11,7 +12,7 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record StudioChapterDetail(
-        @JsonProperty("chapter_id") String chapterId,
+        @JsonProperty("chapter_id") @JsonAlias({"chapterId", "id"}) String chapterId,
         String name,
         String state,
         Content content
@@ -22,7 +23,7 @@ public record StudioChapterDetail(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Block(
-            @JsonProperty("block_id") String blockId,
+            @JsonProperty("block_id") @JsonAlias({"blockId", "id"}) String blockId,
             /** "p" | "h1" | "h2" | "h3" */
             String type,
             List<Node> nodes

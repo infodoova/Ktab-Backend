@@ -1,0 +1,12 @@
+[
+  {"id": "c1-boy-curly", "gender": "BOY", "ageBand": "AGE_6_8",
+   "appearance": {"skinTone": "OLIVE", "hairColor": "BLACK", "hairStyle": "SHORT_CURLY", "eyeColor": "BROWN", "hijab": false, "glasses": false}},
+  {"id": "c2-girl-hijab", "gender": "GIRL", "ageBand": "AGE_9_10",
+   "appearance": {"skinTone": "LIGHT", "eyeColor": "GREEN", "hijab": true, "glasses": true}},
+  {"id": "c3-girl-braids", "gender": "GIRL", "ageBand": "AGE_3_5",
+   "appearance": {"skinTone": "DARK_BROWN", "hairColor": "BLACK", "hairStyle": "BRAIDS", "eyeColor": "DARK_BROWN", "hijab": false, "glasses": false}},
+  {"id": "c4-boy-glasses", "gender": "BOY", "ageBand": "AGE_9_10",
+   "appearance": {"skinTone": "TAN", "hairColor": "DARK_BROWN", "hairStyle": "VERY_SHORT", "eyeColor": "HAZEL", "hijab": false, "glasses": true}},
+  {"id": "c5-girl-red", "gender": "GIRL", "ageBand": "AGE_6_8",
+   "appearance": {"skinTone": "VERY_LIGHT", "hairColor": "RED", "hairStyle": "LONG_STRAIGHT", "eyeColor": "BLUE", "hijab": false, "glasses": false}}
+]

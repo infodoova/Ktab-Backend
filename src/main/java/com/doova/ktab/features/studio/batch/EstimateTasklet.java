@@ -28,16 +28,18 @@ public class EstimateTasklet implements Tasklet {
 
     @Override
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
-        int totalChars = pageRepository.getTotalWordCount(bookId);
-        // getTotalWordCount counts words; character estimate = words × avg 5 chars. Use the
-        // full markdown content word count as a proxy — a more precise character scan would
-        // require streaming all page content. This is intentionally conservative.
-        long charEstimate = (long) totalChars * 5;
+        long charEstimate = pageRepository.getTotalCharacterCount(bookId);
+        int totalWords = 0;
+        if (charEstimate <= 0) {
+            totalWords = pageRepository.getTotalWordCount(bookId);
+            // Fallback: words * 4 average (Arabic words average ~4 chars)
+            charEstimate = (long) totalWords * 4L;
+        }
 
         long ceiling = props.getAudiobook().getMaxCharsPerBook();
 
-        log.info("studio.estimate bookId={} wordCount={} charEstimate={} ceiling={}",
-                bookId, totalChars, charEstimate, ceiling);
+        log.info("studio.estimate bookId={} words={} charEstimate={} ceiling={}",
+                bookId, totalWords, charEstimate, ceiling);
 
         if (charEstimate > ceiling) {
             throw new IllegalStateException(
