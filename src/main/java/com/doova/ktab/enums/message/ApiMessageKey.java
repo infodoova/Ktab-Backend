@@ -156,7 +156,24 @@ public enum ApiMessageKey {
     RATE_LIMIT_EXCEEDED("rate.limit.exceeded"),
 
     // ===== TIMEOUT =====
-    REQUEST_TIMEOUT("request.timeout");
+    REQUEST_TIMEOUT("request.timeout"),
+
+    // ===== STORYBOOK =====
+    STORYBOOK_CHILD_SAVED("storybook.child.saved"), STORYBOOK_CHILD_FETCHED("storybook.child.fetched"),
+    STORYBOOK_CHILD_DELETED("storybook.child.deleted"), STORYBOOK_CHILD_NOT_FOUND("storybook.child.not.found"),
+    STORYBOOK_NOT_FOUND("storybook.not.found"), STORYBOOK_CREATED("storybook.created"),
+    STORYBOOK_FETCHED("storybook.fetched"), STORYBOOK_BLUEPRINTS_FETCHED("storybook.blueprints.fetched"),
+    STORYBOOK_BLUEPRINT_NOT_ALLOWED("storybook.blueprint.not.allowed"),
+    STORYBOOK_SETTING_NOT_ALLOWED("storybook.setting.not.allowed"),
+    STORYBOOK_INVALID_PAGE_COUNT("storybook.invalid.page.count"),
+    STORYBOOK_TOO_MANY_INTERESTS("storybook.too.many.interests"),
+    STORYBOOK_DIALECT_REQUIRES_NO_TASHKEEL("storybook.dialect.requires.no.tashkeel"),
+    STORYBOOK_TASHKEEL_REQUIRED("storybook.tashkeel.required"),
+    STORYBOOK_DEDICATION_REJECTED("storybook.dedication.rejected"),
+    STORYBOOK_INVALID_STATE("storybook.invalid.state"), STORYBOOK_ACTION_ACCEPTED("storybook.action.accepted"),
+    STORYBOOK_LIMIT_REACHED("storybook.limit.reached"),
+    STORYBOOK_PHOTO_CONSENT_REQUIRED("storybook.photo.consent.required"),
+    STORYBOOK_NOT_READY("storybook.not.ready"), STORYBOOK_INSUFFICIENT_CREDITS("storybook.insufficient.credits");
 
 
     private final String key;
