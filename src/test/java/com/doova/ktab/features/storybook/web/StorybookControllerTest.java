@@ -39,6 +39,7 @@ class StorybookControllerTest {
     private final com.doova.ktab.features.storybook.story.pipeline.StoryApprovalService storyApprovalService = mock(com.doova.ktab.features.storybook.story.pipeline.StoryApprovalService.class);
     private final com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService = mock(com.doova.ktab.features.storybook.character.PhotoIntakeService.class);
     private final com.doova.ktab.features.storybook.illustration.LookService lookService = mock(com.doova.ktab.features.storybook.illustration.LookService.class);
+    private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService = mock(com.doova.ktab.features.storybook.illustration.PageRegenerationService.class);
     private MockMvc mvc;
     private final User user = new User();
 
@@ -49,7 +50,7 @@ class StorybookControllerTest {
             public boolean supportsParameter(MethodParameter p) { return p.hasParameterAnnotation(CurrentUser.class); }
             public Object resolveArgument(MethodParameter p, ModelAndViewContainer m, NativeWebRequest r, WebDataBinderFactory f) { return user; }
         };
-        mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService, photoIntakeService, lookService))
+        mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService, photoIntakeService, lookService, pageRegenerationService))
                 .setCustomArgumentResolvers(currentUser).build();
     }
 
@@ -121,6 +122,12 @@ class StorybookControllerTest {
     @Test
     void approveLookReturns202Accepted() throws Exception {
         mvc.perform(post("/storybook/books/42/character/approve"))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void regeneratePageReturns202Accepted() throws Exception {
+        mvc.perform(post("/storybook/books/42/pages/3/regenerate"))
                 .andExpect(status().isAccepted());
     }
 }

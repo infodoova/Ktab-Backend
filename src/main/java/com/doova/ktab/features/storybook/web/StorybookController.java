@@ -36,6 +36,14 @@ public class StorybookController {
     private final com.doova.ktab.features.storybook.story.pipeline.StoryApprovalService storyApprovalService;
     private final com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService;
     private final com.doova.ktab.features.storybook.illustration.LookService lookService;
+    private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService;
+
+    @PostMapping("/books/{bookId}/pages/{pageIndex}/regenerate")
+    public ResponseEntity<ApiResponse<Void>> regeneratePage(@CurrentUser User user, @PathVariable Long bookId,
+                                                            @PathVariable int pageIndex) {
+        pageRegenerationService.regenerate(user, bookId, pageIndex);
+        return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_ACTION_ACCEPTED.getMessage(messageSource), HttpStatus.ACCEPTED);
+    }
 
     @PostMapping("/books/{bookId}/character/regenerate")
     public ResponseEntity<ApiResponse<Void>> regenerateLook(@CurrentUser User user, @PathVariable Long bookId) {

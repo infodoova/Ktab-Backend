@@ -115,4 +115,76 @@ public class IllustrationPersistence {
         }
         enqueuer.enqueue(bookId, JobStep.QA_PAGE, pageIndex, generation);
     }
+
+    private static final java.util.Set<com.doova.ktab.features.storybook.enums.PageImageStatus> DONE_OK =
+            java.util.EnumSet.of(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_PASSED,
+                    com.doova.ktab.features.storybook.enums.PageImageStatus.ACCEPTED_BY_ADMIN);
+
+    @Transactional(readOnly = true)
+    public QaContext qaContext(Long bookId, int pageIndex, int generation) {
+        Storybook book = books.findById(bookId).orElseThrow();
+        com.doova.ktab.features.storybook.model.StorybookPage page =
+                pages.findByStorybook_IdAndPageIndex(bookId, pageIndex).orElseThrow();
+        var image = images.findByPage_IdAndGeneration(page.getId(), generation);
+        return new QaContext(bookId, book.getStatus(), page.getId(),
+                image.map(com.doova.ktab.features.storybook.model.StorybookPageImage::getId).orElse(null),
+                image.map(com.doova.ktab.features.storybook.model.StorybookPageImage::getStatus).orElse(null),
+                image.map(com.doova.ktab.features.storybook.model.StorybookPageImage::getImageKey).orElse(null),
+                page.getSceneEn(), page.getCharacters(),
+                characters.findByStorybook_IdAndKind(bookId, CharacterKind.CHILD).map(StorybookCharacter::getSheetKey).orElse(null),
+                characters.findByStorybook_IdAndKind(bookId, CharacterKind.COMPANION).map(StorybookCharacter::getSheetKey).orElse(null),
+                book.getStyle());
+    }
+
+    @Transactional
+    public void recordQa(Long bookId, Long pageId, Long imageId, int generation, VisualQaResponse verdict) {
+        Storybook book = books.findByIdForUpdate(bookId).orElseThrow(); // serializes advancement per book
+        com.doova.ktab.features.storybook.model.StorybookPage page = pages.findById(pageId).orElseThrow();
+        com.doova.ktab.features.storybook.model.StorybookPageImage image = images.findById(imageId).orElseThrow();
+        image.setQaResult(verdict);
+        int attemptInRound = generation - page.getRoundStartGeneration() + 1;
+        if (verdict.passed()) {
+            image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_PASSED);
+            page.setCurrentImage(image);
+        } else if (attemptInRound < properties.getImage().getMaxGenerations()) {
+            image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_FAILED);
+            page.setGeneration(generation + 1);
+            enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, page.getPageIndex(), generation + 1);
+        } else {
+            image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED);
+            page.setCurrentImage(image);
+        }
+        advance(book);
+    }
+
+    @Transactional
+    public void advanceIfDone(Long bookId) {
+        advance(books.findByIdForUpdate(bookId).orElseThrow());
+    }
+
+    private void advance(Storybook book) {
+        if (book.getStatus() != StorybookStatus.ILLUSTRATING) {
+            return;
+        }
+        boolean allOk = true;
+        boolean anyFlagged = false;
+        for (com.doova.ktab.features.storybook.model.StorybookPage p : pages.findByStorybook_IdOrderByPageIndexAsc(book.getId())) {
+            com.doova.ktab.features.storybook.enums.PageImageStatus status = images.findByPage_IdAndGeneration(p.getId(), p.getGeneration())
+                    .map(com.doova.ktab.features.storybook.model.StorybookPageImage::getStatus).orElse(null);
+            if (status == null || status == com.doova.ktab.features.storybook.enums.PageImageStatus.GENERATED
+                    || status == com.doova.ktab.features.storybook.enums.PageImageStatus.QA_FAILED) {
+                return; // still in progress
+            }
+            if (!DONE_OK.contains(status)) {
+                allOk = false;
+                anyFlagged |= (status == com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED);
+            }
+        }
+        if (allOk) {
+            stateMachine.transition(book, StorybookStatus.RENDERING);
+            enqueuer.enqueue(book.getId(), JobStep.RENDER_PDF, -1, book.getPageRegenerations());
+        } else if (anyFlagged) {
+            stateMachine.transition(book, StorybookStatus.QA);
+        }
+    }
 }
