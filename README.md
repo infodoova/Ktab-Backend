@@ -41,6 +41,24 @@ A full-featured REST API for managing the digital library ecosystem.
 *   **Social & Discovery**: Book reviews, ratings, author analytics, and smart recommendations.
 *   **Author Tools**: Analytics dashboard for authors to track engagement with their published works.
 
+### 6. Talk to Book — Grounded AI Reading Assistant (`com.doova.ktab.features.talktobook`)
+An enterprise-grade conversational AI assistant allowing readers to interactively query books with zero-hallucination guarantees and explicit page citations.
+*   **Dual-Routing Hybrid RAG**:
+    *   **Pinpoint Retrieval**: Queries specific events, dialogue, and quotes using PostgreSQL Full-Text Search (GIN indexing `tsvector` with `ts_rank` ranking) limiting context to the top 4 relevant pages (~1,200 tokens total).
+    *   **Macro Retrieval**: High-level questions (summaries, characters, plot overviews) combine the book Table of Contents (`tbl_book_sections`), introductory pages, and verified web search snippets.
+*   **Book Identity Verification**: Autonomously verifies that external web snippets belong strictly to the book and author before injecting into the LLM context.
+*   **Strict Modern Standard Arabic**: Enforces answers formulated exclusively in fluent Arabic (العربية الفصحى) with explicit page citations (e.g. `[الصفحة 42]`).
+*   **Dual-Tier Semantic Caching**:
+    *   *Tier 1*: Exact SHA-256 hash match ($O(1)$ instant lookups).
+    *   *Tier 2*: Cosine similarity matching for paraphrased queries ($\ge 0.90$).
+    *   *Asynchronous Eviction*: Non-blocking `@Async @EventListener` LFU/LRU cleanup capped at 500 records per book using a PostgreSQL covering index (`INCLUDE (col_id)`).
+*   **Multi-Layer Security & Guardrails**:
+    *   *Input Validation*: `@NotBlank`, `@Size(min=3, max=350)`, anti-spam regex pattern matching.
+    *   *Prompt Injection Defense*: Adversarial heuristics ("ignore previous instructions") + strict XML boundary delimiters (`<instructions>`, `<rules>`, `<context>`, `<main>`).
+    *   *Role-Based Security*: Restricted to `@PreAuthorize("hasAnyAuthority('READER')")` using authenticated JWT principals.
+    *   *Rate Limiting*: Bucket4j token bucket under `RateLimitTier.AI` (20 RPM per IP) with RFC-compliant `429` & `Retry-After` headers.
+
+
 ---
 
 ## 🏗 Project Architecture & Structure
@@ -62,6 +80,7 @@ The application follows a modular, domain-driven layered architecture using **Sp
 | **`exception`** | **Error Handling**: Custom exception classes and a global `GlobalExceptionHandler` for standardized API errors. |
 | **`security`** | **Security Config**: JWT filters, authentication providers, and security rules. |
 | **`ws`** | **WebSockets**: Handlers for real-time features like TTS streaming. |
+| **`features.talktobook`** | **Talk to Book Feature**: Conversational AI reading assistant with RAG retriever, semantic caching, LFU/LRU eviction, and guardrails. |
 | **`enums`** | **Enumerations**: Categorized into `status` (e.g., `BookStatus`), `user` (`UserRole`), and global types. |
 | **`config`** | **Configuration**: App-wide configs for S3, OpenAPI, Async tasks, and WebMvc. |
 
@@ -121,6 +140,16 @@ spring.ai.vertex.ai.gemini.location=us-central1
 # --- OpenAI ---
 spring.ai.openai.api-key=sk-your-openai-key
 
+# --- Talk to Book Agent (Isolated Configuration) ---
+ktab.talk-to-book.model=${KTAB_TALK_TO_BOOK_MODEL:gpt-5.4}
+ktab.talk-to-book.temperature=0.3
+ktab.talk-to-book.max-output-tokens=600
+ktab.talk-to-book.max-input-tokens=120
+ktab.talk-to-book.similarity-threshold=0.90
+ktab.talk-to-book.max-records-per-book=500
+ktab.talk-to-book.eviction-batch-size=50
+ktab.talk-to-book.web-search-enabled=true
+
 # --- ElevenLabs TTS ---
 elevenlabs.api-key=your-elevenlabs-key
 
@@ -130,6 +159,42 @@ cloud.aws.credentials.secret-key=your-secret-key
 cloud.aws.s3.bucket=your-bucket-name
 cloud.aws.region.static=us-east-1
 ```
+
+### 📖 Talk to Book API Quick Reference
+
+| Method | Endpoint | Authorization | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/books/{bookId}/talk` | Bearer Token (`READER`) | Submits a question about a book to the grounded AI assistant. |
+
+#### Request Payload (`TalkToBookRequest`)
+```json
+{
+  "question": "ما هي الفكرة الأساسية التي يدور حولها هذا الكتاب؟"
+}
+```
+
+#### Validation Rules
+* `question`: **Required**, length between **3 and 350 characters**, trimmed, spam-protected (rejects 10+ identical character runs).
+* `bookId`: **Required**, must be a positive integer (`@Positive`).
+* `Authorization`: Restricted to users with the `READER` role.
+
+#### Success Response Envelope (`ApiResponse<TalkToBookResponse>`)
+```json
+{
+  "success": true,
+  "status": 200,
+  "message": "تمت الإجابة على السؤال بنجاح",
+  "data": {
+    "question": "ما هي الفكرة الأساسية التي يدور حولها هذا الكتاب؟",
+    "answer": "يدور الكتاب حول رحلة استكشاف الذات... [الصفحة 12]",
+    "citedPages": [12, 13],
+    "cached": false,
+    "source": "INTERNAL_RAG",
+    "hitCount": 1
+  }
+}
+```
+
 
 ### Installation & Run
 

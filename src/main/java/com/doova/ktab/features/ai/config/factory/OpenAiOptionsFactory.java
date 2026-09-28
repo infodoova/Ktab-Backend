@@ -9,6 +9,6 @@ public class OpenAiOptionsFactory {
     public static OpenAiChatOptions createOptions(String model, double temperature, double topP, Integer maxTokens, boolean streamUsage) {
 
         // 💡 OOP: Encapsulation - All option-building logic is hidden here.
-        return OpenAiChatOptions.builder().model(model).temperature(temperature).topP(topP).maxTokens(maxTokens).streamUsage(streamUsage).build();
+        return OpenAiChatOptions.builder().model(model).temperature(temperature).topP(topP).maxCompletionTokens(maxTokens).streamUsage(streamUsage).build();
     }
 }

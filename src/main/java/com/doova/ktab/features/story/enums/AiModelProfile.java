@@ -4,9 +4,9 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 
 public enum AiModelProfile {
 
-    STORY(OpenAiChatOptions.builder().model("gpt-4o").temperature(0.7).topP(0.9).maxTokens(700).build()),
+    STORY(OpenAiChatOptions.builder().model("gpt-4o").temperature(0.7).topP(0.9).maxCompletionTokens(700).build()),
 
-    SUMMARY(OpenAiChatOptions.builder().model("gpt-4o").temperature(0.2).maxTokens(300).build());
+    SUMMARY(OpenAiChatOptions.builder().model("gpt-4o").temperature(0.2).maxCompletionTokens(300).build());
 
     private final OpenAiChatOptions options;
 

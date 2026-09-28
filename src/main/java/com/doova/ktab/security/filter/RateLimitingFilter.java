@@ -103,8 +103,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return RateLimitTier.AUTH;
         }
 
-        // Heavy / Expensive AI & Story endpoints
-        if (path.startsWith("/api/v1/ai/") || path.startsWith("/api/v1/story/")) {
+        // Heavy / Expensive AI, Story & Talk-to-Book endpoints
+        if (path.startsWith("/api/v1/ai/") || path.startsWith("/api/v1/story/") || path.endsWith("/talk")) {
             return RateLimitTier.AI;
         }
 

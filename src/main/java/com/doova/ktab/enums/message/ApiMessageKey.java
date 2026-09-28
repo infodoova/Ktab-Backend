@@ -173,7 +173,13 @@ public enum ApiMessageKey {
     STORYBOOK_INVALID_STATE("storybook.invalid.state"), STORYBOOK_ACTION_ACCEPTED("storybook.action.accepted"),
     STORYBOOK_LIMIT_REACHED("storybook.limit.reached"),
     STORYBOOK_PHOTO_CONSENT_REQUIRED("storybook.photo.consent.required"),
-    STORYBOOK_NOT_READY("storybook.not.ready"), STORYBOOK_INSUFFICIENT_CREDITS("storybook.insufficient.credits");
+    STORYBOOK_NOT_READY("storybook.not.ready"), STORYBOOK_INSUFFICIENT_CREDITS("storybook.insufficient.credits"),
+
+    // ===== TALK TO BOOK =====
+    TALK_TO_BOOK_ANSWER_SUCCESS("talktobook.answer.success"),
+    TALK_TO_BOOK_OFF_TOPIC("talktobook.question.off_topic"),
+    TALK_TO_BOOK_FULL_BOOK_PROHIBITED("talktobook.privacy.full_book_prohibited"),
+    TALK_TO_BOOK_UNEXPECTED_ERROR("talktobook.unexpected.error");
 
 
     private final String key;

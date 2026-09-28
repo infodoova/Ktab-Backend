@@ -143,6 +143,16 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ApiMessageKey.REQUEST_TIMEOUT.getMessage(messageSource), HttpStatus.GATEWAY_TIMEOUT));
     }
 
+    @ExceptionHandler({
+            org.springframework.ai.retry.TransientAiException.class,
+            org.springframework.ai.retry.NonTransientAiException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleAiRateLimitOrServiceFailure(Exception ex) {
+        log.warn("AI upstream service rate limit or failure: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ApiResponse.error(ApiMessageKey.RATE_LIMIT_EXCEEDED.getMessage(messageSource), HttpStatus.TOO_MANY_REQUESTS));
+    }
+
     @ExceptionHandler(ImageValidationException.class)
     public ResponseEntity<ApiResponse<Void>> handleImageValidation(ImageValidationException ex) {
         log.warn("Image validation failed: {} (details: {})", ex.getMessage(), ex.getDetails());

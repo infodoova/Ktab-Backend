@@ -52,6 +52,26 @@ public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSp
 
     void deleteByBook_Id(@Param("bookId") Long bookId);
 
+    @Query(value = """
+            SELECT * FROM tbl_book_pages
+            WHERE col_book_id = :bookId
+              AND coalesce(col_markdown_clean, col_markdown_content) IS NOT NULL
+              AND to_tsvector('simple', coalesce(col_markdown_clean, col_markdown_content)) @@ plainto_tsquery('simple', :query)
+            ORDER BY ts_rank(to_tsvector('simple', coalesce(col_markdown_clean, col_markdown_content)), plainto_tsquery('simple', :query)) DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<BookPage> searchPagesFullText(@Param("bookId") Long bookId, @Param("query") String query, @Param("limit") int limit);
+
+    @Query(value = """
+            SELECT * FROM tbl_book_pages
+            WHERE col_book_id = :bookId
+              AND coalesce(col_markdown_clean, col_markdown_content) IS NOT NULL
+              AND length(trim(coalesce(col_markdown_clean, col_markdown_content))) > 30
+            ORDER BY col_page_number ASC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<BookPage> findFirstPagesWithContent(@Param("bookId") Long bookId, @Param("limit") int limit);
+
     @Query("""
                 SELECT s
                 FROM BookPage s
