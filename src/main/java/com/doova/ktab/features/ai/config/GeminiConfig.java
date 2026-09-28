@@ -18,6 +18,9 @@ import static com.google.cloud.vertexai.Transport.GRPC;
 @Configuration
 public class GeminiConfig {
 
+    @Value("${gemini.api-key:${GEMINI_API_KEY:}}")
+    private String geminiApiKey;
+
     @Value("${spring.ai.vertex.ai.gemini.credentials-uri:}")
     private org.springframework.core.io.Resource credentialsResource;
 
@@ -120,6 +123,11 @@ public class GeminiConfig {
 
     @Bean
     public Client vertexGenAiClient() throws IOException {
+        if (geminiApiKey != null && !geminiApiKey.isBlank()) {
+            return Client.builder()
+                    .apiKey(geminiApiKey.trim())
+                    .build();
+        }
         return Client.builder()
                 .project(projectId)
                 .location("global")

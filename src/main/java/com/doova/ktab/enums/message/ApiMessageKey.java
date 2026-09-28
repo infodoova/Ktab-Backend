@@ -179,7 +179,19 @@ public enum ApiMessageKey {
     TALK_TO_BOOK_ANSWER_SUCCESS("talktobook.answer.success"),
     TALK_TO_BOOK_OFF_TOPIC("talktobook.question.off_topic"),
     TALK_TO_BOOK_FULL_BOOK_PROHIBITED("talktobook.privacy.full_book_prohibited"),
-    TALK_TO_BOOK_UNEXPECTED_ERROR("talktobook.unexpected.error");
+    TALK_TO_BOOK_UNEXPECTED_ERROR("talktobook.unexpected.error"),
+
+    // ===== IMAGE CONTENT GENERATOR =====
+    IMAGE_GEN_SUBMIT_SUCCESS("imagegen.submit.success"),
+    IMAGE_GEN_STATUS_FETCH_SUCCESS("imagegen.status.fetch.success"),
+    IMAGE_GEN_LIST_FETCH_SUCCESS("imagegen.list.fetch.success"),
+    IMAGE_GEN_DELETE_SUCCESS("imagegen.delete.success"),
+    IMAGE_GEN_NOT_FOUND("imagegen.not.found"),
+    IMAGE_GEN_RATE_LIMIT_EXCEEDED("imagegen.rate.limit.exceeded"),
+    IMAGE_GEN_CONCURRENT_LIMIT_EXCEEDED("imagegen.concurrent.limit.exceeded"),
+    IMAGE_GEN_IN_FLIGHT_DUPLICATE("imagegen.in_flight.duplicate"),
+    IMAGE_GEN_FAILED("imagegen.failed"),
+    IMAGE_GEN_FORBIDDEN("imagegen.forbidden");
 
 
     private final String key;
