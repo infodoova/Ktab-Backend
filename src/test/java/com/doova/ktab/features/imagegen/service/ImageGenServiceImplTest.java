@@ -85,7 +85,7 @@ class ImageGenServiceImplTest {
         properties = new ImageGenProperties();
         properties.setRateLimitPerHour(10);
         properties.setMaxConcurrentPerUser(3);
-        properties.setAiModel("gemini-3-pro-image-preview");
+        properties.setAiModel("gemini-3.1-flash-image");
 
         imageGenService = new ImageGenServiceImpl(
                 imageRepository,
