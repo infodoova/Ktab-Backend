@@ -59,7 +59,7 @@ public class GeneratedImage extends BaseUuidEntity {
     private String promptHash;
 
     @Column(name = "col_ai_model", nullable = false, length = 100)
-    private String aiModel = "gemini-2.5-flash-image";
+    private String aiModel = "gemini-3-pro-image";
 
     @Column(name = "col_storage_key", length = 512)
     private String storageKey;

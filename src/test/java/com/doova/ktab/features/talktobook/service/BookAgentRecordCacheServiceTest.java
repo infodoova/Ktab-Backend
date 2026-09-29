@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.ai.openai.OpenAiChatModel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -35,14 +37,19 @@ class BookAgentRecordCacheServiceTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private OpenAiChatModel chatModel;
+
+    private ObjectMapper objectMapper;
     private TalkToBookProperties properties;
     private BookAgentRecordCacheServiceImpl cacheService;
 
     @BeforeEach
     void setUp() {
+        objectMapper = new ObjectMapper();
         properties = new TalkToBookProperties();
         properties.setSimilarityThreshold(0.90);
-        cacheService = new BookAgentRecordCacheServiceImpl(recordRepository, properties, eventPublisher);
+        cacheService = new BookAgentRecordCacheServiceImpl(recordRepository, properties, eventPublisher, chatModel, objectMapper);
     }
 
     @Test
@@ -219,5 +226,32 @@ class BookAgentRecordCacheServiceTest {
         assertThat(rulesUpdated).isNotEqualTo(contentUpdated);
         properties.setModel("new-model");
         assertThat(cacheService.computeRevision(book)).isNotEqualTo(rulesUpdated);
+    }
+
+    @Test
+    @DisplayName("findSimilar_aiIntentMatch_incrementsCountAndReturnsRecord")
+    void findSimilar_aiIntentMatch_incrementsCountAndReturnsRecord() {
+        BookAgentRecord candidate = new BookAgentRecord();
+        candidate.setQuestion("summarize this");
+        candidate.setAnswer("Summary answer");
+        candidate.setCacheRevision("revision");
+        candidate.setCountUsed(2);
+
+        when(recordRepository.findByBookIdAndQuestionHash(1L, "hashTypo")).thenReturn(Optional.empty());
+        when(recordRepository.findByBookId(1L)).thenReturn(List.of(candidate));
+        when(recordRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        org.springframework.ai.chat.model.ChatResponse mockChatResponse = new org.springframework.ai.chat.model.ChatResponse(
+                List.of(new org.springframework.ai.chat.model.Generation(
+                        new org.springframework.ai.chat.messages.AssistantMessage("{\"matchIndex\":1}")
+                ))
+        );
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class))).thenReturn(mockChatResponse);
+
+        Optional<BookAgentRecord> result = cacheService.findSimilar(1L, "hashTypo", "sum this book", null, "revision");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getQuestion()).isEqualTo("summarize this");
+        assertThat(result.get().getCountUsed()).isEqualTo(3);
     }
 }

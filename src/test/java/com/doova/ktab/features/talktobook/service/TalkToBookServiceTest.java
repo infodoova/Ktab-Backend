@@ -22,6 +22,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
 
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +60,9 @@ class TalkToBookServiceTest {
     @Mock
     private OpenAiChatModel chatModel;
 
+    @Mock
+    private EmbeddingModel embeddingModel;
+
     private TalkToBookServiceImpl talkToBookService;
     private ObjectMapper objectMapper;
     private Book testBook;
@@ -74,6 +78,7 @@ class TalkToBookServiceTest {
                 webSearchService,
                 identityVerifier,
                 chatModel,
+                embeddingModel,
                 objectMapper
         );
 
@@ -131,6 +136,37 @@ class TalkToBookServiceTest {
 
         assertThat(response.answer()).isEqualTo("سانتياغو راعي أندلسي يبحث عن أسطورته الشخصية [1].");
         assertThat(response.citedPages()).isNull();
+    }
+
+    @Test
+    @DisplayName("askQuestion_exactMatchMissSemanticMatchHit_returnsCachedAnswer")
+    void askQuestion_exactMatchMissSemanticMatchHit_returnsCachedAnswer() {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(cacheService.computeHash("summarize tigtr th bok")).thenReturn("hashTypo");
+        when(cacheService.findSimilar(1L, "hashTypo", null, "revision")).thenReturn(Optional.empty());
+
+        float[] mockVector = new float[]{0.1f, 0.2f, 0.3f};
+        when(embeddingModel.embed("summarize tigtr th bok")).thenReturn(mockVector);
+
+        BookAgentRecord semanticRecord = new BookAgentRecord();
+        semanticRecord.setAnswer("This is the book summary [1].");
+        semanticRecord.setCitations(List.of(new BookCitation(1, "The book summary passage")));
+        semanticRecord.setCountUsed(4);
+
+        when(cacheService.findSimilar(1L, null, "summarize tigtr th bok", List.of(0.1f, 0.2f, 0.3f), "revision"))
+                .thenReturn(Optional.of(semanticRecord));
+
+        TalkToBookRequest request = new TalkToBookRequest("summarize tigtr th bok");
+        TalkToBookResponse response = talkToBookService.askQuestion(1L, request, 100L);
+
+        assertThat(response.cached()).isTrue();
+        assertThat(response.source()).isEqualTo("CACHED");
+        assertThat(response.answer()).isEqualTo("This is the book summary [1].");
+        assertThat(response.citations()).hasSize(1);
+        assertThat(response.hitCount()).isEqualTo(4);
+
+        verifyNoInteractions(guardrailService);
+        verifyNoInteractions(chatModel);
     }
 
     @Test

@@ -23,6 +23,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -69,6 +70,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
     private final BookWebSearchService webSearchService;
     private final BookIdentityVerifierService identityVerifier;
     private final OpenAiChatModel chatModel;
+    private final EmbeddingModel embeddingModel;
     private final ObjectMapper objectMapper;
 
     public TalkToBookServiceImpl(
@@ -79,6 +81,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
             BookWebSearchService webSearchService,
             BookIdentityVerifierService identityVerifier,
             @Qualifier("talkToBookChatModel") OpenAiChatModel chatModel,
+            @Qualifier("talkToBookEmbeddingModel") EmbeddingModel embeddingModel,
             ObjectMapper objectMapper) {
         this.bookRepository = bookRepository;
         this.cacheService = cacheService;
@@ -87,6 +90,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         this.webSearchService = webSearchService;
         this.identityVerifier = identityVerifier;
         this.chatModel = chatModel;
+        this.embeddingModel = embeddingModel;
         this.objectMapper = objectMapper;
     }
 
@@ -102,12 +106,31 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         // Capture before retrieval so concurrent edits cannot mark an old answer as current.
         String cacheRevision = cacheService.computeRevision(book);
 
-        // Step 1: Exact Hash Cache Lookup (fresh records only)
+        // Step 1: Exact Hash Cache Lookup (Tier 1)
         Optional<BookAgentRecord> cachedRecord = cacheService.findSimilar(bookId, questionHash, null, cacheRevision);
         if (cachedRecord.isPresent() && hasValidCitations(new LlmAnswerPayload(
                 sanitizeAnswer(cachedRecord.get().getAnswer()), cachedRecord.get().getCitations()), null)) {
             BookAgentRecord record = cachedRecord.get();
             log.info("Serving answer from cache for book {} (hitCount: {})", bookId, record.getCountUsed());
+            List<BookCitation> cachedCitations = record.getCitations() != null ? record.getCitations() : List.of();
+            String cleanAnswer = sanitizeAnswer(record.getAnswer());
+            return new TalkToBookResponse(
+                    rawQuestion,
+                    cleanAnswer,
+                    cachedCitations,
+                    true,
+                    "CACHED",
+                    record.getCountUsed()
+            );
+        }
+
+        // Step 1b: Semantic Vector & AI Intent Cache Lookup (Tier 2 & Tier 3)
+        List<Float> questionEmbedding = generateQuestionEmbeddingSafely(rawQuestion);
+        Optional<BookAgentRecord> semanticRecord = cacheService.findSimilar(bookId, null, rawQuestion, questionEmbedding, cacheRevision);
+        if (semanticRecord.isPresent() && hasValidCitations(new LlmAnswerPayload(
+                sanitizeAnswer(semanticRecord.get().getAnswer()), semanticRecord.get().getCitations()), null)) {
+            BookAgentRecord record = semanticRecord.get();
+            log.info("Serving answer from semantic cache for book {} (hitCount: {})", bookId, record.getCountUsed());
             List<BookCitation> cachedCitations = record.getCitations() != null ? record.getCitations() : List.of();
             String cleanAnswer = sanitizeAnswer(record.getAnswer());
             return new TalkToBookResponse(
@@ -247,8 +270,11 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         }
         String cleanAnswer = sanitizeAnswer(parsedPayload.answer());
 
-        // Step 5: Save newly answered question to cache (countUsed = 1)
-        BookAgentRecord savedRecord = cacheService.saveRecord(book, rawQuestion, questionHash, null, cleanAnswer, parsedPayload.citations(), internalCitedPages, "WEB_AUGMENTED".equals(source), cacheRevision);
+        // Step 5: Save newly answered question to cache (with questionEmbedding)
+        if (questionEmbedding == null || questionEmbedding.isEmpty()) {
+            questionEmbedding = generateQuestionEmbeddingSafely(rawQuestion);
+        }
+        BookAgentRecord savedRecord = cacheService.saveRecord(book, rawQuestion, questionHash, questionEmbedding, cleanAnswer, parsedPayload.citations(), internalCitedPages, "WEB_AUGMENTED".equals(source), cacheRevision);
 
         return new TalkToBookResponse(
                 rawQuestion,
@@ -270,6 +296,26 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         }
         return answer.replaceAll("\\s*\\[(?:صفحة|الصفحة|ص|page)\\s*:?\\s*\\d+(?:\\s*[-–]\\s*\\d+)?\\]", "")
                 .trim();
+    }
+
+    private List<Float> generateQuestionEmbeddingSafely(String text) {
+        if (text == null || text.isBlank() || embeddingModel == null) {
+            return null;
+        }
+        try {
+            float[] vector = embeddingModel.embed(text);
+            if (vector == null || vector.length == 0) {
+                return null;
+            }
+            List<Float> result = new ArrayList<>(vector.length);
+            for (float f : vector) {
+                result.add(f);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Failed to generate question embedding for semantic cache lookup: {}", e.getMessage());
+            return null;
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

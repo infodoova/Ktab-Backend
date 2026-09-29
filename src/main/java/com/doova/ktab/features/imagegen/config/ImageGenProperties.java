@@ -14,7 +14,7 @@ import java.time.Duration;
 public class ImageGenProperties {
 
     /** AI model identifier for multimodal image generation */
-    private String aiModel = "gemini-2.5-flash-image";
+    private String aiModel = "gemini-3-pro-image";
 
     /** Max retry attempts on transient failures */
     private int maxRetries = 3;

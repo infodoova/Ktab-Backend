@@ -35,9 +35,14 @@ public class TalkToBookProperties {
     private int evictionBatchSize = 50;
 
     /**
+     * Dedicated OpenAI model for generating vector embeddings for semantic cache lookups.
+     */
+    private String embeddingModel = "text-embedding-3-small";
+
+    /**
      * Cosine similarity threshold for considering two questions identical (0.0 to 1.0).
      */
-    private double similarityThreshold = 0.90;
+    private double similarityThreshold = 0.82;
 
     /**
      * Maximum completion tokens allowed for OpenAI ChatGPT responses.

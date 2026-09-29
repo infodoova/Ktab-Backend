@@ -29,4 +29,18 @@ public class TalkToBookConfig {
                 .defaultOptions(options)
                 .build();
     }
+
+    @Bean
+    @Qualifier("talkToBookEmbeddingModel")
+    public org.springframework.ai.embedding.EmbeddingModel talkToBookEmbeddingModel(OpenAiApi openAiApi, TalkToBookProperties properties) {
+        org.springframework.ai.openai.OpenAiEmbeddingOptions options = org.springframework.ai.openai.OpenAiEmbeddingOptions.builder()
+                .model(properties.getEmbeddingModel())
+                .build();
+
+        return new org.springframework.ai.openai.OpenAiEmbeddingModel(
+                openAiApi,
+                org.springframework.ai.document.MetadataMode.NONE,
+                options
+        );
+    }
 }
