@@ -28,7 +28,7 @@ import java.util.Optional;
 public class BookAgentRecordCacheServiceImpl implements BookAgentRecordCacheService {
 
     // Bump alongside code changes to prompts, retrieval or citation rules.
-    private static final String RESPONSE_RULES_VERSION = "4";
+    private static final String RESPONSE_RULES_VERSION = "5";
 
     private final BookAgentRecordRepository recordRepository;
     private final TalkToBookProperties properties;
