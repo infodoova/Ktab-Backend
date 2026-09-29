@@ -315,8 +315,8 @@ class ImageGenServiceImplTest {
 
         assertNotNull(response);
         assertEquals(imageId, response.imageId());
-        assertEquals("Detailed Scene", response.context());
-        assertEquals(ImageTheme.WATERCOLOR, response.theme());
+        assertEquals("ألوان مائية", response.theme());
+        assertEquals("WATERCOLOR", response.themeKey());
         assertEquals("3:4", response.aspectRatio());
         assertEquals("https://media.ktab.ai/books/42/generated-images/100/detailed.png", response.imageUrl());
     }

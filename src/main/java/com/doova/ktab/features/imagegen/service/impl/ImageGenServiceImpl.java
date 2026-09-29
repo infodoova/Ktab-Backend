@@ -275,12 +275,20 @@ public class ImageGenServiceImpl implements ImageGenService {
         if (img.getStatus() == ImageGenerationStatus.COMPLETED && img.getStorageKey() != null) {
             url = storageService.resolveImageUrl(img.getStorageKey());
         }
+        String localizedTheme = img.getTheme() != null
+                ? img.getTheme().getLocalizedName(messageSource)
+                : null;
+        String themeKey = img.getTheme() != null
+                ? img.getTheme().name()
+                : null;
+
         return new GenerateImageResponse(
                 img.getId(),
                 img.getBook().getId(),
                 img.getBook().getTitle(),
                 img.getUserContext(),
-                img.getTheme(),
+                localizedTheme,
+                themeKey,
                 img.getAspectRatio(),
                 img.getStyleNotes(),
                 url,

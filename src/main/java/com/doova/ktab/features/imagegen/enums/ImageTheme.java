@@ -79,11 +79,33 @@ public enum ImageTheme {
         this.styleDirective = styleDirective;
     }
 
+    public String getArabicName() {
+        return switch (this) {
+            case REALISTIC -> "واقعي (فوتوغرافي)";
+            case CARTOON -> "كرتوني";
+            case WATERCOLOR -> "ألوان مائية";
+            case OIL_PAINTING -> "لوحة زيتية";
+            case DIGITAL_ART -> "فن رقمي";
+            case FLAT_DESIGN -> "تصميم مسطح";
+            case SKETCH -> "رسم بالقلم الرصاص";
+            case ANIME -> "أنمي";
+            case PIXEL_ART -> "بكسل آرت";
+            case FANTASY_ART -> "فانتازيا ملحمية";
+        };
+    }
+
     public String getLocalizedName(MessageSource messageSource) {
-        if (messageSource == null) {
-            return displayName;
+        if (messageSource != null) {
+            try {
+                String localized = messageSource.getMessage(nameKey, null, null, LocaleContextHolder.getLocale());
+                if (localized != null && !localized.isBlank()) {
+                    return localized;
+                }
+            } catch (Exception ignored) {
+                // Fall back to predefined Arabic display name
+            }
         }
-        return messageSource.getMessage(nameKey, null, displayName, LocaleContextHolder.getLocale());
+        return getArabicName();
     }
 
     public String getLocalizedDescription(MessageSource messageSource) {

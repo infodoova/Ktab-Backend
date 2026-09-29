@@ -24,8 +24,12 @@ public record GenerateImageResponse(
         @Schema(description = "User's creative context")
         String context,
 
-        @Schema(description = "Aesthetic theme")
-        ImageTheme theme,
+        @Schema(description = "Aesthetic theme localized in Arabic", example = "فانتازيا ملحمية")
+        String theme,
+
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @Schema(description = "Technical enum key for aesthetic theme", example = "FANTASY_ART")
+        String themeKey,
 
         @Schema(description = "Aspect ratio format")
         String aspectRatio,
@@ -47,4 +51,35 @@ public record GenerateImageResponse(
         @Schema(description = "Completion timestamp")
         Instant completedAt
 ) {
+    /**
+     * Backward-compatible constructor for callers or tests passing ImageTheme enum directly.
+     */
+    public GenerateImageResponse(
+            UUID imageId,
+            Long bookId,
+            String bookTitle,
+            String context,
+            ImageTheme theme,
+            String aspectRatio,
+            String styleNotes,
+            String imageUrl,
+            ImageGenerationStatus status,
+            LocalDateTime createdAt,
+            Instant completedAt
+    ) {
+        this(
+                imageId,
+                bookId,
+                bookTitle,
+                context,
+                theme != null ? theme.getArabicName() : null,
+                theme != null ? theme.name() : null,
+                aspectRatio,
+                styleNotes,
+                imageUrl,
+                status,
+                createdAt,
+                completedAt
+        );
+    }
 }
