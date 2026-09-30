@@ -30,9 +30,22 @@ class TrailerVoiceCatalogTest {
     }
 
     @Test
+    void parsesThePlainTextCatalogThatSurvivesEnvFiles() {
+        TrailerProperties p = new TrailerProperties();
+        p.setVoices("v1|Sami|politics, history; v2|Rawi|documentary, science ;v3|Solo");
+
+        List<TrailerVoice> voices = p.voiceCatalog();
+
+        assertThat(voices).extracting(TrailerVoice::id).containsExactly("v1", "v2", "v3");
+        assertThat(voices.get(0).name()).isEqualTo("Sami");
+        assertThat(voices.get(1).suits()).isEqualTo("documentary, science");
+        assertThat(voices.get(2).suits()).isNull();
+    }
+
+    @Test
     void aBrokenCatalogFailsLoudlyInsteadOfSilentlyUsingTheDefault() {
         TrailerProperties p = new TrailerProperties();
-        p.setVoices("not json");
+        p.setVoices("[not json");
         assertThatThrownBy(p::voiceCatalog).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("KTAB_TRAILER_VOICES");
     }

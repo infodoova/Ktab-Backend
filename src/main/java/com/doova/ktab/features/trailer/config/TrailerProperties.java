@@ -26,7 +26,8 @@ public class TrailerProperties {
     private String voiceId;
     /**
      * Optional JSON catalog of approved narration voices, e.g.
-     * {@code [{"id":"...","name":"Sami","suits":"politics, history"}]}. When present the agent picks the
+     * {@code [{"id":"...","name":"Sami","suits":"politics, history"}]} or the plain form
+     * {@code id|name|suits;id|name|suits}. When present the agent picks the
      * voice that best fits the book; {@link #voiceId} stays the default and the fallback.
      */
     private String voices;
@@ -77,6 +78,9 @@ public class TrailerProperties {
         if (voices == null || voices.isBlank()) {
             return java.util.List.of();
         }
+        if (!voices.stripLeading().startsWith("[")) {
+            return parsePlainCatalog(voices);
+        }
         try {
             java.util.List<TrailerVoice> catalog = new com.fasterxml.jackson.databind.ObjectMapper()
                     .readValue(voices, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<TrailerVoice>>() { });
@@ -90,5 +94,22 @@ public class TrailerProperties {
             throw new IllegalStateException("KTAB_TRAILER_VOICES is not a valid JSON array of {id, name, suits}: "
                     + e.getOriginalMessage(), e);
         }
+    }
+
+    /** {@code id|name|suits;id|name|suits}: survives .env files and Docker env, which mangle JSON quotes. */
+    private static java.util.List<TrailerVoice> parsePlainCatalog(String text) {
+        java.util.List<TrailerVoice> catalog = new java.util.ArrayList<>();
+        for (String entry : text.split(";")) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            String[] f = entry.split("[|]", 3);
+            String id = f[0].strip();
+            if (id.isEmpty()) {
+                throw new IllegalStateException("KTAB_TRAILER_VOICES: every voice needs an id");
+            }
+            catalog.add(new TrailerVoice(id, f.length > 1 ? f[1].strip() : null, f.length > 2 ? f[2].strip() : null));
+        }
+        return catalog;
     }
 }
