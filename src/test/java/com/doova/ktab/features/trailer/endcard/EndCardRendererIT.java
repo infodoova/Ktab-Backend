@@ -65,8 +65,9 @@ class EndCardRendererIT {
         List<Path> layers = renderer.render(spec, tmp.resolve("out"));
 
         assertThat(layers).extracting(p -> p.getFileName().toString())
-                .containsExactly("scrim.png", "cover.png", "title.png", "subtitle.png", "author.png", "logo.png");
-        for (Path p : layers) {
+                .containsExactly("scrim.png", "cover.png", "title.png", "subtitle.png", "rule.png", "author.png",
+                        "logo.png", "layout.json");
+        for (Path p : layers.stream().filter(x -> x.toString().endsWith(".png")).toList()) {
             BufferedImage img = ImageIO.read(p.toFile());
             assertThat(img.getWidth()).isEqualTo(1920);
             assertThat(img.getHeight()).isEqualTo(1080);
@@ -80,7 +81,18 @@ class EndCardRendererIT {
         BufferedImage cover = ImageIO.read(tmp.resolve("out/cover.png").toFile());
         assertThat(hasOpaquePixelsIn(cover, 240, 260, 640, 820)).as("cover is on the left").isTrue();
 
-        writePreview(layers, tmp.resolve("out"));
+        // the rule position the agent needs to animate the line drawing
+        var rule = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(tmp.resolve("out/layout.json").toFile()).path("rule");
+        assertThat(rule.path("w").asInt()).isEqualTo(350);
+        assertThat(rule.path("h").asInt()).isBetween(2, 3);
+        assertThat(rule.path("x").asInt()).isEqualTo(1155); // column centre 1330 - 175
+
+        Files.createDirectories(Path.of("target/endcard-layers"));
+        for (Path p : layers) {
+            Files.copy(p, Path.of("target/endcard-layers").resolve(p.getFileName()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        writePreview(layers.stream().filter(x -> x.toString().endsWith(".png")).toList(), tmp.resolve("out"));
     }
 
     @Test

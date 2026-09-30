@@ -38,7 +38,8 @@ class EndCardHtmlTest {
         EndCardSpec spec = new EndCardSpec("الصين والولايات المتحدة: حتمية الحرب الاقتصادية", "عدنان منصور",
                 Path.of("c.jpg"), Path.of("l.png"));
         assertThat(EndCardHtml.layersFor(spec)).containsExactly(EndCardHtml.Layer.SCRIM, EndCardHtml.Layer.COVER,
-                EndCardHtml.Layer.TITLE, EndCardHtml.Layer.SUBTITLE, EndCardHtml.Layer.AUTHOR, EndCardHtml.Layer.LOGO);
+                EndCardHtml.Layer.TITLE, EndCardHtml.Layer.SUBTITLE, EndCardHtml.Layer.RULE, EndCardHtml.Layer.AUTHOR,
+                EndCardHtml.Layer.LOGO);
         assertThat(EndCardHtml.build(spec, EndCardHtml.Layer.TITLE))
                 .contains("<div class=\"title\" id=\"title\">الصين والولايات المتحدة</div>");
         assertThat(EndCardHtml.build(spec, EndCardHtml.Layer.SUBTITLE))
@@ -66,6 +67,15 @@ class EndCardHtmlTest {
     }
 
     @Test
+    void theRuleBelongsToItsOwnLayerAndOnlyExistsWithAnAuthor() {
+        EndCardSpec spec = new EndCardSpec("ع", "م", null, Path.of("l.png"));
+        assertThat(EndCardHtml.build(spec, EndCardHtml.Layer.RULE)).contains("class=\"only-rule\"")
+                .contains("<div class=\"rule\"></div>");
+        assertThat(EndCardHtml.layersFor(new EndCardSpec("ع", "", null, Path.of("l.png"))))
+                .doesNotContain(EndCardHtml.Layer.RULE);
+    }
+
+    @Test
     void titleIsHtmlEscaped() {
         String html = EndCardHtml.build(new EndCardSpec("<b>x</b>", "م", null, Path.of("l.png")),
                 EndCardHtml.Layer.TITLE);
@@ -77,5 +87,6 @@ class EndCardHtmlTest {
         assertThat(EndCardHtml.Layer.SCRIM.fileName()).isEqualTo("scrim.png");
         assertThat(EndCardHtml.Layer.LOGO.fileName()).isEqualTo("logo.png");
         assertThat(EndCardHtml.Layer.SUBTITLE.fileName()).isEqualTo("subtitle.png");
+        assertThat(EndCardHtml.Layer.RULE.fileName()).isEqualTo("rule.png");
     }
 }

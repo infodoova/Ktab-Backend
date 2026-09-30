@@ -26,7 +26,8 @@ class TrailerLauncherTest {
     final TrailerLauncher launcher = new TrailerLauncher(trailers, gateway, books, props, endCardRenderer);
 
     private static final List<Path> ALL_LAYERS = List.of(Path.of("scrim.png"), Path.of("cover.png"),
-            Path.of("title.png"), Path.of("subtitle.png"), Path.of("author.png"), Path.of("logo.png"));
+            Path.of("title.png"), Path.of("subtitle.png"), Path.of("rule.png"), Path.of("author.png"),
+            Path.of("logo.png"), Path.of("layout.json"));
 
     private BookTrailer queued(long id, long bookId) {
         BookTrailer t = new BookTrailer();
@@ -99,7 +100,8 @@ class TrailerLauncherTest {
                         .map(TrailerAgentGateway.SessionFile::mountPath).toList()
                         .containsAll(List.of("/workspace/cover.jpg", "/workspace/endcard/scrim.png",
                                 "/workspace/endcard/cover.png", "/workspace/endcard/title.png",
-                                "/workspace/endcard/subtitle.png", "/workspace/endcard/author.png", "/workspace/endcard/logo.png"))),
+                                "/workspace/endcard/subtitle.png", "/workspace/endcard/rule.png", "/workspace/endcard/author.png",
+                                "/workspace/endcard/logo.png", "/workspace/endcard/layout.json"))),
                 contains("/workspace/endcard/"), anyString());
     }
 

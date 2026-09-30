@@ -12,7 +12,7 @@ The final trailer must reveal enough to create desire, preserve enough to create
 
 - **Book:** `/workspace/book.pdf` (read-only).
 - **Cover image:** `/workspace/cover.jpg` (read-only, present when available). Used for palette grounding only.
-- **End-card layers** (rendered by Ktab, already 1920 × 1080 with transparency and already positioned): `/workspace/endcard/scrim.png`, `/workspace/endcard/cover.png` (only when the book has a cover), `/workspace/endcard/title.png`, `/workspace/endcard/subtitle.png` (only when the title has a subtitle), `/workspace/endcard/author.png` (only when the book has an author; it includes the rule above the name), `/workspace/endcard/logo.png`. Use exactly the files that exist.
+- **End-card layers** (rendered by Ktab, already 1920 × 1080 with transparency and already positioned): `/workspace/endcard/scrim.png`, `/workspace/endcard/cover.png` (only when the book has a cover), `/workspace/endcard/title.png`, `/workspace/endcard/subtitle.png` (only when the title has a subtitle), `/workspace/endcard/rule.png` and `/workspace/endcard/author.png` (only when the book has an author), and `/workspace/endcard/layout.json` (where the rule sits, needed to animate it), `/workspace/endcard/logo.png`. Use exactly the files that exist.
 - **Task message:** book title, author, language, ElevenLabs `voice_id`, the Higgsfield **video allowance** (video jobs, including replacements) and **total allowance** (all Higgsfield jobs; FLUX.2 image jobs count toward the total, not toward the video jobs), the maximum concurrent generations, and the **exact `generate_video` arguments** to use.
 - **Defaults:** maximum **2 concurrent generations**, unless the task message specifies otherwise.
 
@@ -421,7 +421,7 @@ Validate `captions_ar.srt`: numbered cues, `HH:MM:SS,mmm --> HH:MM:SS,mmm` timin
 
 The final **2.5 seconds (27.5–30.0)** carry the Ktab end card over the generated dark plate. The card is already designed and laid out (cover on the left; centred title, subtitle, rule and author on the right; the Ktab logo at the bottom centre): the layers in `/workspace/endcard/` are 1920 × 1080 transparent PNGs, so every one is overlaid at `0:0`. **Never use drawtext**, and never retype or re-lay-out the title, author or logo. Skip any layer that does not exist.
 
-Give each PNG its own input, looped at the film's frame rate, and fade its alpha in:
+The card is **animated**: every element fades in with a small staggered motion, and the rule draws itself outwards from its centre. Give each PNG its own input, looped at the film's frame rate. `layout.json` holds the rule's box, `{"rule":{"x":1155,"y":590,"w":350,"h":2}}`; use its values (the example below uses these numbers) to crop the rule and animate it:
 
 ```bash
 FPS=<source fps>   # e.g. 24
@@ -429,26 +429,31 @@ ffmpeg -y -i /workspace/film_v1.mp4 -i /workspace/mix.wav \
   -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/scrim.png \
   -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/cover.png \
   -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/title.png \
+  -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/subtitle.png \
+  -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/rule.png \
   -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/author.png \
   -loop 1 -framerate $FPS -t 30 -i /workspace/endcard/logo.png \
   -filter_complex "
    [2:v]format=rgba,fade=t=in:st=27.5:d=0.4:alpha=1[scrim];
    [3:v]format=rgba,fade=t=in:st=27.55:d=0.45:alpha=1[cover];
-   [4:v]format=rgba,fade=t=in:st=27.75:d=0.35:alpha=1[title];
-   [5:v]format=rgba,fade=t=in:st=27.9:d=0.35:alpha=1[subtitle];
-   [6:v]format=rgba,fade=t=in:st=28.05:d=0.35:alpha=1[author];
-   [7:v]format=rgba,fade=t=in:st=28.2:d=0.35:alpha=1[logo];
+   [4:v]format=rgba,fade=t=in:st=27.75:d=0.4:alpha=1[title];
+   [5:v]format=rgba,fade=t=in:st=27.9:d=0.4:alpha=1[subtitle];
+   [6:v]crop=350:2:1155:590,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='if(lte(abs(X-175),175*clip((T-28.05)/0.35,0,1)),alpha(X,Y),0)'[rule];
+   [7:v]format=rgba,fade=t=in:st=28.15:d=0.4:alpha=1[author];
+   [8:v]format=rgba,fade=t=in:st=28.3:d=0.35:alpha=1[logo];
    [0:v][scrim]overlay=0:0[v1];
-   [v1][cover]overlay=x=0:y='if(lt(t,28.0),24*(1-(t-27.55)/0.45),0)'[v2];
-   [v2][title]overlay=0:0[v3];
-   [v3][subtitle]overlay=0:0[v3b];
-   [v3b][author]overlay=0:0[v4];
-   [v4][logo]overlay=0:0[v5];
-   [v5]fade=t=out:st=29.75:d=0.25[vout]" \
-  -map "[vout]" -map 1:a -t 30 -c:v libx264 -pix_fmt yuv420p -c:a aac /mnt/session/outputs/trailer.mp4
+   [v1][cover]overlay=x=0:y='24*pow(1-clip((t-27.55)/0.45,0,1),2)'[v2];
+   [v2][title]overlay=x=0:y='20*pow(1-clip((t-27.75)/0.4,0,1),2)'[v3];
+   [v3][subtitle]overlay=x=0:y='20*pow(1-clip((t-27.9)/0.4,0,1),2)'[v4];
+   [v4][rule]overlay=x=1155:y=590[v5];
+   [v5][author]overlay=x=0:y='20*pow(1-clip((t-28.15)/0.4,0,1),2)'[v6];
+   [v6][logo]overlay=0:0[v7];
+   [v7]fade=t=out:st=29.75:d=0.25[vout];
+   [1:a]afade=t=out:st=29.75:d=0.25[aout]" \
+  -map "[vout]" -map "[aout]" -t 30 -c:v libx264 -pix_fmt yuv420p -c:a aac /mnt/session/outputs/trailer.mp4
 ```
 
-Adapt the input list to the layers that exist (renumber the inputs and drop the matching filters). The timings are tightened for 2.5 seconds: scrim from 27.5 s, cover 27.55 s with a 24 px slide-up, title 27.75 s, subtitle 27.9 s, author 28.05 s, logo 28.2 s; the card is fully built by about 28.6 s and holds until 29.75 s, when the picture fades to black. The footage keeps playing beneath the card. The end card fades in smoothly; it never pops.
+Motion: the cover rises 24 px and the title, subtitle and author rise 20 px (ease-out) as they fade in; the rule (350 px wide) draws outward from its centre in 0.35 s; the logo and the scrim fade in without movement. Adapt the input list to the layers that exist (renumber the inputs and drop the matching filters; with no author there is no rule either). Replace `crop=350:2:1155:590`, `abs(X-175)`, `175*` and `overlay=x=1155:y=590` with the values in `layout.json` (`w/2` for 175). Timings: scrim from 27.5 s, cover 27.55 s, title 27.75 s, subtitle 27.9 s, rule 28.05 s, author 28.15 s, logo 28.3 s; the card is fully built by about 28.65 s and holds until 29.75 s, when the picture fades to black. The footage keeps playing beneath the card. The end card fades in smoothly; it never pops.
 
 ## 9. Final quality control
 

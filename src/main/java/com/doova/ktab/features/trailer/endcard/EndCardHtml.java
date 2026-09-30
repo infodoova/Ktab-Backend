@@ -10,13 +10,14 @@ import java.util.Locale;
  * Builds the 1920x1080 end-card page. Every layer is the same page with only one element visible, so each
  * transparent PNG already sits at its final position and the agent only has to fade it in.
  * Layout: cover on the left; centred title, subtitle, rule and author on the right; logo at the bottom centre.
+ * The rule is its own layer so the agent can animate it drawing outwards from its centre.
  * Relative file names the renderer must provide next to the page: fonts/Cairo.ttf, cover.jpg, logo.png.
  */
 public final class EndCardHtml {
 
     public enum Layer {
         SCRIM("scrim.png"), COVER("cover.png"), TITLE("title.png"), SUBTITLE("subtitle.png"),
-        AUTHOR("author.png"), LOGO("logo.png");
+        RULE("rule.png"), AUTHOR("author.png"), LOGO("logo.png");
 
         private final String fileName;
 
@@ -48,6 +49,7 @@ public final class EndCardHtml {
             layers.add(Layer.SUBTITLE);
         }
         if (spec.hasAuthor()) {
+            layers.add(Layer.RULE);
             layers.add(Layer.AUTHOR);
         }
         layers.add(Layer.LOGO);
@@ -89,8 +91,8 @@ public final class EndCardHtml {
             text.append("<div class=\"subtitle\">").append(HtmlUtils.htmlEscape(subtitle)).append("</div>");
         }
         if (spec.hasAuthor()) {
-            text.append("<div class=\"author\"><span class=\"rule\"></span><span>")
-                    .append(HtmlUtils.htmlEscape(spec.author().strip())).append("</span></div>");
+            text.append("<div class=\"rule\"></div><div class=\"author\">")
+                    .append(HtmlUtils.htmlEscape(spec.author().strip())).append("</div>");
         }
         text.append("</div>");
         String cover = spec.hasCover() ? "<img class=\"cover\" src=\"cover.jpg\" alt=\"\">" : "";
@@ -110,12 +112,11 @@ public final class EndCardHtml {
                 .no-cover .text{left:560px;}
                 .title{font-weight:700;font-size:%dpx;line-height:1.35;text-shadow:0 2px 12px rgba(0,0,0,.6);}
                 .subtitle{font-weight:500;font-size:34px;line-height:1.4;color:rgba(255,255,255,.9);text-shadow:0 2px 10px rgba(0,0,0,.6);}
-                .author{font-weight:400;font-size:30px;color:rgba(255,255,255,.82);display:flex;flex-direction:column;
-                  align-items:center;gap:26px;text-shadow:0 2px 10px rgba(0,0,0,.6);}
-                .rule{display:block;width:350px;height:2px;background:rgba(255,255,255,.85);}
+                .author{font-weight:400;font-size:30px;color:rgba(255,255,255,.82);text-shadow:0 2px 10px rgba(0,0,0,.6);}
+                .rule{width:350px;height:2px;background:rgba(255,255,255,.85);}
                 .logo{position:absolute;left:50%%;bottom:96px;transform:translateX(-50%%);height:56px;width:auto;max-width:360px;object-fit:contain;}
                 body:not(.only-scrim) .scrim,body:not(.only-cover) .cover,body:not(.only-title) .title,
-                body:not(.only-subtitle) .subtitle,body:not(.only-author) .author,body:not(.only-logo) .logo{visibility:hidden;}
+                body:not(.only-subtitle) .subtitle,body:not(.only-rule) .rule,body:not(.only-author) .author,body:not(.only-logo) .logo{visibility:hidden;}
                 </style></head>
                 <body class="only-%s"><div class="%s"><div class="scrim"></div>%s%s<img class="logo" src="logo.png" alt=""></div>
                 <script>

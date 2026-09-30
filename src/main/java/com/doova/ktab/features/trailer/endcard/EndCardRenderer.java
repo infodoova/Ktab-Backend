@@ -42,6 +42,7 @@ public class EndCardRenderer {
             writeTrimmed(spec.logo(), dir.resolve("logo.png"));
 
             List<Path> written = new ArrayList<>();
+            Object ruleBox = null;
             try (Playwright playwright = Playwright.create();
                  Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
                          .setHeadless(true)
@@ -67,11 +68,22 @@ public class EndCardRenderer {
                         throw new IllegalStateException(
                                 "The book title does not fit the end card even at the minimum size: " + spec.title());
                     }
+                    if (layer == EndCardHtml.Layer.RULE) {
+                        ruleBox = page.evaluate("(() => { const r = document.querySelector('.rule').getBoundingClientRect();"
+                                + " return [Math.floor(r.x), Math.floor(r.y), Math.ceil(r.width), Math.ceil(r.height)]; })()");
+                    }
                     Path png = outDir.resolve(layer.fileName());
                     page.screenshot(new Page.ScreenshotOptions().setOmitBackground(true).setPath(png));
                     page.close();
                     written.add(png);
                 }
+            }
+            if (ruleBox instanceof List<?> box && box.size() == 4) {
+                // where the rule sits, so the agent can crop it and animate it drawing outwards from its centre
+                Path layout = outDir.resolve("layout.json");
+                Files.writeString(layout, String.format("{\"rule\":{\"x\":%s,\"y\":%s,\"w\":%s,\"h\":%s}}",
+                        box.get(0), box.get(1), box.get(2), box.get(3)));
+                written.add(layout);
             }
             return written;
         } catch (IOException e) {

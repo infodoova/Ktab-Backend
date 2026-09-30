@@ -190,7 +190,8 @@ Why server-side: FFmpeg `drawtext` shapes Arabic unreliably (it depends on the b
 - `cover.png`: on the **left**: the cover at 580 px high (aspect preserved), left edge x = 240, vertically centred, 6 px radius, soft drop shadow.
 - `title.png`: on the **right**, centred in an 800 px column (left edge x = 930): the main title in Cairo Bold, white, with a subtle text shadow. The size steps down with the main title length (≤ 24 chars → 60 px, ≤ 40 → 52 px, ≤ 56 → 44 px, else 38 px), at most 3 lines and **never truncated**: an inline script shrinks it 2 px at a time (floor 32 px) until it fits, and the renderer throws if it still does not.
 - `subtitle.png`: only when the title has a subtitle. Ktab stores one title string, so **a title of the form "main: subtitle" is split at its first colon** (main above, subtitle below in Cairo Medium 34 px). No colon means no subtitle layer.
-- `author.png`: a 350 px white rule with the author's name below it (Cairo Regular 30 px, 82% white), centred in the same column. Skipped when the author is blank.
+- `rule.png` and `author.png`: a 350 px white rule (its own layer, so it can be animated) with the author's name below it (Cairo Regular 30 px, 82% white), centred in the same column. Both skipped when the author is blank. The renderer also writes **`layout.json`** with the rule's box (`{"rule":{"x":1155,"y":590,"w":350,"h":2}}`), which is mounted next to the layers.
+- **Animation (decided 2026-09-30, tested with FFmpeg 9):** every element fades in staggered (scrim 27.5 s, cover 27.55, title 27.75, subtitle 27.9, rule 28.05, author 28.15, logo 28.3 s; built by ≈ 28.65 s). The cover rises 24 px and the title, subtitle and author 20 px (ease-out); the rule draws outward from its centre (`crop` + `geq` alpha mask); the logo and scrim only fade.
 - `logo.png`: the owner's logo (`trailer/endcard/ktab-logo.png`, trimmed of transparent padding), 56 px high, **bottom centre** (96 px above the bottom edge). Used as-is.
 - With no cover, the text column moves to the screen centre (left edge x = 560).
 
@@ -200,7 +201,7 @@ Why server-side: FFmpeg `drawtext` shapes Arabic unreliably (it depends on the b
 - Create: `src/main/resources/trailer/endcard/ktab-logo.png`, **the owner's full logo file, copied in as Step 0**
 - Test: `src/test/java/com/doova/ktab/features/trailer/endcard/EndCardHtmlTest.java`, `EndCardRendererIT.java`
 
-**Produces:** `EndCardRenderer#render(EndCardSpec spec, Path outDir) → List<Path>` (file names from `EndCardHtml.Layer`), `record EndCardSpec(String title, String author, Path coverOrNull, Path logo)`, and `enum EndCardHtml.Layer { SCRIM, COVER, TITLE, SUBTITLE, AUTHOR, LOGO }` with `fileName()` → `scrim.png`, etc.
+**Produces:** `EndCardRenderer#render(EndCardSpec spec, Path outDir) → List<Path>` (file names from `EndCardHtml.Layer`), `record EndCardSpec(String title, String author, Path coverOrNull, Path logo)`, and `enum EndCardHtml.Layer { SCRIM, COVER, TITLE, SUBTITLE, RULE, AUTHOR, LOGO }` with `fileName()` → `scrim.png`, etc.
 
 - [ ] **Step 0: Add the logo.** Copy the owner's full logo file to `src/main/resources/trailer/endcard/ktab-logo.png`. Check that it has a transparent background and reads on dark; if it is dark-on-transparent, ask the owner for the light/negative version rather than recolouring it.
 - [ ] **Step 1: Failing unit tests** (`EndCardHtmlTest`, no browser needed)
