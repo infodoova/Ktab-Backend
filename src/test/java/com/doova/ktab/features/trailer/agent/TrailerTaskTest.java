@@ -6,15 +6,20 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TrailerTaskTest {
 
-    @Test
-    void taskCarriesBookFactsVoiceAndSeparateVideoAndTotalAllowances() {
-        String task = TrailerTask.describe("ثورة دونالد ترامب", "ألكسندر دوغين", "ar", "voice-123", 3, 16, 2,
-                "model=seedance_2_5, aspect_ratio=16:9, duration=30", false);
+    private static final List<TrailerVoice> VOICES = List.of(
+            new TrailerVoice("v1", "Sami", "politics, history"),
+            new TrailerVoice("v2", "Layla", "literature, self-development"));
 
-        assertThat(task).contains("ثورة دونالد ترامب").contains("ألكسندر دوغين").contains("voice-123")
+    @Test
+    void taskCarriesBookFactsAndSeparateVideoAndTotalAllowances() {
+        String task = TrailerTask.describe("ثورة دونالد ترامب", "ألكسندر دوغين", "ar", 3, 16, 2,
+                "model=seedance_2_5, aspect_ratio=16:9, duration=30", false, VOICES);
+
+        assertThat(task).contains("ثورة دونالد ترامب").contains("ألكسندر دوغين")
                 .contains("at most 3 video jobs").contains("at most 16 Higgsfield jobs in total")
                 .contains("image jobs count toward the total, not toward the video jobs")
                 .contains("at most 2 generations").contains("duration=30")
@@ -24,34 +29,31 @@ class TrailerTaskTest {
     }
 
     @Test
-    void taskListsTheApprovedVoicesAndTheDefaultAsFallback() {
-        String task = TrailerTask.describe("t", "a", "ar", "voice-default", 3, 16, 2, "model=seedance_2_5", false,
-                List.of(new TrailerVoice("v1", "Sami", "politics, history"),
-                        new TrailerVoice("v2", "Layla", "literature, self-development")));
+    void taskListsTheApprovedVoicesAndSendsNoSingleVoiceId() {
+        String task = TrailerTask.describe("t", "a", "ar", 3, 16, 2, "model=seedance_2_5", false, VOICES);
 
         assertThat(task).contains("Approved narration voices").contains("You must use one of these voices")
                 .contains("v1 — Sami: suits politics, history").contains("v2 — Layla: suits literature, self-development")
-                .doesNotContain("default voice_id").doesNotContain("voice-default");
+                .doesNotContain("default voice_id").doesNotContain("voice_id for the Arabic narration");
     }
 
     @Test
-    void withoutACatalogTheTaskKeepsTheSingleVoice() {
-        String task = TrailerTask.describe("t", "a", "ar", "voice-default", 3, 16, 2, "model=seedance_2_5", false);
-        assertThat(task).contains("ElevenLabs voice_id for the Arabic narration: voice-default")
-                .doesNotContain("Approved narration voices");
+    void aTaskWithoutVoicesIsRefused() {
+        assertThatThrownBy(() -> TrailerTask.describe("t", "a", "ar", 3, 16, 2, "model=seedance_2_5", false, List.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("KTAB_TRAILER_VOICES");
     }
 
     @Test
     void taskIncludesCoverImageWhenPresent() {
-        String task = TrailerTask.describe("ثورة دونالد ترامب", "ألكسندر دوغين", "ar", "voice-123", 3, 16, 2,
-                "model=seedance_2_5", true);
+        String task = TrailerTask.describe("ثورة دونالد ترامب", "ألكسندر دوغين", "ar", 3, 16, 2,
+                "model=seedance_2_5", true, VOICES);
 
         assertThat(task).contains("Cover image: /workspace/cover.jpg");
     }
 
     @Test
     void blankGenerateArgsFallBackToTheAgentsOwnInstructions() {
-        String task = TrailerTask.describe("t", "a", "ar", "voice-123", 3, 16, 2, "", false);
+        String task = TrailerTask.describe("t", "a", "ar", 3, 16, 2, "", false, VOICES);
         assertThat(task).contains("(see your instructions)");
     }
 

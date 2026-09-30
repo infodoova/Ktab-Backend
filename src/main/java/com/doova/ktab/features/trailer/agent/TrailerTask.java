@@ -14,16 +14,12 @@ public final class TrailerTask {
     private TrailerTask() {
     }
 
-    public static String describe(String title, String author, String language, String voiceId, int maxVideoJobs,
-                                  int maxJobs, int maxInFlight, String generateArgs, boolean hasCover) {
-        return describe(title, author, language, voiceId, maxVideoJobs, maxJobs, maxInFlight, generateArgs, hasCover, List.of());
-    }
-
-    public static String describe(String title, String author, String language, String voiceId, int maxVideoJobs,
-                                  int maxJobs, int maxInFlight, String generateArgs, boolean hasCover,
-                                  List<TrailerVoice> voices) {
-        String voiceBlock = voices == null || voices.isEmpty() ? "ElevenLabs voice_id for the Arabic narration: " + voiceId
-                : voiceCatalogText(voices);
+    public static String describe(String title, String author, String language, int maxVideoJobs, int maxJobs,
+                                  int maxInFlight, String generateArgs, boolean hasCover, List<TrailerVoice> voices) {
+        if (voices == null || voices.isEmpty()) {
+            throw new IllegalArgumentException("No narration voices configured: set KTAB_TRAILER_VOICES");
+        }
+        String voiceBlock = voiceCatalogText(voices);
         String coverLine = hasCover ? "Cover image: /workspace/cover.jpg\n" : "";
         return """
                 Produce the 30-second trailer for this book.

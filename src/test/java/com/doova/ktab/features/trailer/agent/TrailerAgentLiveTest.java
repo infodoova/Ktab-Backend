@@ -23,13 +23,14 @@ class TrailerAgentLiveTest {
         p.setAgentVersion(Integer.parseInt(System.getenv("KTAB_TRAILER_AGENT_VERSION")));
         p.setEnvironmentId(System.getenv("KTAB_TRAILER_ENVIRONMENT_ID"));
         p.setVaultId(System.getenv("KTAB_TRAILER_VAULT_ID"));
-        p.setVoiceId(System.getenv("KTAB_TRAILER_VOICE_ID"));
+        p.setVoices(System.getenv("KTAB_TRAILER_VOICES"));
         AnthropicTrailerAgentGateway gateway = new AnthropicTrailerAgentGateway(p);
 
         String fileId = gateway.uploadBook(Path.of(System.getenv("TRAILER_LIVE_PDF")));
         String sessionId = gateway.startSession(0L, fileId,
-                TrailerTask.describe("Live test", "Test author", "ar", p.getVoiceId(), p.getMaxVideoJobs(),
-                        p.getMaxHiggsfieldGenerations(), p.getHiggsfieldMaxInFlight(), p.getHiggsfieldGenerateArgs(), false),
+                TrailerTask.describe("Live test", "Test author", "ar", p.getMaxVideoJobs(),
+                        p.getMaxHiggsfieldGenerations(), p.getHiggsfieldMaxInFlight(), p.getHiggsfieldGenerateArgs(), false,
+                        p.voiceCatalog()),
                 TrailerTask.rubric());
 
         System.out.println("Watch: " + gateway.traceUrl(sessionId));

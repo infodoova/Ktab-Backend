@@ -23,12 +23,11 @@ public class TrailerProperties {
     private String anthropicApiKey;
     private String webhookSigningKey;
 
-    private String voiceId;
     /**
      * Optional JSON catalog of approved narration voices, e.g.
      * {@code [{"id":"...","name":"Sami","suits":"politics, history"}]} or the plain form
      * {@code id|name|suits;id|name|suits}. When present the agent picks the
-     * voice that best fits the book; {@link #voiceId} stays the default and the fallback.
+     * voice that best fits the book. There is no single default voice: the list is the only source.
      */
     private String voices;
     /** D4: list-cost cap per session in US cents, as the API expects ("2000" = $20.00). */

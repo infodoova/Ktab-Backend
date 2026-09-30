@@ -1,6 +1,6 @@
 # Trailer agent launch checklist
 
-- [x] eleven_v3 lists Arabic (`GET /v1/models`); Arabic voice chosen → KTAB_TRAILER_VOICE_ID.
+- [x] eleven_v3 lists Arabic (`GET /v1/models`); Arabic voices chosen → KTAB_TRAILER_VOICES (the agent picks one per book; there is no single voice id).
 - [x] `ops/trailer-agent/setup.sh` run; IDs in the deploy env; nothing secret committed (ControlPlaneFilesTest green).
 - [x] Higgsfield connected from the admin endpoint; vault shows the credential; `vault_credential.refresh_failed` is subscribed.
 - [x] Webhook endpoint registered in Console with the four event types; ANTHROPIC_WEBHOOK_SIGNING_KEY set.

@@ -34,7 +34,7 @@ class TrailerLauncherTest {
         t.setId(id);
         t.setBookId(bookId);
         t.setStatus(TrailerStatus.QUEUED);
-        props.setVoiceId("voice-1");
+        props.setVoices("voice-1|Sami|politics, history;voice-2|Rawi|documentary");
         props.setAgentVersion(4);
         when(trailers.findById(id)).thenReturn(Optional.of(t));
         when(trailers.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -53,7 +53,7 @@ class TrailerLauncherTest {
         when(books.facts(3L)).thenReturn(new TrailerBookSource.BookFacts("عنوان", "مؤلف", "ar", "books/3/source.pdf"));
         when(books.downloadPdf(eq("books/3/source.pdf"), any())).thenAnswer(i -> i.getArgument(1));
         when(gateway.uploadBook(any())).thenReturn("file_1");
-        when(gateway.startSession(eq(7L), eq("file_1"), anyList(), contains("voice-1"), anyString())).thenReturn("sesn_1");
+        when(gateway.startSession(eq(7L), eq("file_1"), anyList(), contains("voice-1 — Sami"), anyString())).thenReturn("sesn_1");
 
         launcher.launch(7L);
 
@@ -124,6 +124,20 @@ class TrailerLauncherTest {
         // the persisted cover id is still mounted at /workspace/cover.jpg
         verify(gateway).startSession(eq(7L), eq("file_book_1"), argThat(files -> files.contains(
                 new TrailerAgentGateway.SessionFile("file_cover_1", "/workspace/cover.jpg"))), anyString(), anyString());
+    }
+
+    @Test
+    void withoutConfiguredVoicesTheTrailerFailsBeforeAnythingIsUploaded() {
+        BookTrailer t = queued(9L, 5L);
+        props.setVoices("");
+        when(books.facts(5L)).thenReturn(new TrailerBookSource.BookFacts("t", "a", "ar", "books/5/source.pdf"));
+
+        launcher.launch(9L);
+
+        assertThat(t.getStatus()).isEqualTo(TrailerStatus.FAILED);
+        assertThat(t.getError()).contains("KTAB_TRAILER_VOICES");
+        verifyNoInteractions(gateway);
+        verifyNoInteractions(endCardRenderer);
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.doova.ktab.features.trailer.agent.TrailerAgentGateway;
 import com.doova.ktab.features.trailer.agent.TrailerAgentGateway.SessionFile;
 import com.doova.ktab.features.trailer.agent.TrailerTask;
 import com.doova.ktab.features.trailer.config.TrailerProperties;
+import com.doova.ktab.features.trailer.config.TrailerVoice;
 import com.doova.ktab.features.trailer.endcard.EndCardRenderer;
 import com.doova.ktab.features.trailer.endcard.EndCardSpec;
 import com.doova.ktab.features.trailer.enums.TrailerStatus;
@@ -46,6 +47,11 @@ public class TrailerLauncher {
             fail(t, "The book has no source PDF to read.");
             return;
         }
+        List<TrailerVoice> voices = properties.voiceCatalog();
+        if (voices.isEmpty()) {
+            fail(t, "No narration voices are configured (KTAB_TRAILER_VOICES).");
+            return;
+        }
         Path dir = null;
         try {
             dir = Files.createTempDirectory("trailer-" + trailerId + "-");
@@ -76,10 +82,10 @@ public class TrailerLauncher {
             }
 
             String sessionId = gateway.startSession(trailerId, t.getBookFileId(), files,
-                    TrailerTask.describe(facts.title(), facts.author(), facts.language(), properties.getVoiceId(),
+                    TrailerTask.describe(facts.title(), facts.author(), facts.language(),
                             properties.getMaxVideoJobs(), properties.getMaxHiggsfieldGenerations(),
                             properties.getHiggsfieldMaxInFlight(), properties.getHiggsfieldGenerateArgs(), hasCover,
-                            properties.voiceCatalog()),
+                            voices),
                     TrailerTask.rubric());
             t.setSessionId(sessionId);
             t.setAgentVersion(properties.getAgentVersion());
