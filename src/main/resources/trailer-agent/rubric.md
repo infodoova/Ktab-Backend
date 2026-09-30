@@ -1,0 +1,19 @@
+# Ktab trailer rubric (single-generation trailer — tune after the first real runs)
+
+Grade each criterion independently. The artifacts are in /mnt/session/outputs/.
+
+1. `trailer.mp4` exists; ffprobe shows H.264 video, AAC audio, 1920x1080, a 16:9 display aspect, and a duration between 29.5 and 30.5 seconds.
+2. `trailer.mp4` carries no burned-in captions. The only on-screen text is the Ktab end card from 27.5 s onward. `captions_ar.srt` exists as a separate file.
+3. The whole picture comes from a single Seedance 2.5 generation (`higgsfield.single_generation`, `visual_review.picture_unedited`). It follows the master rhythm: a restrained opening, a first burst of short inserts, a 1.5–2 s hero reveal, a quiet ≈ 1.5 s hold that is alive (not frozen), a stronger escalation, a final burst, an abrupt cut to near-stillness and a dark negative-space plate. Designed transitions (match cut, foreground occlusion, passage through darkness, whip or focus change) are legible; check the frames around every `scdet` cut. No padding, looping, morphing or FFmpeg transitions.
+3a. `script.md` names one central dramatic question, one emotional anchor and at most three recurring motifs; the trailer withholds the answer and reveals no ending.
+4. `captions_ar.srt` is valid SRT: numbered cues, `HH:MM:SS,mmm --> HH:MM:SS,mmm` timings in increasing order, every cue within 0–30 s, at most 2 lines per cue, and at most 35 characters per line (Arabic), in Arabic only.
+5. The caption timings come from ElevenLabs forced-alignment of the Arabic narration (the alignment step is recorded in `qc_report.json` as `"aligned_from":"forced-alignment"`), and each Arabic caption cue contains the Arabic phrase spoken during its time span (no translation required).
+6. The narration was generated with `model_id` `eleven_v3` and `language_code` `ar`, is in Arabic, is at most 28 seconds long and ends by 27.0 s.
+7. The music is an instrumental track from the ElevenLabs Music API; the narration stays clearly intelligible above it for the whole trailer.
+8. No frame of `trailer.mp4` before 27.5 s shows any text, lettering, logo or watermark (Arabic or any other script). The frame check in `qc_report.json` covers at least one frame per second plus the frames around every detected cut, and reports `text_found: false`. From 27.5 s, only the Ktab end-card layers show text.
+9. No identifiable real person (including the author) is depicted. Fictional characters appear only for fiction books, with consistent faces, anatomy and wardrobe. Nonfiction about real persons uses anonymous figures, hands, silhouettes, places and objects.
+10. `script.md` ties every narrated claim to a page of the book. It invents no events or quotes, and it presents the author's interpretations as the author's views, not as facts.
+11. `qc_report.json` exists with every field from the system prompt's schema including `higgsfield.video_jobs`, `higgsfield.single_generation`, `visual_review.max_cut_drift_seconds`, `captions.language: "ar"`, `captions.burned_in: false`, its values match the files, and `"status"` is `"ok"`.
+12. For books >100 pages: the entire book was processed through the hierarchical document workflow (§2) with verified chapter summaries and a consolidated book-level profile. Every claim in `script.md` cites verified original PDF pages, and no claims or quotations are invented.
+13. The last 2.5 s (from 27.5 s) show the Ktab end-card layers (scrim, cover if provided, title, author, the full Ktab logo) fading in staggered over the generated dark plate, fully built by 28.4 s, then fading to black from 29.75 s. The title, author and logo are the supplied layers, unaltered. Nothing is typed with drawtext.
+14. `script.md` has a SHOT TIMELINE whose shots sum to 30.0 s; `visual_review.max_cut_drift_seconds` is at most 0.4 and the narration was conformed to the measured cuts.

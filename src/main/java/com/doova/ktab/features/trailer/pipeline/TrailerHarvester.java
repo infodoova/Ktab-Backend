@@ -126,7 +126,7 @@ public class TrailerHarvester {
         } else if (report.path("frame_check").path("text_found").asBoolean(false)) {
             problems.add("The agent's frame check found text on screen.");
         } else if (!"ar".equals(report.path("captions").path("language").asText())) {
-            problems.add("The burned-in captions are not reported as Arabic (R4).");
+            problems.add("The captions are not reported as Arabic (R4).");
         }
         return problems;
     }
