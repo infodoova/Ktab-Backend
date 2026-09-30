@@ -54,20 +54,49 @@ class ControlPlaneFilesTest {
     }
 
     @Test
-    void systemPromptCrossfadesBetweenShotsInsteadOfHardCutting() throws Exception {
-        // The agent's own clips have no built-in transitions; a raw concat is a jarring jump-cut (2026-09-29).
-        String prompt = Files.readString(dir.resolve("system-prompt.md"));
-        assertThat(prompt).contains("xfade").contains("never a hard cut").contains("tpad");
-        String rubric = Files.readString(Path.of("src/main/resources/trailer-agent/rubric.md"));
-        assertThat(rubric).contains("hard cut");
-    }
-
-    @Test
     void systemPromptPreventsHiggsfieldWaste() throws Exception {
         // D5: the first real run wasted 4 of 11 calls on concurrency rejections and preset suggestions.
         String prompt = Files.readString(dir.resolve("system-prompt.md"));
         assertThat(prompt).contains("exactly the arguments given in the task message")
                 .contains("Concurrency").contains("429").contains("wait 60 seconds")
-                .contains("Never put text-bearing things in a shot");
+                .contains("Never put text-bearing things in a generated shot");
+    }
+
+    @Test
+    void systemPromptMakesTheWholeMontageInOneGeneration() throws Exception {
+        String prompt = Files.readString(dir.resolve("system-prompt.md"));
+        assertThat(prompt).contains("exactly one accepted Seedance 2.5 generation")
+                .contains("DIRECTING LANGUAGE").contains("GLOBAL LOOK").contains("SHOT TIMELINE")
+                .contains("MIN_INSERT_SECONDS").contains("audio first")
+                .contains("scdet").contains("±0.4").contains("picture is never padded")
+                .contains("never re-edit the picture")
+                .doesNotContain("stop_mode=clone").doesNotContain("minterpolate may");
+    }
+
+    @Test
+    void systemPromptCarriesTheMasterDirectingLanguage() throws Exception {
+        // Source: docs/trailer/master-directing-prompt.md (2026-09-30).
+        String prompt = Files.readString(dir.resolve("system-prompt.md"));
+        assertThat(prompt).contains("central dramatic question").contains("emotional anchor")
+                .contains("Slow anticipation → fast fragments → sustained reveal")
+                .contains("never a frozen frame").contains("Slow camera movement does not automatically mean slow-motion")
+                .contains("Avoid repeating the same push-in").contains("brief passage through darkness")
+                .contains("reveal enough to create desire");
+    }
+
+    @Test
+    void systemPromptNeverBurnsCaptionsAndUsesTheRenderedEndCard() throws Exception {
+        String prompt = Files.readString(dir.resolve("system-prompt.md"));
+        assertThat(prompt).contains("Do not burn captions").contains("/workspace/endcard/scrim.png")
+                .contains("/workspace/endcard/logo.png").contains("Never use drawtext").contains("st=27.5")
+                .doesNotContain("subtitles=captions_ar.srt").doesNotContain("trailer_clean.mp4");
+    }
+
+    @Test
+    void rubricGradesTheSingleGenerationTrailer() throws Exception {
+        String rubric = Files.readString(Path.of("src/main/resources/trailer-agent/rubric.md"));
+        assertThat(rubric).contains("single Seedance 2.5 generation").contains("no burned-in captions")
+                .contains("central dramatic question").contains("Fictional characters appear only for fiction books")
+                .doesNotContain("trailer_clean.mp4").doesNotContain("The imagery is symbolic");
     }
 }
