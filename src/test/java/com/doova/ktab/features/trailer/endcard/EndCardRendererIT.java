@@ -60,12 +60,12 @@ class EndCardRendererIT {
 
     @Test
     void rendersEveryLayerAsATransparentFullHdPng(@TempDir Path tmp) throws Exception {
-        EndCardSpec spec = new EndCardSpec("ثورة دونالد ترامب", "ألكسندر دوغين", sampleCover(tmp), LOGO);
+        EndCardSpec spec = new EndCardSpec("ثورة دونالد ترامب: حتمية التغيير", "ألكسندر دوغين", sampleCover(tmp), LOGO);
 
         List<Path> layers = renderer.render(spec, tmp.resolve("out"));
 
         assertThat(layers).extracting(p -> p.getFileName().toString())
-                .containsExactly("scrim.png", "cover.png", "title.png", "author.png", "logo.png");
+                .containsExactly("scrim.png", "cover.png", "title.png", "subtitle.png", "author.png", "logo.png");
         for (Path p : layers) {
             BufferedImage img = ImageIO.read(p.toFile());
             assertThat(img.getWidth()).isEqualTo(1920);
@@ -74,9 +74,11 @@ class EndCardRendererIT {
         }
         BufferedImage title = ImageIO.read(tmp.resolve("out/title.png").toFile());
         assertThat((title.getRGB(10, 10) >>> 24) & 0xFF).as("corner is transparent").isZero();
-        assertThat(hasOpaquePixelsIn(title, 560, 300, 1740, 780)).as("title text is drawn").isTrue();
+        assertThat(hasOpaquePixelsIn(title, 930, 300, 1730, 780)).as("title text is drawn").isTrue();
+        BufferedImage logoImg = ImageIO.read(tmp.resolve("out/logo.png").toFile());
+        assertThat(hasOpaquePixelsIn(logoImg, 900, 900, 1020, 990)).as("logo is bottom centre").isTrue();
         BufferedImage cover = ImageIO.read(tmp.resolve("out/cover.png").toFile());
-        assertThat(hasOpaquePixelsIn(cover, 1000, 240, 1740, 840)).as("cover is on the right").isTrue();
+        assertThat(hasOpaquePixelsIn(cover, 240, 260, 640, 820)).as("cover is on the left").isTrue();
 
         writePreview(layers, tmp.resolve("out"));
     }

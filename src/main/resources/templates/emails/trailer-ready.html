@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+    <title th:text="${SUBJECT != null ? SUBJECT : 'إعلانك الترويجي جاهز - كِتاب'}">إعلانك الترويجي جاهز - كِتاب</title>
+    <style>
+        body,
+        table,
+        td,
+        p,
+        a,
+        li,
+        blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        table,
+        td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                padding: 16px 8px !important;
+            }
+
+            .email-card {
+                padding: 24px 20px !important;
+                border-radius: 8px !important;
+            }
+
+            .email-title {
+                font-size: 22px !important;
+            }
+
+            .cta-button {
+                display: block !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                text-align: center !important;
+            }
+        }
+    </style>
+</head>
+
+<body
+    style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: 'Tajawal', 'Cairo', 'Segoe UI', Tahoma, -apple-system, BlinkMacSystemFont, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111; direction: rtl; text-align: right;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-wrapper"
+        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px; direction: rtl;">
+        <tr>
+            <td align="center">
+
+                <!-- Card Container -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-card"
+                    style="max-width: 560px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 40px 36px; text-align: right; direction: rtl;">
+
+                    <!-- Header / Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 24px;">
+                            <table cellpadding="0" cellspacing="0" border="0" align="center">
+                                <tr>
+                                    <td align="center" style="padding-bottom: 14px;">
+                                        <img src="cid:ktabLogo" alt="كِتاب" width="56" height="56"
+                                            style="display: block; width: 56px; height: 56px; max-width: 56px; border: 0; outline: none; text-decoration: none;" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center">
+                                        <p
+                                            style="margin: 6px 0 0 0; color: #777777; font-size: 12px; letter-spacing: 1px; font-weight: 700;">
+                                            الإعلان الترويجي السينمائي</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 28px;"></td>
+                    </tr>
+
+                    <!-- Status Pill -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 20px;">
+                            <span th:if="${STATUS == 'READY'}"
+                                style="display: inline-block; background-color: #e6f4ea; color: #137333; font-size: 13px; font-weight: 700; padding: 6px 18px; border-radius: 20px;">
+                                &#10004; الإعلان الترويجي جاهز
+                            </span>
+                            <span th:if="${STATUS == 'NEEDS_REVIEW'}"
+                                style="display: inline-block; background-color: #fef7e0; color: #b06000; font-size: 13px; font-weight: 700; padding: 6px 18px; border-radius: 20px;">
+                                &#9888; جاهز للمراجعة التحريرية
+                            </span>
+                            <span th:if="${STATUS == 'FAILED'}"
+                                style="display: inline-block; background-color: #fce8e6; color: #c5221f; font-size: 13px; font-weight: 700; padding: 6px 18px; border-radius: 20px;">
+                                &#10008; تعذّر إنشاء الإعلان
+                            </span>
+                        </td>
+                    </tr>
+
+                    <!-- Greeting & Content -->
+                    <tr>
+                        <td style="color: #222222; font-size: 15px; line-height: 1.8; padding-bottom: 24px; text-align: right;">
+                            <p style="margin: 0 0 16px 0;">مرحبًا <strong style="color: #000000;"
+                                    th:text="${NAME != null ? NAME : 'عزيزنا الكاتب'}">عزيزنا الكاتب</strong>،</p>
+
+                            <p th:if="${STATUS == 'READY'}" style="margin: 0 0 16px 0;">
+                                يسعدنا إعلامك بأن الإعلان الترويجي السينمائي (مدته 30 ثانية) لكتابك
+                                <strong style="color: #000000;" th:text="${'« ' + BOOK_TITLE + ' »'}">« عنوان الكتاب »</strong>
+                                قد اكتمل إنتاجه بنجاح واجتاز كافة معايير الفحص والتدقيق الفني.
+                            </p>
+
+                            <p th:if="${STATUS == 'NEEDS_REVIEW'}" style="margin: 0 0 16px 0;">
+                                نود إعلامك بأن الإعلان الترويجي لكتابك
+                                <strong style="color: #000000;" th:text="${'« ' + BOOK_TITLE + ' »'}">« عنوان الكتاب »</strong>
+                                قد تم إنتاجه وهو متاح الآن للمراجعة التحريرية والموافقة عليه قبل النشر العام.
+                            </p>
+
+                            <p th:if="${STATUS == 'FAILED'}" style="margin: 0 0 16px 0;">
+                                نود إحاطتك بمواجهة مشكلة تقنية غير متوقعة أثناء معالجة الإعلان الترويجي لكتابك
+                                <strong style="color: #000000;" th:text="${'« ' + BOOK_TITLE + ' »'}">« عنوان الكتاب »</strong>.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Specs Box (if READY or NEEDS_REVIEW) -->
+                    <tr th:if="${STATUS == 'READY' or STATUS == 'NEEDS_REVIEW'}">
+                        <td style="padding-bottom: 28px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                                style="background-color: #fafafa; border-right: 4px solid #000000; border-top: 1px solid #e8e8e8; border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; border-radius: 6px 0 0 6px; padding: 18px 20px; direction: rtl; text-align: right;">
+                                <tr>
+                                    <td>
+                                        <p
+                                            style="margin: 0 0 10px 0; color: #000000; font-size: 13px; font-weight: 700;">
+                                            مواصفات الإنتاج السينمائي:
+                                        </p>
+                                        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; color: #444444; line-height: 1.9;">
+                                            <tr>
+                                                <td style="padding: 3px 0;">⏱ <strong>المدة:</strong> 30 ثانية كاملة</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 3px 0;">🎬 <strong>الجودة:</strong> 1080p عالية الدقة (Full HD)</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 3px 0;">🎙 <strong>الصوت:</strong> تعليق صوتي باللغة العربية + موسيقى تصويرية</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 3px 0;">💬 <strong>الترجمة:</strong> نصوص مكتوبة متزامنة بالكامل</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Optional Error Note Box (if FAILED) -->
+                    <tr th:if="${STATUS == 'FAILED' and ERROR_NOTE != null and !#strings.isEmpty(ERROR_NOTE)}">
+                        <td style="padding-bottom: 28px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                                style="background-color: #fff9f9; border-right: 4px solid #c5221f; border-top: 1px solid #f0d0d0; border-left: 1px solid #f0d0d0; border-bottom: 1px solid #f0d0d0; border-radius: 6px 0 0 6px; padding: 16px 20px; direction: rtl; text-align: right;">
+                                <tr>
+                                    <td>
+                                        <p
+                                            style="margin: 0 0 6px 0; color: #c5221f; font-size: 13px; font-weight: 700;">
+                                            التفاصيل الفنية:
+                                        </p>
+                                        <p style="margin: 0; color: #555555; font-size: 13px; line-height: 1.6;"
+                                            th:text="${ERROR_NOTE}">تفاصيل الخطأ.</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Action Button -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 28px;">
+                            <a th:href="${TRAILER_URL != null ? TRAILER_URL : 'https://ktab-rho.vercel.app'}"
+                                class="cta-button"
+                                style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 40px; border-radius: 6px; letter-spacing: 0.2px;">
+                                <span th:if="${STATUS == 'READY'}">مشاهدة الإعلان الترويجي</span>
+                                <span th:if="${STATUS == 'NEEDS_REVIEW'}">مراجعة الإعلان في الاستوديو</span>
+                                <span th:if="${STATUS == 'FAILED'}">عرض تفاصيل الكتاب</span>
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Guidance Note -->
+                    <tr th:if="${STATUS == 'READY'}">
+                        <td
+                            style="color: #666666; font-size: 13px; line-height: 1.7; text-align: center; padding-bottom: 28px;">
+                            <p style="margin: 0;">
+                                يمكنك تنزيل الفيديو بدقة عالية أو مشاركة رابطه المباشر عبر منصات التواصل الاجتماعي ومواقع النشر للترويج لكتابك.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 24px;"></td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.7;">
+                            <p style="margin: 0 0 6px 0; color: #444444; font-weight: 600;">— فريق عمل منصة كِتاب</p>
+                            <p style="margin: 0;">هذه رسالة آلية بخصوص إعلان كتابك الترويجي. يُرجى عدم الرد المباشر على هذه الرسالة.</p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

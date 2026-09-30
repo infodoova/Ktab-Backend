@@ -59,10 +59,16 @@ public class S3Config {
                 : Region.of(region);
     }
 
+    @Value("${cloudflare.r2.apiCallTimeoutSeconds:600}")
+    private long apiCallTimeoutSeconds;
+
+    @Value("${cloudflare.r2.apiCallAttemptTimeoutSeconds:300}")
+    private long apiCallAttemptTimeoutSeconds;
+
     private software.amazon.awssdk.core.client.config.ClientOverrideConfiguration getOverrideConfiguration() {
         return software.amazon.awssdk.core.client.config.ClientOverrideConfiguration.builder()
-                .apiCallTimeout(java.time.Duration.ofSeconds(30))
-                .apiCallAttemptTimeout(java.time.Duration.ofSeconds(10))
+                .apiCallTimeout(java.time.Duration.ofSeconds(apiCallTimeoutSeconds))
+                .apiCallAttemptTimeout(java.time.Duration.ofSeconds(apiCallAttemptTimeoutSeconds))
                 .build();
     }
 

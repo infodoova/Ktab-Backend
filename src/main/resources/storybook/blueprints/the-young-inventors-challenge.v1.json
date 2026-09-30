@@ -1,0 +1,27 @@
+{
+  "key": "the-young-inventors-challenge",
+  "version": 1,
+  "titleAr": "تحدي المخترع الصغير",
+  "titleEn": "The Young Inventor's Challenge",
+  "theme": "science",
+  "ageBands": ["AGE_9_10"],
+  "allowedSettings": ["BEIRUT", "CAIRO", "RIYADH", "DUBAI", "AMMAN", "GENERIC_CITY", "COUNTRYSIDE"],
+  "religious": false,
+  "beats": [
+    {"order": 1,  "minPageCount": 10, "beat": "In their workshop corner filled with blueprints, gears, and recycled materials, the CHILD prepares for the city youth innovation expo."},
+    {"order": 2,  "minPageCount": 10, "beat": "The CHILD sketches a clever solar-powered device designed to clean and water plants across neighborhood gardens."},
+    {"order": 3,  "minPageCount": 15, "beat": "Carefully assembling miniature gears and solar panels, the CHILD double-checks electrical circuit diagrams with keen focus."},
+    {"order": 4,  "minPageCount": 10, "beat": "During the first trial run in the backyard, the prototype whirs to life but suddenly halts when a drive gear slips."},
+    {"order": 5,  "minPageCount": 10, "beat": "Instead of feeling discouraged, the CHILD takes a deep breath, analyzes the problem, and experiments with alternative parts."},
+    {"order": 6,  "minPageCount": 12, "beat": "Drawing inspiration from their everyday interests and surroundings, the CHILD crafts a lightweight reinforced bracket."},
+    {"order": 7,  "minPageCount": 10, "beat": "Testing the revised design, the machine smoothly hums, glides forward, and accurately sprinkles water on the garden pots."},
+    {"order": 8,  "minPageCount": 15, "beat": "The CHILD polishes the exterior and adds a personalized emblem inspired by their hometown landscape."},
+    {"order": 9,  "minPageCount": 10, "beat": "At the bustling expo hall, visitors and judges gather enthusiastically around the innovative demonstration booth."},
+    {"order": 10, "minPageCount": 12, "beat": "The CHILD confidently explains how renewable energy and creative recycling can build greener, sustainable communities."},
+    {"order": 11, "minPageCount": 10, "beat": "The demonstration operates flawlessly, drawing applause and admiration from teachers, peers, and judges alike."},
+    {"order": 12, "minPageCount": 15, "beat": "Another young participant comes over to ask technical questions, sparking an inspiring conversation about future collaborations."},
+    {"order": 13, "minPageCount": 10, "beat": "The head judge awards the CHILD an innovation certificate, praising their resilience, engineering spirit, and dedication."},
+    {"order": 14, "minPageCount": 10, "beat": "Returning home with family and friends, everyone celebrates with laughter, sweet pastries, and proud congratulations."},
+    {"order": 15, "minPageCount": 10, "beat": "Sitting by the workbench that night, the CHILD begins sketching tomorrow's invention, knowing that every challenge is an opportunity to learn."}
+  ]
+}

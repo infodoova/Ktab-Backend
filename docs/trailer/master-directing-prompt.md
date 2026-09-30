@@ -96,7 +96,7 @@ The final trailer must reveal enough to create desire, preserve enough to create
 
 ## Ktab adaptations (applied in the system prompt)
 
-- **End-card window is 2.5 s (27.5–30.0), not 2 s** (confirmed by the product owner, 2026-09-30). The Ktab card has four elements (cover, title, author, logo). Following the master's own scaling rule, the beats after 00:23 are compressed: defining image 23–24.5, final burst 24.5–26, near-stillness 26–27.5 (1.5 s, as in the master), then a dark low-detail negative-space plate 27.5–30 with any subject confined to the left third (the card spans x ≈ 560–1740).
+- **End-card window is 2.5 s (27.5–30.0), not 2 s** (confirmed by the product owner, 2026-09-30). The Ktab card has four elements (cover, title, author, logo). Following the master's own scaling rule, the beats after 00:23 are compressed: defining image 23–24.5, final burst 24.5–26, near-stillness 26–27.5 (1.5 s, as in the master), then a dark low-detail negative-space plate 27.5–30 with nothing bright or detailed in the centre, left or bottom (the cover is on the left, the text on the right, the logo at the bottom centre).
 - **Frame rate:** the Seedance source rate (24 fps if it outputs 24); never converted.
 - **One generation, not individual clips.** The "If producing individual clips…" line does not apply; the whole picture is one Seedance 2.5 generation.
 - **Real people:** identifiable real people (including the author) are never depicted. Fictional characters may be shown, but only when the book is fiction. Nonfiction about real persons uses anonymous figures, hands, silhouettes and places.

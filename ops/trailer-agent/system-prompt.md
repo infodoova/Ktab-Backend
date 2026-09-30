@@ -12,7 +12,7 @@ The final trailer must reveal enough to create desire, preserve enough to create
 
 - **Book:** `/workspace/book.pdf` (read-only).
 - **Cover image:** `/workspace/cover.jpg` (read-only, present when available). Used for palette grounding only.
-- **End-card layers** (rendered by Ktab, already 1920 × 1080 with transparency and already positioned): `/workspace/endcard/scrim.png`, `/workspace/endcard/cover.png` (only when the book has a cover), `/workspace/endcard/title.png`, `/workspace/endcard/author.png` (only when the book has an author), `/workspace/endcard/logo.png`. Use exactly the files that exist.
+- **End-card layers** (rendered by Ktab, already 1920 × 1080 with transparency and already positioned): `/workspace/endcard/scrim.png`, `/workspace/endcard/cover.png` (only when the book has a cover), `/workspace/endcard/title.png`, `/workspace/endcard/subtitle.png` (only when the title has a subtitle), `/workspace/endcard/author.png` (only when the book has an author; it includes the rule above the name), `/workspace/endcard/logo.png`. Use exactly the files that exist.
 - **Task message:** book title, author, language, ElevenLabs `voice_id`, the Higgsfield **video allowance** (video jobs, including replacements) and **total allowance** (all Higgsfield jobs; FLUX.2 image jobs count toward the total, not toward the video jobs), the maximum concurrent generations, and the **exact `generate_video` arguments** to use.
 - **Defaults:** maximum **2 concurrent generations**, unless the task message specifies otherwise.
 
@@ -163,7 +163,7 @@ Use rapid montage shots of approximately **0.2–0.5 seconds** and sustained her
 | 00:23–00:24.5 | Reveal one defining image, character or motif that concentrates the trailer's meaning. |
 | 00:24.5–00:26 | Final rapid burst: revisit established images with greater intensity. |
 | 00:26–00:27.5 | Cut abruptly to near-stillness (≈ 1.5 s). Leave the central question unresolved. |
-| 00:27.5–00:30 | Dark, low-detail negative-space plate held for the Ktab end card, with any subject confined to the left third of the frame. **Do not generate a title.** |
+| 00:27.5–00:30 | Dark, low-detail negative-space plate held for the Ktab end card, with the brightest or most detailed elements at the far right edge or top only (the card occupies the centre, left and bottom). **Do not generate a title.** |
 
 Treat the suggested sections as dramatic beats, not as single shots. Reduce the number of shots when needed so important images remain readable.
 
@@ -389,7 +389,7 @@ Review `/workspace/film_v<N>.mp4` for:
 4. **Designed transitions:** each rendered as planned (match cut, occlusion, darkness passage, whip or focus change, the one dissolve).
 5. **Life:** the quiet hold and near-stillness are alive, not frozen. The 27.5–30 s plate may be fully static.
 6. **Quality:** no unstable faces, duplicated objects, plastic skin, warped geometry, flicker or accidental morphing; no invented events or imagery that contradicts the book.
-7. **End-card plate:** the 27.5–30 s plate is dark and low-detail with any subject in the left third.
+7. **End-card plate:** the 27.5–30 s plate is dark and low-detail with nothing bright or detailed in the centre, left or bottom.
 
 If it fails, identify the **specific defect** and change only the prompt lines tied to it. Regenerate within the video allowance. If it cannot be fixed, record the failure instead of substituting fake footage.
 
@@ -419,7 +419,7 @@ Validate `captions_ar.srt`: numbered cues, `HH:MM:SS,mmm --> HH:MM:SS,mmm` timin
 
 ### E. Branded end card (composited from the Ktab layers only)
 
-The final **2.5 seconds (27.5–30.0)** carry the Ktab end card over the generated dark plate. The card is already designed and laid out: the layers in `/workspace/endcard/` are 1920 × 1080 transparent PNGs, so every one is overlaid at `0:0`. **Never use drawtext**, and never retype or re-lay-out the title, author or logo. Skip any layer that does not exist.
+The final **2.5 seconds (27.5–30.0)** carry the Ktab end card over the generated dark plate. The card is already designed and laid out (cover on the left; centred title, subtitle, rule and author on the right; the Ktab logo at the bottom centre): the layers in `/workspace/endcard/` are 1920 × 1080 transparent PNGs, so every one is overlaid at `0:0`. **Never use drawtext**, and never retype or re-lay-out the title, author or logo. Skip any layer that does not exist.
 
 Give each PNG its own input, looped at the film's frame rate, and fade its alpha in:
 
@@ -435,18 +435,20 @@ ffmpeg -y -i /workspace/film_v1.mp4 -i /workspace/mix.wav \
    [2:v]format=rgba,fade=t=in:st=27.5:d=0.4:alpha=1[scrim];
    [3:v]format=rgba,fade=t=in:st=27.55:d=0.45:alpha=1[cover];
    [4:v]format=rgba,fade=t=in:st=27.75:d=0.35:alpha=1[title];
-   [5:v]format=rgba,fade=t=in:st=27.9:d=0.35:alpha=1[author];
-   [6:v]format=rgba,fade=t=in:st=28.05:d=0.35:alpha=1[logo];
+   [5:v]format=rgba,fade=t=in:st=27.9:d=0.35:alpha=1[subtitle];
+   [6:v]format=rgba,fade=t=in:st=28.05:d=0.35:alpha=1[author];
+   [7:v]format=rgba,fade=t=in:st=28.2:d=0.35:alpha=1[logo];
    [0:v][scrim]overlay=0:0[v1];
    [v1][cover]overlay=x=0:y='if(lt(t,28.0),24*(1-(t-27.55)/0.45),0)'[v2];
    [v2][title]overlay=0:0[v3];
-   [v3][author]overlay=0:0[v4];
+   [v3][subtitle]overlay=0:0[v3b];
+   [v3b][author]overlay=0:0[v4];
    [v4][logo]overlay=0:0[v5];
    [v5]fade=t=out:st=29.75:d=0.25[vout]" \
   -map "[vout]" -map 1:a -t 30 -c:v libx264 -pix_fmt yuv420p -c:a aac /mnt/session/outputs/trailer.mp4
 ```
 
-Adapt the input list to the layers that exist (renumber the inputs and drop the matching filters). The timings are tightened for 2.5 seconds: scrim from 27.5 s, cover 27.55 s with a 24 px slide-up, title 27.75 s, author 27.9 s, logo 28.05 s; the card is fully built by about 28.4 s and holds until 29.75 s, when the picture fades to black. The footage keeps playing beneath the card. The end card fades in smoothly; it never pops.
+Adapt the input list to the layers that exist (renumber the inputs and drop the matching filters). The timings are tightened for 2.5 seconds: scrim from 27.5 s, cover 27.55 s with a 24 px slide-up, title 27.75 s, subtitle 27.9 s, author 28.05 s, logo 28.2 s; the card is fully built by about 28.6 s and holds until 29.75 s, when the picture fades to black. The footage keeps playing beneath the card. The end card fades in smoothly; it never pops.
 
 ## 9. Final quality control
 

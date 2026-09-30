@@ -1,0 +1,27 @@
+{
+  "key": "the-lantern-of-eid",
+  "version": 1,
+  "titleAr": "فانوس العيد المضيء",
+  "titleEn": "The Shining Eid Lantern",
+  "theme": "family",
+  "ageBands": ["AGE_6_8", "AGE_9_10"],
+  "allowedSettings": ["BEIRUT", "CAIRO", "RIYADH", "DUBAI", "AMMAN", "GENERIC_CITY", "COUNTRYSIDE"],
+  "religious": true,
+  "beats": [
+    {"order": 1,  "minPageCount": 10, "beat": "With Eid morning approaching, the CHILD's home is bustling with excitement, wonderful aromas of sweets, and festive decorations."},
+    {"order": 2,  "minPageCount": 10, "beat": "The CHILD helps grandmother knead and press traditional maamoul and kahk pastries into patterned wooden molds."},
+    {"order": 3,  "minPageCount": 15, "beat": "The kitchen fills with the warm, sweet fragrance of orange blossom and roasted nuts as batches emerge from the oven."},
+    {"order": 4,  "minPageCount": 10, "beat": "Up in the attic, the CHILD discovers a heritage brass lantern with vibrant colored glass panes that belonged to great-grandparents."},
+    {"order": 5,  "minPageCount": 10, "beat": "The CHILD gently polishes the intricate metalwork, making the brass sparkle like gold in the afternoon sun."},
+    {"order": 6,  "minPageCount": 12, "beat": "Family members admire the restored lantern and share fond childhood memories of Eid celebrations from long ago."},
+    {"order": 7,  "minPageCount": 10, "beat": "As dusk settles, the CHILD lights a warm, gentle light inside the lantern and hangs it proudly by the front entrance."},
+    {"order": 8,  "minPageCount": 15, "beat": "Children in the neighborhood gather outside, singing cheerful traditional songs and waving colorful paper pinwheels."},
+    {"order": 9,  "minPageCount": 10, "beat": "The CHILD boxes decorative trays of fresh pastries and delivers them to smiling neighbors with Eid greetings."},
+    {"order": 10, "minPageCount": 12, "beat": "An elderly neighbor warmly blesses the CHILD and gifts a handful of candied almonds wrapped in silk ribbon."},
+    {"order": 11, "minPageCount": 10, "beat": "Back at home, the extended family gathers around a festive dinner table filled with laughter, storytelling, and gratitude."},
+    {"order": 12, "minPageCount": 15, "beat": "The CHILD receives Eidiyah envelopes and decides to set aside a portion to buy art supplies for a community charity."},
+    {"order": 13, "minPageCount": 10, "beat": "Later that night, sparkling fireworks illuminate the city skyline above the lantern-lit balcony."},
+    {"order": 14, "minPageCount": 10, "beat": "The family shares hugs and prayers of peace, cherishing the togetherness and kindness that define the season."},
+    {"order": 15, "minPageCount": 10, "beat": "Lying in bed under the comforting glow of the lantern, the CHILD feels deep joy and gratitude for family and community."}
+  ]
+}

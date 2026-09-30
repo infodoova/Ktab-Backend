@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
 
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
-    <title>Book Published - Ktab</title>
+    <title>تم نشر كتابك بنجاح - كِتاب</title>
     <style>
         body,
         table,
@@ -59,16 +59,16 @@
 </head>
 
 <body
-    style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111;">
+    style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: 'Tajawal', 'Cairo', 'Segoe UI', Tahoma, -apple-system, BlinkMacSystemFont, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111; direction: rtl; text-align: right;">
 
     <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-wrapper"
-        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px;">
+        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px; direction: rtl;">
         <tr>
             <td align="center">
 
                 <!-- Card Container -->
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-card"
-                    style="max-width: 560px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 40px 36px;">
+                    style="max-width: 560px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 40px 36px; direction: rtl; text-align: right;">
 
                     <!-- Header / Logo -->
                     <tr>
@@ -76,15 +76,15 @@
                             <table cellpadding="0" cellspacing="0" border="0" align="center">
                                 <tr>
                                     <td align="center" style="padding-bottom: 14px;">
-                                        <img src="cid:ktabLogo" alt="Ktab" width="56" height="56"
+                                        <img src="cid:ktabLogo" alt="كِتاب" width="56" height="56"
                                             style="display: block; width: 56px; height: 56px; max-width: 56px; border: 0; outline: none; text-decoration: none;" />
                                     </td>
                                 </tr>
                                 <tr>
                                     <td align="center">
                                         <p
-                                            style="margin: 6px 0 0 0; color: #777777; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
-                                            Publication Announcement</p>
+                                            style="margin: 6px 0 0 0; color: #777777; font-size: 12px; letter-spacing: 1px; font-weight: 700;">
+                                            إشعار نشر كتاب</p>
                                     </td>
                                 </tr>
                             </table>
@@ -98,16 +98,15 @@
 
                     <!-- Greeting & Congratulations -->
                     <tr>
-                        <td style="color: #222222; font-size: 15px; line-height: 1.65; padding-bottom: 24px;">
-                            <p style="margin: 0 0 16px 0;">Congratulations <strong style="color: #000000;"
-                                    th:text="${NAME != null ? NAME : 'Author'}">Author</strong>,</p>
+                        <td style="color: #222222; font-size: 15px; line-height: 1.8; padding-bottom: 24px; text-align: right;">
+                            <p style="margin: 0 0 16px 0;">تهانينا <strong style="color: #000000;"
+                                    th:text="${NAME != null ? NAME : 'عزيزنا المؤلف'}">عزيزنا المؤلف</strong>،</p>
                             <p style="margin: 0 0 16px 0;">
-                                We are proud to let you know that your book <strong style="color: #000000;"
-                                    th:text="${'« ' + BOOK_TITLE + ' »'}">« Title »</strong> has passed editorial review
-                                and is now <strong>officially published</strong> on Ktab!
+                                يسعدنا ويشرفنا إعلامك بأن كتابك <strong style="color: #000000;"
+                                    th:text="${'« ' + BOOK_TITLE + ' »'}">« عنوان الكتاب »</strong> قد اجتاز المراجعة التحريرية بنجاح، وتم <strong>نشره رسميًا</strong> الآن على منصة كِتاب!
                             </p>
                             <p style="margin: 0;">
-                                Readers across the platform can now discover, read, and listen to your book.
+                                أصبح بإمكان القرّاء ومحبي الكتب في مختلف أنحاء المنصة الآن استكشاف عملك الأدبي، وقراءته، والاستماع إليه.
                             </p>
                         </td>
                     </tr>
@@ -116,15 +115,15 @@
                     <tr th:if="${REVIEW_NOTE != null and !#strings.isEmpty(REVIEW_NOTE)}">
                         <td style="padding-bottom: 28px;">
                             <table width="100%" cellpadding="0" cellspacing="0" border="0"
-                                style="background-color: #fafafa; border-left: 4px solid #000000; border-top: 1px solid #e8e8e8; border-right: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; border-radius: 0 6px 6px 0; padding: 16px 20px;">
+                                style="background-color: #fafafa; border-right: 4px solid #000000; border-top: 1px solid #e8e8e8; border-left: 1px solid #e8e8e8; border-bottom: 1px solid #e8e8e8; border-radius: 6px 0 0 6px; padding: 16px 20px; direction: rtl; text-align: right;">
                                 <tr>
                                     <td>
                                         <p
-                                            style="margin: 0 0 6px 0; color: #000000; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                                            Editorial Note:
+                                            style="margin: 0 0 6px 0; color: #000000; font-size: 13px; font-weight: 700;">
+                                            ملاحظة فريق التحرير:
                                         </p>
-                                        <p style="margin: 0; color: #222222; font-size: 14px; line-height: 1.55;"
-                                            th:text="${REVIEW_NOTE}">Review note from publisher.</p>
+                                        <p style="margin: 0; color: #222222; font-size: 14px; line-height: 1.6;"
+                                            th:text="${REVIEW_NOTE}">ملاحظة المحرر.</p>
                                     </td>
                                 </tr>
                             </table>
@@ -136,8 +135,8 @@
                         <td align="center" style="padding-bottom: 28px;">
                             <a th:href="${BOOK_URL != null ? BOOK_URL : 'https://ktab-rho.vercel.app'}"
                                 class="cta-button"
-                                style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 36px; border-radius: 6px; letter-spacing: 0.2px;">
-                                View Your Book on Ktab
+                                style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 40px; border-radius: 6px; letter-spacing: 0.2px;">
+                                عرض كتابك على كِتاب
                             </a>
                         </td>
                     </tr>
@@ -145,10 +144,9 @@
                     <!-- Sharing Note -->
                     <tr>
                         <td
-                            style="color: #666666; font-size: 13px; line-height: 1.55; text-align: center; padding-bottom: 28px;">
+                            style="color: #666666; font-size: 13px; line-height: 1.7; text-align: center; padding-bottom: 28px;">
                             <p style="margin: 0;">
-                                You can track reading statistics, reader reviews, and engagement directly from your
-                                author dashboard.
+                                يمكنك متابعة إحصائيات القراءة، وتقييمات القرّاء، وتفاعلهم مع كتابك مباشرة عبر لوحة تحكم المؤلف الخاصة بك.
                             </p>
                         </td>
                     </tr>
@@ -160,9 +158,9 @@
 
                     <!-- Footer -->
                     <tr>
-                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.6;">
-                            <p style="margin: 0 0 4px 0; color: #555555; font-weight: 500;">— The Ktab Team</p>
-                            <p style="margin: 0;">This email was sent to confirm your publication on Ktab.</p>
+                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.7;">
+                            <p style="margin: 0 0 6px 0; color: #444444; font-weight: 600;">— فريق عمل منصة كِتاب</p>
+                            <p style="margin: 0;">هذه رسالة آلية صادرة عن منصة كِتاب. يُرجى عدم الرد المباشر على هذه الرسالة.</p>
                         </td>
                     </tr>
 

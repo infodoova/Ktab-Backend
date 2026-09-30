@@ -62,7 +62,7 @@ public enum ApiMessageKey {
     IMAGE_DIMENSIONS_EXCEEDED("image.dimensions.exceeded"),
 
     // ===== PDF VALIDATION =====
-    PDF_INVALID_FILENAME("pdf.invalid.filename"), PDF_INVALID_EXTENSION("pdf.invalid.extension"), PDF_INVALID_MIME("pdf.invalid.mime"), PDF_SIZE_EXCEEDED("pdf.size.exceeded"), PDF_ENCRYPTED("pdf.encrypted"), PDF_EMPTY("pdf.empty"), PDF_PAGES_EXCEEDED("pdf.pages.exceeded"), PDF_NO_SELECTABLE_TEXT("pdf.no.selectable.text"), PDF_CORRUPTED("pdf.corrupted"),
+    PDF_INVALID_FILENAME("pdf.invalid.filename"), PDF_INVALID_EXTENSION("pdf.invalid.extension"), PDF_INVALID_MIME("pdf.invalid.mime"), PDF_SIZE_EXCEEDED("pdf.size.exceeded"), PDF_ENCRYPTED("pdf.encrypted"), PDF_EMPTY("pdf.empty"), PDF_PAGES_EXCEEDED("pdf.pages.exceeded"), PDF_NO_SELECTABLE_TEXT("pdf.no.selectable.text"), PDF_NOT_DIGITAL("pdf.not.digital"), PDF_CORRUPTED("pdf.corrupted"),
 
     // ===== SECURITY =====
     SECURITY_ACCESS_DENIED("security.access.denied"), SECURITY_INVALID_USER_MATCH("security.invalid.user.match"),
@@ -179,7 +179,21 @@ public enum ApiMessageKey {
     TALK_TO_BOOK_ANSWER_SUCCESS("talktobook.answer.success"),
     TALK_TO_BOOK_OFF_TOPIC("talktobook.question.off_topic"),
     TALK_TO_BOOK_FULL_BOOK_PROHIBITED("talktobook.privacy.full_book_prohibited"),
-    TALK_TO_BOOK_UNEXPECTED_ERROR("talktobook.unexpected.error");
+    TALK_TO_BOOK_UNEXPECTED_ERROR("talktobook.unexpected.error"),
+
+    // ===== TRAILER AGENT =====
+    TRAILER_CREATED("trailer.created"),
+    TRAILER_FETCHED("trailer.fetched"),
+    TRAILER_CANCELLED("trailer.cancelled"),
+    TRAILER_REVIEWED("trailer.reviewed"),
+    TRAILER_NOT_FOUND("trailer.not.found"),
+    TRAILER_LIMIT_REACHED("trailer.limit.reached"),
+    TRAILER_ALREADY_RUNNING("trailer.already.running"),
+    TRAILER_NOT_READY("trailer.not.ready"),
+    TRAILER_OAUTH_INVALID("trailer.oauth.invalid"),
+    TRAILER_HIGGSFIELD_CONNECTED("trailer.higgsfield.connected"),
+    TRAILER_RETRY_QUEUED("trailer.retry.queued");
+
 
 
     private final String key;

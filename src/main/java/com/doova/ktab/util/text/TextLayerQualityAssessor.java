@@ -64,7 +64,7 @@ public final class TextLayerQualityAssessor {
             return Assessment.empty();
         }
 
-        ScriptProfile profile = ScriptProfile.forLanguage(languageCode);
+        ScriptProfile profile = ScriptProfile.forLanguage(languageCode, text);
 
         int totalChars = text.length();
         int alphaChars = 0;
@@ -140,12 +140,32 @@ public final class TextLayerQualityAssessor {
         abstract boolean isPresentationForm(char c);
 
         static ScriptProfile forLanguage(String languageCode) {
-            if (languageCode == null) {
-                return ARABIC; // default profile: primary corpus is Arabic
+            return forLanguage(languageCode, null);
+        }
+
+        static ScriptProfile forLanguage(String languageCode, String text) {
+            if (languageCode != null && !languageCode.isBlank()) {
+                String lc = languageCode.toLowerCase();
+                if (lc.startsWith("en") || lc.startsWith("fr") || lc.startsWith("de")
+                        || lc.startsWith("es") || lc.startsWith("it")) {
+                    return LATIN;
+                }
+                return ARABIC;
             }
-            String lc = languageCode.toLowerCase();
-            if (lc.startsWith("en")) {
-                return LATIN;
+            if (text != null) {
+                int arabic = 0;
+                int latin = 0;
+                for (int i = 0; i < text.length(); i++) {
+                    char c = text.charAt(i);
+                    if (ARABIC.isExpectedScript(c)) {
+                        arabic++;
+                    } else if (LATIN.isExpectedScript(c)) {
+                        latin++;
+                    }
+                }
+                if (latin > arabic) {
+                    return LATIN;
+                }
             }
             return ARABIC;
         }

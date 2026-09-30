@@ -23,14 +23,32 @@ class EndCardHtmlTest {
         String longTitle = "عنوان طويل جدا لكتاب يتجاوز الحد المعتاد من الأحرف في سطر واحد";
         String html = EndCardHtml.build(new EndCardSpec(longTitle, "م", null, Path.of("logo.png")),
                 EndCardHtml.Layer.TITLE);
-        assertThat(html).contains("font-size:40px").doesNotContain("line-clamp").doesNotContain("ellipsis");
+        assertThat(html).contains("font-size:38px").doesNotContain("line-clamp").doesNotContain("ellipsis");
     }
 
     @Test
     void mediumTitleUsesTheMiddleStep() {
         String html = EndCardHtml.build(new EndCardSpec("عنوان متوسط الطول لكتاب جميل جدا", "م", null,
-                Path.of("logo.png")), EndCardHtml.Layer.TITLE); // 32 chars -> 60 px step
-        assertThat(html).contains("font-size:60px");
+                Path.of("logo.png")), EndCardHtml.Layer.TITLE); // 32 chars -> 52 px step
+        assertThat(html).contains("font-size:52px");
+    }
+
+    @Test
+    void aColonSplitsTheTitleFromItsSubtitle() {
+        EndCardSpec spec = new EndCardSpec("الصين والولايات المتحدة: حتمية الحرب الاقتصادية", "عدنان منصور",
+                Path.of("c.jpg"), Path.of("l.png"));
+        assertThat(EndCardHtml.layersFor(spec)).containsExactly(EndCardHtml.Layer.SCRIM, EndCardHtml.Layer.COVER,
+                EndCardHtml.Layer.TITLE, EndCardHtml.Layer.SUBTITLE, EndCardHtml.Layer.AUTHOR, EndCardHtml.Layer.LOGO);
+        assertThat(EndCardHtml.build(spec, EndCardHtml.Layer.TITLE))
+                .contains("<div class=\"title\" id=\"title\">الصين والولايات المتحدة</div>");
+        assertThat(EndCardHtml.build(spec, EndCardHtml.Layer.SUBTITLE))
+                .contains("<div class=\"subtitle\">حتمية الحرب الاقتصادية</div>").contains("class=\"only-subtitle\"");
+    }
+
+    @Test
+    void aTitleWithoutAColonHasNoSubtitleLayer() {
+        assertThat(EndCardHtml.layersFor(new EndCardSpec("ثورة دونالد ترامب", "م", null, Path.of("l.png"))))
+                .doesNotContain(EndCardHtml.Layer.SUBTITLE);
     }
 
     @Test
@@ -58,5 +76,6 @@ class EndCardHtmlTest {
     void layerFileNamesMatchTheMountedPaths() {
         assertThat(EndCardHtml.Layer.SCRIM.fileName()).isEqualTo("scrim.png");
         assertThat(EndCardHtml.Layer.LOGO.fileName()).isEqualTo("logo.png");
+        assertThat(EndCardHtml.Layer.SUBTITLE.fileName()).isEqualTo("subtitle.png");
     }
 }
