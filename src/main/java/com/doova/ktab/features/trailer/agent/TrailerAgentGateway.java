@@ -12,6 +12,10 @@ public interface TrailerAgentGateway {
     record OutputFile(String id, String filename, long sizeBytes) {
     }
 
+    /** A file uploaded to the Files API that the session mounts read-only at {@code mountPath}. */
+    record SessionFile(String fileId, String mountPath) {
+    }
+
     record HiggsfieldTokens(String accessToken, String refreshToken, OffsetDateTime expiresAt, String clientId,
                             String tokenEndpoint) {
     }
@@ -21,12 +25,13 @@ public interface TrailerAgentGateway {
 
     String uploadBook(Path pdf);
 
-    String uploadCover(Path image);
+    /** Uploads any file (cover, end-card layer) and returns its file id. */
+    String uploadFile(Path file);
 
-    String startSession(long trailerId, String bookFileId, String coverFileId, String taskDescription, String rubric);
+    String startSession(long trailerId, String bookFileId, List<SessionFile> files, String taskDescription, String rubric);
 
     default String startSession(long trailerId, String bookFileId, String taskDescription, String rubric) {
-        return startSession(trailerId, bookFileId, null, taskDescription, rubric);
+        return startSession(trailerId, bookFileId, List.of(), taskDescription, rubric);
     }
 
     SessionSnapshot snapshot(String sessionId);

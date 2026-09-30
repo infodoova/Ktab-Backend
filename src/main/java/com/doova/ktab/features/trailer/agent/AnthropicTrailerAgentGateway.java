@@ -75,13 +75,13 @@ public class AnthropicTrailerAgentGateway implements TrailerAgentGateway {
     }
 
     @Override
-    public String uploadCover(Path image) {
+    public String uploadFile(Path image) {
         FileMetadata file = client.beta().files().upload(FileUploadParams.builder().file(image).build());
         return file.id();
     }
 
     @Override
-    public String startSession(long trailerId, String fileId, String coverFileId, String taskDescription, String rubric) {
+    public String startSession(long trailerId, String fileId, List<SessionFile> files, String taskDescription, String rubric) {
         // D3: outcome kickoff in initial_events so create + kickoff are one atomic call.
         // D4: budget. Neither has a typed setter in anthropic-java 2.34.0, so both go as raw body properties.
         JsonValue initialEvents = JsonValue.from(List.of(Map.of(
@@ -112,11 +112,11 @@ public class AnthropicTrailerAgentGateway implements TrailerAgentGateway {
                 .putAdditionalBodyProperty("initial_events", initialEvents)
                 .putAdditionalBodyProperty("budget", budget);
 
-        if (coverFileId != null && !coverFileId.isBlank()) {
+        for (SessionFile f : files) {
             sessionBuilder.addResource(BetaManagedAgentsFileResourceParams.builder()
                     .type(BetaManagedAgentsFileResourceParams.Type.FILE)
-                    .fileId(coverFileId)
-                    .mountPath("/workspace/cover.jpg")
+                    .fileId(f.fileId())
+                    .mountPath(f.mountPath())
                     .build());
         }
 
