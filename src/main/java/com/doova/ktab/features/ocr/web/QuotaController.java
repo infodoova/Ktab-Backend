@@ -2,6 +2,7 @@ package com.doova.ktab.features.ocr.web;
 
 import com.doova.ktab.features.ocr.quota.ConfigQuotaProvider;
 import com.doova.ktab.features.ocr.quota.DynamicConcurrencyGate;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/ocr/quotas")
+@Tag(name = "OCR Quota API", description = "Endpoints for viewing and updating OCR concurrency gates and quotas.")
 public class QuotaController {
 
     private final ConfigQuotaProvider quota;

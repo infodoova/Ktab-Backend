@@ -1,6 +1,9 @@
 package com.doova.ktab.features.trailer.agent;
 
+import com.doova.ktab.features.trailer.config.TrailerVoice;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -18,6 +21,24 @@ class TrailerTaskTest {
                 .contains("/workspace/book.pdf").contains("/mnt/session/outputs/")
                 .contains("/workspace/endcard/").doesNotContain("Cover image:")
                 .doesNotContain("one accepted"); // mode-neutral: v14 must still be able to run this task
+    }
+
+    @Test
+    void taskListsTheApprovedVoicesAndTheDefaultAsFallback() {
+        String task = TrailerTask.describe("t", "a", "ar", "voice-default", 3, 16, 2, "model=seedance_2_5", false,
+                List.of(new TrailerVoice("v1", "Sami", "politics, history"),
+                        new TrailerVoice("v2", "Layla", "literature, self-development")));
+
+        assertThat(task).contains("Approved narration voices")
+                .contains("v1 — Sami: suits politics, history").contains("v2 — Layla: suits literature, self-development")
+                .contains("default voice_id: voice-default");
+    }
+
+    @Test
+    void withoutACatalogTheTaskKeepsTheSingleVoice() {
+        String task = TrailerTask.describe("t", "a", "ar", "voice-default", 3, 16, 2, "model=seedance_2_5", false);
+        assertThat(task).contains("ElevenLabs voice_id for the Arabic narration: voice-default")
+                .doesNotContain("Approved narration voices");
     }
 
     @Test

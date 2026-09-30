@@ -37,8 +37,8 @@ class AiCallLedgerIT extends StorybookJpaIT {
         ledger.recordLlm(book.getId(), null, LlmPurpose.STORY_PLAN,
                 new LlmCall<>("x", "claude-sonnet-5", 1_000, 500, 1200));
         ledger.recordImage(book.getId(), null, "IMAGE_PAGE",
-                new ImageResult(new byte[]{1}, "image/png", "gemini-3.1-flash-image-preview", 8000));
-        ledger.recordFailure(book.getId(), null, "IMAGE_PAGE", "GOOGLE", "gemini-3.1-flash-image-preview", 300, "HTTP 503");
+                new ImageResult(new byte[]{1}, "image/png", "gemini-3.1-flash-image", 8000));
+        ledger.recordFailure(book.getId(), null, "IMAGE_PAGE", "GOOGLE", "gemini-3.1-flash-image", 300, "HTTP 503");
 
         assertThat(calls.findByStorybookIdOrderByIdAsc(book.getId()))
                 .extracting(c -> c.getPurpose() + ":" + c.isSuccess())

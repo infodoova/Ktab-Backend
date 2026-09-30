@@ -78,7 +78,8 @@ public class TrailerLauncher {
             String sessionId = gateway.startSession(trailerId, t.getBookFileId(), files,
                     TrailerTask.describe(facts.title(), facts.author(), facts.language(), properties.getVoiceId(),
                             properties.getMaxVideoJobs(), properties.getMaxHiggsfieldGenerations(),
-                            properties.getHiggsfieldMaxInFlight(), properties.getHiggsfieldGenerateArgs(), hasCover),
+                            properties.getHiggsfieldMaxInFlight(), properties.getHiggsfieldGenerateArgs(), hasCover,
+                            properties.voiceCatalog()),
                     TrailerTask.rubric());
             t.setSessionId(sessionId);
             t.setAgentVersion(properties.getAgentVersion());

@@ -35,7 +35,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StorybookService {
 
-    private static final Set<Integer> PAGE_COUNTS = Set.of(10, 12, 15);
+    private static final Set<Integer> PAGE_COUNTS = Set.of(10, 12, 15, 18, 20);
 
     private final ChildProfileService children;
     private final BlueprintCatalog blueprints;

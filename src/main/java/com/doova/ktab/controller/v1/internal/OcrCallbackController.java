@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "/internal/ocr", produces = "application/json")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal OCR Webhook API", description = "Endpoints for receiving asynchronous webhook callbacks from Upstash QStash.")
 public class OcrCallbackController {
 
     private final OcrCallbackService ocrCallbackService;

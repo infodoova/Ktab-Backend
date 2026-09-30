@@ -36,7 +36,7 @@ public class StoryPlanHandler implements StepHandler {
             persistence.enqueueCritic(ctx.bookId(), job.getGeneration());
             return StepOutcome.success();
         }
-        LlmCall<StoryPlanResponse> call = writer.writePlan(ctx.request());
+        LlmCall<StoryPlanResponse> call = writer.writePlan(ctx.request(), ctx.characterBible(), ctx.storyBlueprint());
         ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_PLAN, call);
         persistence.savePlan(ctx.bookId(), call.value(), job.getGeneration());
         return StepOutcome.success();

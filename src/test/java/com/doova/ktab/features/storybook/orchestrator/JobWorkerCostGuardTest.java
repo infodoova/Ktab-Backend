@@ -36,6 +36,6 @@ class JobWorkerCostGuardTest {
         worker.runOne(job);
 
         assertThat(called).isFalse();
-        verify(recorder).record(eq(1L), argThat(o -> o.type() == StepOutcome.Type.FAIL && o.reason().contains("6.00")));
+        verify(recorder).record(eq(1L), argThat(o -> o.type() == StepOutcome.Type.FAIL && o.reason().contains("3.00")));
     }
 }

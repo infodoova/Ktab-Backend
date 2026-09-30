@@ -26,7 +26,7 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlaywrightPdfRenderer implements AutoCloseable {
 
-    private static final String FONT = "storybook/fonts/NotoNaskhArabic-Regular.ttf";
+    private static final String FONT = "storybook/fonts/Cairo.ttf";
 
     private final StorybookHtmlBuilder htmlBuilder;
     private final Semaphore slots;
@@ -47,7 +47,7 @@ public class PlaywrightPdfRenderer implements AutoCloseable {
             Files.createDirectories(dir.resolve("fonts"));
             Files.createDirectories(dir.resolve("img"));
             try (InputStream font = new ClassPathResource(FONT).getInputStream()) {
-                Files.copy(font, dir.resolve("fonts/NotoNaskhArabic-Regular.ttf"));
+                Files.copy(font, dir.resolve("fonts/Cairo.ttf"));
             }
             for (Map.Entry<Integer, byte[]> e : imagesByPageIndex.entrySet()) {
                 Files.write(dir.resolve(RenderModelFactory.imageFile(e.getKey())), ImageDownscaler.toJpeg(e.getValue(), 2048));

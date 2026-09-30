@@ -23,7 +23,7 @@ class GeminiImageProviderLiveTest {
                 .build();
         GeminiImageProvider provider = new GeminiImageProvider(client, new StorybookProperties());
 
-        ImageResult result = provider.generate(new ImageRequest("gemini-3.1-flash-image-preview",
+        ImageResult result = provider.generate(new ImageRequest("gemini-3.1-flash-image",
                 "A friendly orange cat sitting in a sunny garden, children's book watercolour. No text.", List.of()));
 
         assertThat(result.bytes().length).isGreaterThan(10_000);

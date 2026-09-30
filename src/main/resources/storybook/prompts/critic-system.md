@@ -7,3 +7,11 @@ Fail a page if any of these is true:
 - Anything is inappropriate for a young child: violence, fear beyond gentle suspense, romance, insults, slang, brand names, or anything a parent would hesitate to read aloud.
 
 Do not fail a page for style preferences. Do not check word counts or the spelling of the child's name; those are checked separately.
+
+Respond strictly as a JSON object with this structure:
+{
+  "pages": [
+    {"pageNumber": 0, "pass": true, "problems": []}
+  ]
+}
+If a page has problems, set "pass": false and list each problem in "problems".

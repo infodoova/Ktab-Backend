@@ -1,9 +1,12 @@
 package com.doova.ktab.features.trailer.agent;
 
+import com.doova.ktab.features.trailer.config.TrailerVoice;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /** The per-trailer task text sent as the outcome description; the durable instructions live in the agent's system prompt. */
 public final class TrailerTask {
@@ -13,6 +16,14 @@ public final class TrailerTask {
 
     public static String describe(String title, String author, String language, String voiceId, int maxVideoJobs,
                                   int maxJobs, int maxInFlight, String generateArgs, boolean hasCover) {
+        return describe(title, author, language, voiceId, maxVideoJobs, maxJobs, maxInFlight, generateArgs, hasCover, List.of());
+    }
+
+    public static String describe(String title, String author, String language, String voiceId, int maxVideoJobs,
+                                  int maxJobs, int maxInFlight, String generateArgs, boolean hasCover,
+                                  List<TrailerVoice> voices) {
+        String voiceBlock = voices == null || voices.isEmpty() ? "ElevenLabs voice_id for the Arabic narration: " + voiceId
+                : voiceCatalogText(voiceId, voices);
         String coverLine = hasCover ? "Cover image: /workspace/cover.jpg\n" : "";
         return """
                 Produce the 30-second trailer for this book.
@@ -20,16 +31,26 @@ public final class TrailerTask {
                 %sTitle: %s
                 Author: %s
                 Book language: %s
-                ElevenLabs voice_id for the Arabic narration: %s
+                %s
                 End-card layers (rendered by Ktab, composite them as-is): /workspace/endcard/
                 Higgsfield video allowance: at most %d video jobs in total, including replacements for a discarded video.
                 Higgsfield total allowance: at most %d Higgsfield jobs in total; image jobs count toward the total, not toward the video jobs.
                 Higgsfield concurrency: keep at most %d generations in flight at a time.
                 Call generate_video with exactly these arguments: %s
                 Write every deliverable to /mnt/session/outputs/ as described in your instructions.
-                """.formatted(coverLine, title, author == null ? "" : author, language == null ? "ar" : language, voiceId,
+                """.formatted(coverLine, title, author == null ? "" : author, language == null ? "ar" : language, voiceBlock,
                 maxVideoJobs, maxJobs, maxInFlight,
                 generateArgs == null || generateArgs.isBlank() ? "(see your instructions)" : generateArgs);
+    }
+
+    private static String voiceCatalogText(String defaultVoiceId, List<TrailerVoice> voices) {
+        StringBuilder sb = new StringBuilder("Approved narration voices (choose the one whose genre and tone best fit this book; "
+                + "if none fits, use the default voice_id: ").append(defaultVoiceId).append("):");
+        for (TrailerVoice v : voices) {
+            sb.append("\n- ").append(v.id()).append(" — ").append(v.name() == null ? "" : v.name())
+                    .append(": suits ").append(v.suits() == null ? "any genre" : v.suits());
+        }
+        return sb.toString();
     }
 
     public static String rubric() {

@@ -64,12 +64,12 @@ class PageIllustrationHandlerTest {
 
         ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
         verify(images).generate(req.capture());
-        assertThat(req.getValue().model()).isEqualTo("gemini-3.1-flash-image-preview");
+        assertThat(req.getValue().model()).isEqualTo("gemini-3.1-flash-image");
         assertThat(req.getValue().references()).hasSize(3);
         assertThat(req.getValue().prompt()).contains("The CHILD waves.").contains("top third");
         verify(store).put(eq("storybook/9/pages/3/g1.png"), any(), eq("image/png"));
         verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
-                "gemini-3.1-flash-image-preview", new BigDecimal("0.101"));
+                "gemini-3.1-flash-image", new BigDecimal("0.101"));
     }
 
     @Test
@@ -78,7 +78,7 @@ class PageIllustrationHandlerTest {
         handler.handle(job(3, 3));
         ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
         verify(images).generate(req.capture());
-        assertThat(req.getValue().model()).isEqualTo("gemini-3-pro-image-preview");
+        assertThat(req.getValue().model()).isEqualTo("gemini-3-pro-image");
     }
 
     @Test
@@ -87,7 +87,7 @@ class PageIllustrationHandlerTest {
         handler.handle(job(3, 5));
         ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
         verify(images).generate(req.capture());
-        assertThat(req.getValue().model()).isEqualTo("gemini-3.1-flash-image-preview");
+        assertThat(req.getValue().model()).isEqualTo("gemini-3.1-flash-image");
     }
 
     @Test
@@ -109,7 +109,7 @@ class PageIllustrationHandlerTest {
 
         verifyNoInteractions(images, ledger);
         verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
-                "gemini-3.1-flash-image-preview", BigDecimal.ZERO);
+                "gemini-3.1-flash-image", BigDecimal.ZERO);
     }
 
     @Test

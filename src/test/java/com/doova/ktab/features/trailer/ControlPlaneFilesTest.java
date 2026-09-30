@@ -93,6 +93,13 @@ class ControlPlaneFilesTest {
     }
 
     @Test
+    void systemPromptPicksTheNarrationVoiceFromTheApprovedList() throws Exception {
+        String prompt = Files.readString(dir.resolve("system-prompt.md"));
+        assertThat(prompt).contains("Approved narration voices").contains("best fit the book").contains("default voice_id")
+                .contains("voice_reason").contains("Never use a voice that is not in the approved list");
+    }
+
+    @Test
     void rubricGradesTheSingleGenerationTrailer() throws Exception {
         String rubric = Files.readString(Path.of("src/main/resources/trailer-agent/rubric.md"));
         assertThat(rubric).contains("single Seedance 2.5 generation").contains("no burned-in captions")

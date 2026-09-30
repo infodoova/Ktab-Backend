@@ -12,7 +12,7 @@ public interface StorybookPageImageRepository extends JpaRepository<StorybookPag
     List<StorybookPageImage> findByStatusOrderByCreatedAtAsc(PageImageStatus status);
 
     @org.springframework.data.jpa.repository.Query("""
-            select i from StorybookPageImage i join i.page p
+            select i from StorybookPageImage i join fetch i.page p join fetch p.storybook
             where i.status = com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED
               and p.currentImage = i
             order by i.createdAt asc

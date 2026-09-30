@@ -12,6 +12,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('ADMIN','AUTHOR','LIBRARIAN','ADMIN_LIBRARIAN')")
 @ConditionalOnProperty(prefix = "ktab.trailer", name = "enabled", havingValue = "true")
+@Tag(name = "Book Trailer API", description = "Endpoints for creating, managing, and inspecting AI video trailers for books.")
 public class TrailerController {
 
     private final TrailerService service;

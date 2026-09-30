@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 @PreAuthorize("hasAuthority('ADMIN')")
 @ConditionalOnProperty(prefix = "ktab.trailer", name = "enabled", havingValue = "true")
+@Tag(name = "Admin Book Trailer API", description = "Endpoints for administrators to manage Higgsfield connection and review book trailers.")
 public class TrailerAdminController {
 
     private final HiggsfieldOAuthService oauth;

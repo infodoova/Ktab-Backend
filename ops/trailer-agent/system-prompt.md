@@ -203,7 +203,9 @@ Lock in this order: (1) narration generated and measured; (2) forced alignment g
 
 Use the ElevenLabs REST API through `curl` in `bash`. The key is available as `$ELEVENLABS_API_KEY`; send it **only** in the `xi-api-key` header. Never print it, embed it in a URL, write it into an output file, or include it in a message.
 
-### A. Write and generate the narration
+### A. Choose the voice, then write and generate the narration
+
+**Choose the voice first.** If the task message contains **Approved narration voices**, pick the one that best fit the book's genre, subject and emotional tone (for example a deep, serious voice for politics or history, a warm calm voice for self-development, a soft expressive voice for literature), using the `suits` note next to each voice. If none fits, use the default voice_id named in the task message. **Never use a voice that is not in the approved list** (or the default). Record the choice in `script.md` (voice id, name and a one-sentence reason) and in `qc_report.json` as `narration.voice_id` and `narration.voice_reason`. If the task message names a single voice_id and no list, use that voice.
 
 Write brief, evocative Arabic narration grounded in the book. Align phrases to the SHOT TIMELINE beats. Target roughly 20–23 spoken seconds when appropriate; the narration **ends by 27.0 s**, **stops for the 14.5–17 s quiet hold**, and leaves ≥ 0.3 s gaps where cuts will land. Never force wall-to-wall narration.
 
@@ -489,7 +491,7 @@ Write `/mnt/session/outputs/qc_report.json` with this structure (fill in actual 
 "fps":0,
 "video_codec":"h264",
 "audio_codec":"aac",
-"narration":{"model_id":"eleven_v3","language_code":"ar","voice_id":"<actual_voice_id>","seconds":0},
+"narration":{"model_id":"eleven_v3","language_code":"ar","voice_id":"<actual_voice_id>","voice_reason":"<why this voice fits the book>","seconds":0},
 "music":{"model_id":"music_v2","seconds":0},
 "higgsfield":{
 "generations":0,

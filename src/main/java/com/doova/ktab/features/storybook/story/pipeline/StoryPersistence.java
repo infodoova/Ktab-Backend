@@ -45,7 +45,9 @@ public class StoryPersistence {
                     .toList());
         }
         return new StoryContext(bookId, book.getStatus(),
-                book.getInputs().toStoryRequest(book.getVariety(), book.getPageCount()), plan);
+                book.getInputs().toStoryRequest(book.getVariety(), book.getPageCount()), plan,
+                book.getCharacterBible(), book.getStoryBlueprint(),
+                book.getTheme(), book.getStoryTone(), book.getLesson(), book.getStoryIdea(), book.getThingsToAvoid());
     }
 
     @Transactional
@@ -71,6 +73,24 @@ public class StoryPersistence {
     @Transactional
     public void enqueueCritic(Long bookId, int generation) {
         enqueuer.enqueue(bookId, JobStep.STORY_CRITIC, -1, generation);
+    }
+
+    @Transactional
+    public void enqueueLanguageCritic(Long bookId, int generation) {
+        enqueuer.enqueue(bookId, JobStep.LANGUAGE_CRITIC, -1, generation);
+    }
+
+    @Transactional
+    public void saveRewrittenPages(Long bookId, StoryPlanResponse updatedPlan) {
+        if (updatedPlan != null && updatedPlan.pages() != null) {
+            for (PagePlan p : updatedPlan.pages()) {
+                pages.findByStorybook_IdAndPageIndex(bookId, p.pageNumber()).ifPresent(page -> {
+                    page.setTextAr(p.textAr());
+                    page.setSceneEn(p.sceneEn());
+                    page.setTextZone(p.textZone());
+                });
+            }
+        }
     }
 
     @Transactional

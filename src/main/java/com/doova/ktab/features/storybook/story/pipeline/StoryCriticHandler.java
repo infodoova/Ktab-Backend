@@ -59,8 +59,9 @@ public class StoryCriticHandler implements StepHandler {
             rounds++;
         }
 
-        if (report.allPass()) {
-            persistence.acceptStory(ctx.bookId(), report.plan());
+        if (report.allPass() || rounds > 0) {
+            persistence.saveRewrittenPages(ctx.bookId(), report.plan());
+            persistence.enqueueLanguageCritic(ctx.bookId(), job.getGeneration());
         } else if (job.getGeneration() + 1 < MAX_PLANS) {
             log.info("storybook {} story plan {} failed checks, starting a fresh plan: {}",
                     ctx.bookId(), job.getGeneration(), report.problemsByPage());

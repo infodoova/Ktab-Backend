@@ -36,7 +36,7 @@ class AiCallLedgerTest {
                 "claude-sonnet-5", new StorybookProperties.LlmPrice("3.00", "15.00")
         ));
         props.getPricing().setImagePerImageUsd(Map.of(
-                "gemini-3.1-flash-image-preview", new BigDecimal("0.101")
+                "gemini-3.1-flash-image", new BigDecimal("0.101")
         ));
         costs = new CostCalculator(props);
         ledger = new AiCallLedger(calls, books, costs);
@@ -70,7 +70,7 @@ class AiCallLedgerTest {
 
     @Test
     void recordImageSavesSuccessAndAddsCostToBook() {
-        ImageResult imageResult = new ImageResult(new byte[]{1, 2}, "image/png", "gemini-3.1-flash-image-preview", 4500);
+        ImageResult imageResult = new ImageResult(new byte[]{1, 2}, "image/png", "gemini-3.1-flash-image", 4500);
         BigDecimal cost = ledger.recordImage(42L, 8L, "IMAGE_PAGE", imageResult);
 
         assertThat(cost).isEqualByComparingTo("0.101");
@@ -93,7 +93,7 @@ class AiCallLedgerTest {
     @Test
     void recordFailureSavesZeroCostAndDoesNotAddCostToBook() {
         String longError = "E".repeat(3000);
-        ledger.recordFailure(42L, 9L, "IMAGE_PAGE", "GOOGLE", "gemini-3.1-flash-image-preview", 800, longError);
+        ledger.recordFailure(42L, 9L, "IMAGE_PAGE", "GOOGLE", "gemini-3.1-flash-image", 800, longError);
 
         ArgumentCaptor<StorybookAiCall> captor = ArgumentCaptor.forClass(StorybookAiCall.class);
         verify(calls).save(captor.capture());

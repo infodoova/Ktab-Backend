@@ -48,11 +48,13 @@ public class IllustrationPersistence {
     public void saveSheets(Long bookId, int version, String childKey, String companionKey, boolean photoUsed) {
         StorybookCharacter child = characters.findByStorybook_IdAndKind(bookId, CharacterKind.CHILD).orElseThrow();
         child.setSheetKey(childKey);
+        child.setMasterSheetKey(childKey);
         child.setSheetVersion(version);
         child.setSheetStatus(CharacterSheetStatus.GENERATED);
         if (companionKey != null) {
             characters.findByStorybook_IdAndKind(bookId, CharacterKind.COMPANION).ifPresent(c -> {
                 c.setSheetKey(companionKey);
+                c.setMasterSheetKey(companionKey);
                 c.setSheetVersion(1);
                 c.setSheetStatus(CharacterSheetStatus.GENERATED);
             });

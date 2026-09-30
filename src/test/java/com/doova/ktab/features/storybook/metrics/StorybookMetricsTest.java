@@ -25,7 +25,7 @@ class StorybookMetricsTest {
         Metrics.addRegistry(registry);
 
         StorybookMetrics.jobOutcome(JobStep.ILLUSTRATE_PAGE, StepOutcome.Type.RETRY);
-        StorybookMetrics.aiCost("IMAGE_PAGE", "gemini-3.1-flash-image-preview", new BigDecimal("0.101"));
+        StorybookMetrics.aiCost("IMAGE_PAGE", "gemini-3.1-flash-image", new BigDecimal("0.101"));
         StorybookMetrics.qaVerdict("flagged");
 
         assertThat(registry.get("storybook.jobs").tag("step", "ILLUSTRATE_PAGE").tag("outcome", "RETRY").counter().count()).isEqualTo(1);

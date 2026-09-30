@@ -39,7 +39,7 @@ public class VertexImageClient {
 
             GenerateContentConfig config = GenerateContentConfig.builder().responseModalities(List.of("IMAGE")).temperature(1.0f).topP(0.95f).mediaResolution(MediaResolution.Known.MEDIA_RESOLUTION_HIGH).safetySettings(safetySettings).build();
 
-            //          String model = "gemini-3-pro-image-preview";
+            //          String model = "gemini-3-pro-image";  // fallback – confirmed available on ktab-prod/global
             String model = "gemini-2.5-flash-image";
             GenerateContentResponse response = vertexGenAiClient.models.generateContent(model, List.of(content), config);
 

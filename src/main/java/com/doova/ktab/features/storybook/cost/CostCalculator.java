@@ -27,6 +27,13 @@ public class CostCalculator {
 
     public BigDecimal imageCostUsd(String model) {
         BigDecimal price = properties.getPricing().getImagePerImageUsd().get(model);
+        if (price == null && model != null) {
+            String stripped = model.replace("-preview", "");
+            price = properties.getPricing().getImagePerImageUsd().get(stripped);
+            if (price == null) {
+                price = properties.getPricing().getImagePerImageUsd().get(model + "-preview");
+            }
+        }
         if (price == null) {
             throw new IllegalStateException("No image price configured for model " + model);
         }

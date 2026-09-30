@@ -13,16 +13,30 @@ public final class StoryPromptBuilder {
     }
 
     public static String planUserMessage(StoryRequest r, String dialectGuide) {
+        return planUserMessage(r, dialectGuide, null, null);
+    }
+
+    public static String planUserMessage(StoryRequest r, String dialectGuide, String characterBible, String storyBlueprint) {
         StringBuilder sb = new StringBuilder();
         appendChildAndLanguage(sb, r, dialectGuide);
-        sb.append("\nBlueprint: ").append(r.blueprint().titleEn())
-                .append(" (").append(r.pageCount()).append(" pages, one beat per page)\n");
-        List<BlueprintBeat> beats = r.blueprint().beatsFor(r.pageCount());
-        for (int i = 0; i < beats.size(); i++) {
-            sb.append("Page ").append(i + 1).append(": ").append(beats.get(i).beat()).append('\n');
+
+        if (characterBible != null && !characterBible.isBlank()) {
+            sb.append("\nCharacter Bible (visual locks & personalities):\n").append(characterBible).append("\n");
+        }
+
+        if (storyBlueprint != null && !storyBlueprint.isBlank()) {
+            sb.append("\nStory Blueprint (follow these beats exactly):\n").append(storyBlueprint).append("\n");
+        } else if (r.blueprint() != null) {
+            sb.append("\nBlueprint: ").append(r.blueprint().titleEn())
+                    .append(" (").append(r.pageCount()).append(" pages, one beat per page)\n");
+            List<BlueprintBeat> beats = r.blueprint().beatsFor(r.pageCount());
+            for (int i = 0; i < beats.size(); i++) {
+                sb.append("Page ").append(i + 1).append(": ").append(beats.get(i).beat()).append('\n');
+            }
         }
         sb.append("\nReturn exactly ").append(r.pageCount())
-                .append(" pages numbered 1 to ").append(r.pageCount()).append(", plus the title and cover scene.");
+                .append(" pages numbered 1 to ").append(r.pageCount())
+                .append(", plus the title and cover scene. Reserve the bottom 20% text zone for each story page.");
         return sb.toString();
     }
 

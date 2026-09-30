@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.Set;
 @RequestMapping(path = "/public/trailer-agent")
 @ConditionalOnProperty(prefix = "ktab.trailer", name = "enabled", havingValue = "true")
 @Slf4j
+@Tag(name = "Public Book Trailer Agent API", description = "Public endpoints for webhook notifications and OAuth callbacks for trailer generation.")
 public class TrailerPublicController {
 
     private final TrailerAgentGateway gateway;

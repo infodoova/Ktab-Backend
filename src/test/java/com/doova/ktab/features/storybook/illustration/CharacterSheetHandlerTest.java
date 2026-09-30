@@ -50,7 +50,7 @@ class CharacterSheetHandlerTest {
     @Test
     void generatesFromAttributesWhenThereIsNoPhoto() {
         when(persistence.sheetContext(9L)).thenReturn(ctx(0, null, false, false));
-        when(images.generate(any())).thenReturn(new ImageResult(new byte[]{9}, "image/png", "gemini-3.1-flash-image-preview", 5));
+        when(images.generate(any())).thenReturn(new ImageResult(new byte[]{9}, "image/png", "gemini-3.1-flash-image", 5));
 
         assertThat(handler.handle(job(1)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
 

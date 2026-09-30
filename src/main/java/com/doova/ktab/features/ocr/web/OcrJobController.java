@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import javax.imageio.ImageIO;
@@ -36,6 +37,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @RequestMapping("/api/ocr")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
+@Tag(name = "OCR Job API", description = "Endpoints for launching and managing batch OCR processing and book restructure jobs.")
 public class OcrJobController {
 
     private final S3OcrStorageService s3;

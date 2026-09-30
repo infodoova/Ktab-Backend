@@ -24,6 +24,12 @@ public class TrailerProperties {
     private String webhookSigningKey;
 
     private String voiceId;
+    /**
+     * Optional JSON catalog of approved narration voices, e.g.
+     * {@code [{"id":"...","name":"Sami","suits":"politics, history"}]}. When present the agent picks the
+     * voice that best fits the book; {@link #voiceId} stays the default and the fallback.
+     */
+    private String voices;
     /** D4: list-cost cap per session in US cents, as the API expects ("2000" = $20.00). */
     private long budgetCents = 2000;
     private int maxOutcomeIterations = 3;
@@ -65,4 +71,24 @@ public class TrailerProperties {
     private int perBookPer30Days = 3;
     /** Max concurrent RUNNING sessions allowed across the system. */
     private int maxConcurrentRuns = 4;
+
+    /** Parses {@link #voices}; a broken catalog fails loudly rather than silently using the default voice. */
+    public java.util.List<TrailerVoice> voiceCatalog() {
+        if (voices == null || voices.isBlank()) {
+            return java.util.List.of();
+        }
+        try {
+            java.util.List<TrailerVoice> catalog = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(voices, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<TrailerVoice>>() { });
+            for (TrailerVoice v : catalog) {
+                if (v.id() == null || v.id().isBlank()) {
+                    throw new IllegalStateException("KTAB_TRAILER_VOICES: every voice needs an id");
+                }
+            }
+            return catalog;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException("KTAB_TRAILER_VOICES is not a valid JSON array of {id, name, suits}: "
+                    + e.getOriginalMessage(), e);
+        }
+    }
 }

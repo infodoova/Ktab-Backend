@@ -67,7 +67,7 @@ class StoryCriticHandlerTest {
         llm.enqueue(verdicts(-1));
 
         assertThat(handler.handle(job(0)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
-        verify(persistence).acceptStory(eq(42L), any());
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
     }
 
     @Test
@@ -79,9 +79,10 @@ class StoryCriticHandlerTest {
 
         handler.handle(job(0));
 
-        ArgumentCaptor<StoryPlanResponse> accepted = ArgumentCaptor.forClass(StoryPlanResponse.class);
-        verify(persistence).acceptStory(eq(42L), accepted.capture());
-        assertThat(accepted.getValue().pages().get(3).textAr()).isEqualTo("ذَهَبَ سامي إِلَى البَيْتِ.");
+        ArgumentCaptor<StoryPlanResponse> saved = ArgumentCaptor.forClass(StoryPlanResponse.class);
+        verify(persistence).saveRewrittenPages(eq(42L), saved.capture());
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
+        assertThat(saved.getValue().pages().get(3).textAr()).isEqualTo("ذَهَبَ سامي إِلَى البَيْتِ.");
         assertThat(llm.requests()).hasSize(3);
     }
 

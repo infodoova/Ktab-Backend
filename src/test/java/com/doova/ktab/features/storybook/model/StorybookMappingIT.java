@@ -60,7 +60,7 @@ class StorybookMappingIT extends StorybookJpaIT {
         image.setPage(page);
         image.setGeneration(1);
         image.setImageKey("storybook/1/pages/1/g1.png");
-        image.setModel("gemini-3.1-flash-image-preview");
+        image.setModel("gemini-3.1-flash-image");
         image.setStatus(PageImageStatus.QA_PASSED);
         image.setQaResult(new VisualQaResponse(true, false, true, true, List.of()));
         image.setCostUsd(new BigDecimal("0.1010"));

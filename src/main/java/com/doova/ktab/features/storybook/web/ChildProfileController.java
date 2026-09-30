@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.MessageSource;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +26,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 @ConditionalOnProperty(prefix = "ktab.storybook", name = "enabled", havingValue = "true")
+@Tag(name = "Storybook Child Profile API", description = "Endpoints for managing child profiles and preferences for personalized storybooks.")
 public class ChildProfileController {
 
     private final ChildProfileService service;

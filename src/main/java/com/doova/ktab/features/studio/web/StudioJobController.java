@@ -37,7 +37,7 @@ import java.util.Optional;
 @RequestMapping("/api/studio")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 @Slf4j
-@Tag(name = "Studio Audiobook", description = "Endpoints for managing Studio audiobook generation")
+@Tag(name = "Studio Audiobook API", description = "Endpoints for managing Studio audiobook generation.")
 public class StudioJobController {
 
     private final JobLauncher jobLauncher;

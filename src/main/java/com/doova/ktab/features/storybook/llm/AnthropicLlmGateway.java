@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
-@Component
+@Component("anthropicLlmGateway")
 @RequiredArgsConstructor
 @Slf4j
 public class AnthropicLlmGateway implements LlmGateway {

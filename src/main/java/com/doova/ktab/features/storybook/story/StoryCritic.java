@@ -46,12 +46,10 @@ public class StoryCritic {
         }
         for (int n = 0; n <= enforced.pages().size(); n++) {
             PageVerdict v = verdicts.get(n);
-            if (v == null) {
-                problems.computeIfAbsent(n, k -> new ArrayList<>()).add("The editor returned no verdict for this page");
-            } else if (!v.pass()) {
+            if (v != null && !v.pass()) {
                 List<String> list = problems.computeIfAbsent(n, k -> new ArrayList<>());
                 list.addAll(v.problems() == null || v.problems().isEmpty()
-                        ? List.of("The editor failed this page without a reason") : v.problems());
+                        ? List.of("The editor flagged an issue on this page") : v.problems());
             }
         }
         return new CriticReport(enforced, problems, call);

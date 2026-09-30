@@ -18,19 +18,26 @@ public class StoryWriter {
     private final PromptLibrary prompts;
 
     public LlmCall<StoryPlanResponse> writePlan(StoryRequest r) {
-        String user = StoryPromptBuilder.planUserMessage(r, prompts.dialectGuide(r.variety()));
+        return writePlan(r, null, null);
+    }
+
+    public LlmCall<StoryPlanResponse> writePlan(StoryRequest r, String characterBible, String storyBlueprint) {
+        String user = StoryPromptBuilder.planUserMessage(r, prompts.dialectGuide(r.variety()), characterBible, storyBlueprint);
         LlmCall<StoryPlanResponse> call = llm.call(LlmRequest.of(LlmPurpose.STORY_PLAN,
                 prompts.get("story-plan-system"), user, StoryPlanResponse.class));
-        validate(call.value(), r.pageCount());
-        return call;
+        String defaultTitle = "مغامرة " + r.childNameAr();
+        String defaultCover = "Cover illustration showing " + r.childNameAr() + " with a calm top third for title";
+        StoryPlanResponse normalized = call.value() == null ? null : call.value().normalized(defaultTitle, defaultCover, r.pageCount());
+        validate(normalized, r.pageCount());
+        return new LlmCall<>(normalized, call.model(), call.inputTokens(), call.outputTokens(), call.latencyMs());
     }
 
     public LlmCall<PagePlan> rewritePage(StoryRequest r, PagePlan page, List<String> problems) {
         String user = StoryPromptBuilder.rewriteUserMessage(r, prompts.dialectGuide(r.variety()), page, problems);
         LlmCall<PagePlan> call = llm.call(LlmRequest.of(LlmPurpose.STORY_PAGE_REWRITE,
                 prompts.get("page-rewrite-system"), user, PagePlan.class));
-        PagePlan v = call.value();
-        if (v.textAr() == null || v.textAr().isBlank()) {
+        PagePlan v = call.value() == null ? null : call.value().normalized(page.pageNumber());
+        if (v == null || v.textAr() == null || v.textAr().isBlank()) {
             throw new StoryPlanInvalidException("Rewrite of page " + page.pageNumber() + " returned empty text");
         }
         // The page number is ours, not the model's.

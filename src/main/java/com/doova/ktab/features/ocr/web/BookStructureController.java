@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/books")
 @RequiredArgsConstructor
-@Tag(name = "Book Structure API", description = "Endpoints for book section tree structure and scanning settings")
+@Tag(name = "Book Structure API", description = "Endpoints for book section tree structure and scanning settings.")
 public class BookStructureController {
 
     private final BookStructureService structureService;
