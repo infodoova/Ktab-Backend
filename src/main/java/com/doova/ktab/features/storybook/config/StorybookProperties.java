@@ -62,12 +62,12 @@ public class StorybookProperties {
     @Getter
     @Setter
     public static class Image {
-        private String primaryModel = "gemini-3.1-flash-image-preview";
-        private String fallbackModel = "gemini-3-pro-image-preview";
+        private String primaryModel = "gemini-3.1-flash-image";
+        private String fallbackModel = "gemini-3.1-flash-lite-image";
         private int primaryMaxReferences = 4;
         private int fallbackMaxReferences = 5;
         private String aspectRatio = "1:1";
-        private String imageSize = "2K";
+        private String imageSize = "1K";
         /** Generations 1..primaryGenerations use the primary model, later ones the fallback (D6). */
         private int primaryGenerations = 2;
         /** First generation plus 3 QA retries (spec: "retried up to 3 times"). */
@@ -97,6 +97,8 @@ public class StorybookProperties {
         private Map<String, LlmPrice> llm = new HashMap<>(Map.of(
                 "claude-sonnet-5", new LlmPrice("2.00", "10.00")));
         private Map<String, BigDecimal> imagePerImageUsd = new HashMap<>(Map.of(
+                "gemini-3.1-flash-image", new BigDecimal("0.101"),
+                "gemini-3.1-flash-lite-image", new BigDecimal("0.050"),
                 "gemini-3.1-flash-image-preview", new BigDecimal("0.101"),
                 "gemini-3-pro-image-preview", new BigDecimal("0.134")));
     }

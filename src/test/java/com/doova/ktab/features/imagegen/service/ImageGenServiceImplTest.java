@@ -95,6 +95,7 @@ class ImageGenServiceImplTest {
                 attachmentService,
                 fileStorageService,
                 properties,
+                new com.doova.ktab.config.ai.GlobalAiProperties(),
                 eventPublisher,
                 messageSource
         );

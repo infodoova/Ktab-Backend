@@ -13,8 +13,11 @@ import java.time.Duration;
 @Setter
 public class ImageGenProperties {
 
-    /** AI model identifier for multimodal image generation */
-    private String aiModel = "gemini-3.1-flash-image";
+    /**
+     * AI model identifier for multimodal image generation.
+     * Defaults to global primary image model if not explicitly set.
+     */
+    private String aiModel;
 
     /** Max retry attempts on transient failures */
     private int maxRetries = 3;
@@ -34,12 +37,15 @@ public class ImageGenProperties {
     /** Expiration for Cloudflare presigned URLs in minutes */
     private int presignedExpirationMinutes = 120;
 
-    /** Resolution parameter for GenAI model */
-    private String imageSize = "2K";
+    /** Resolution parameter for GenAI model (1K or 2K) */
+    private String imageSize = "1K";
 
     /** Whether to run a live Google Web Search to enrich the book lore and cover aesthetic */
     private boolean webSearchEnabled = true;
 
-    /** Model used for live Google web search synthesis */
-    private String searchModel = "gemini-2.5-flash";
+    /**
+     * Model used for live Google web search synthesis.
+     * Defaults to global search model if not explicitly set.
+     */
+    private String searchModel;
 }

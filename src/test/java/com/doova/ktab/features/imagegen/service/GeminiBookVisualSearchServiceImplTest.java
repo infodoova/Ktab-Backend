@@ -41,7 +41,7 @@ class GeminiBookVisualSearchServiceImplTest {
         properties.setSearchModel("gemini-2.5-flash");
 
         org.springframework.test.util.ReflectionTestUtils.setField(vertexGenAiClient, "models", models);
-        visualSearchService = new GeminiBookVisualSearchServiceImpl(vertexGenAiClient, properties);
+        visualSearchService = new GeminiBookVisualSearchServiceImpl(vertexGenAiClient, properties, new com.doova.ktab.config.ai.GlobalAiProperties());
     }
 
     @Test

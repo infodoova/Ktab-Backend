@@ -39,6 +39,7 @@ public class ReadingSession extends BaseEntity {
     // FK → Story
     // -------------------------------
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "col_story_id",
@@ -52,6 +53,7 @@ public class ReadingSession extends BaseEntity {
     // FK → Reader (User)
     // -------------------------------
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
@@ -76,10 +78,26 @@ public class ReadingSession extends BaseEntity {
     @Column(name = "col_last_summarized_turn_index", nullable = false)
     private int lastSummarizedTurnIndex = 0;
 
+    @Column(name = "col_current_risk_mapping")
+    private String currentRiskMapping;
+
+    @Column(name = "col_open_threads", columnDefinition = "TEXT")
+    private String openThreads;
+
+    @Column(name = "col_unpaid_setups", columnDefinition = "TEXT")
+    private String unpaidSetups;
+
+    @Column(name = "col_inventory", columnDefinition = "TEXT")
+    private String inventory;
+
+    @Column(name = "col_character_status", columnDefinition = "TEXT")
+    private String characterStatus;
+
     // -------------------------------
     // Turns (ONE → MANY)
     // -------------------------------
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToMany(
             mappedBy = "session",
             cascade = CascadeType.ALL,

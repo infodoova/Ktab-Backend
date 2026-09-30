@@ -22,6 +22,7 @@ public class GeminiBookVisualSearchServiceImpl implements BookVisualSearchServic
 
     private final Client vertexGenAiClient;
     private final ImageGenProperties properties;
+    private final com.doova.ktab.config.ai.GlobalAiProperties globalAi;
 
     @Override
     public String searchBookVisualLore(String bookTitle, String authorName) {
@@ -53,8 +54,12 @@ public class GeminiBookVisualSearchServiceImpl implements BookVisualSearchServic
                     .parts(List.of(Part.fromText(queryPrompt)))
                     .build();
 
+            String model = (properties.getSearchModel() != null && !properties.getSearchModel().isBlank())
+                    ? properties.getSearchModel()
+                    : globalAi.getText().getSearch();
+
             GenerateContentResponse response = vertexGenAiClient.models.generateContent(
-                    properties.getSearchModel(),
+                    model,
                     List.of(content),
                     config
             );

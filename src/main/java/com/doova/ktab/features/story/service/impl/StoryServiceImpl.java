@@ -45,6 +45,7 @@ public class StoryServiceImpl implements StoryService {
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final ImageValidator imageValidator;
+    private final com.doova.ktab.features.story.service.StoryArchitectService storyArchitectService;
 
     private static final String STORY_ENTITY_TYPE = Story.class.getSimpleName();
     private static final String COVER_IMAGE_TYPE = "COVER_IMAGE";
@@ -57,6 +58,16 @@ public class StoryServiceImpl implements StoryService {
         StoryVisualStyle storyVisualStyle = StoryVisualStyle.valueOfSafe(request.visualStyle());
         Story story = new Story(author, request.title(), request.genre(), request.maxScenes(), request.lens(), constitution, storyVisualStyle, request.visualStyleNotes());
         Story savedStory = storyRepository.save(story);
+
+        // Run Story Architect to construct the Story Bible
+        try {
+            var beatMap = com.doova.ktab.features.story.service.BeatMapper.buildFullBeatMap(savedStory.getSceneCount());
+            String storyBible = storyArchitectService.generateStoryBible(savedStory, beatMap);
+            savedStory.setStoryBible(storyBible);
+            savedStory = storyRepository.save(savedStory);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(StoryServiceImpl.class).warn("Failed to generate initial story bible for storyId={}: {}", savedStory.getId(), e.getMessage());
+        }
 
         // Handle cover image upload if provided
         if (coverImage != null && !coverImage.isEmpty()) {

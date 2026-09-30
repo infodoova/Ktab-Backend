@@ -272,7 +272,16 @@ public class ImageValidator {
         if (dotIndex < 0 || dotIndex == fileName.length() - 1) {
             return "";
         }
-        return fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+        String raw = fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+        // Strip CDN / resize modifiers appended after the real extension, e.g.
+        // "photo.jpg!w700wp"  ->  "jpg"
+        // "image.png@2x"      ->  "png"
+        // Only keep leading alphabetic characters.
+        int end = 0;
+        while (end < raw.length() && Character.isLetter(raw.charAt(end))) {
+            end++;
+        }
+        return end > 0 ? raw.substring(0, end) : raw;
     }
 
     private boolean isExpectedFormat(String extension, String detectedFormat) {

@@ -1,5 +1,6 @@
 package com.doova.ktab.features.imagegen.service.impl;
 
+import com.doova.ktab.config.ai.GlobalAiProperties;
 import com.doova.ktab.features.imagegen.config.ImageGenProperties;
 import com.doova.ktab.features.imagegen.exception.ImageGenerationException;
 import com.doova.ktab.features.imagegen.service.ImageModelClient;
@@ -27,11 +28,26 @@ public class GeminiImageModelClient implements ImageModelClient {
 
     private final Client vertexGenAiClient;
     private final ImageGenProperties properties;
+    private final GlobalAiProperties globalAi;
 
     @Override
     public ImagePayload generateImage(String prompt, String aspectRatio) {
-        String model = properties.getAiModel();
-        log.info("Generating image via Gemini model: {}, aspectRatio: {}", model, aspectRatio);
+        String primary = globalAi.getImage().getPrimary();
+        String fallback = globalAi.getImage().getFallback();
+        try {
+            return doGenerate(primary, prompt, aspectRatio);
+        } catch (ImageGenerationException ex) {
+            if (ex.isRetryable()) {
+                log.warn("[GeminiImageModelClient] Primary model '{}' failed ({}), retrying with fallback '{}'",
+                        primary, ex.getMessage(), fallback);
+                return doGenerate(fallback, prompt, aspectRatio);
+            }
+            throw ex;
+        }
+    }
+
+    private ImagePayload doGenerate(String model, String prompt, String aspectRatio) {
+        log.info("[GeminiImageModelClient] Generating image via model={}, aspectRatio={}", model, aspectRatio);
 
         List<SafetySetting> safetySettings = new ArrayList<>();
         for (String category : HARM_CATEGORIES) {
@@ -65,11 +81,11 @@ public class GeminiImageModelClient implements ImageModelClient {
         try {
             response = vertexGenAiClient.models.generateContent(model, List.of(content), config);
         } catch (ApiException e) {
-            log.error("Gemini API error during image generation (HTTP {}): {}", e.code(), e.getMessage());
+            log.error("[GeminiImageModelClient] Gemini API error (HTTP {}): {}", e.code(), e.getMessage());
             boolean retryable = e.code() == 429 || e.code() >= 500;
             throw new ImageGenerationException("Gemini API error: HTTP " + e.code(), retryable, e);
         } catch (Exception e) {
-            log.error("Unexpected error during image generation: {}", e.getMessage(), e);
+            log.error("[GeminiImageModelClient] Unexpected error: {}", e.getMessage(), e);
             throw new ImageGenerationException("Image generation failed unexpectedly", true, e);
         }
 

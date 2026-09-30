@@ -75,14 +75,15 @@ public class GeminiConfig {
 
     @Bean
     @Qualifier("endingGeneratorGeminiModel")
-    public VertexAiGeminiChatModel endingGeneratorGeminiModel(VertexAI vertexAI) {
+    public VertexAiGeminiChatModel endingGeneratorGeminiModel(
+            VertexAI vertexAI,
+            @Value("${spring.ai.vertex.ai.gemini.chat.options.model:gemini-3-flash-preview}") String modelName) {
         return VertexAiGeminiChatModel.builder()
                 .vertexAI(vertexAI)
                 .defaultOptions(VertexAiGeminiChatOptions.builder()
-                        .model("gemini-3-flash-preview") // Corrected model ID
+                        .model(modelName)
                         .temperature(0.3)
                         .topP(0.9)
-                        // Note: Gemini 3 models often use topK=64 by default
                         .topK(64)
                         .build())
                 .build();
@@ -90,11 +91,13 @@ public class GeminiConfig {
 
     @Bean
     @Qualifier("ocrGeminiModel")
-    public VertexAiGeminiChatModel ocrGeminiModel(VertexAI vertexAI) {
+    public VertexAiGeminiChatModel ocrGeminiModel(
+            VertexAI vertexAI,
+            @Value("${spring.ai.vertex.ai.gemini.chat.options.model:gemini-3-flash-preview}") String modelName) {
         return VertexAiGeminiChatModel.builder()
                 .vertexAI(vertexAI)
                 .defaultOptions(VertexAiGeminiChatOptions.builder()
-                        .model("gemini-3-flash-preview") // Corrected model ID
+                        .model(modelName)
                         .temperature(0.1)
                         .topP(0.9)
                         .build())
@@ -118,6 +121,56 @@ public class GeminiConfig {
     @Qualifier("ocrChatClient")
     public ChatClient ocrChatClient(
             @Qualifier("ocrGeminiModel") VertexAiGeminiChatModel model) {
+        return ChatClient.builder(model).build();
+    }
+
+    @Bean
+    @Qualifier("storyGeminiModel")
+    public VertexAiGeminiChatModel storyGeminiModel(
+            VertexAI vertexAI,
+            @Value("${ktab.story.ai.model:gemini-3-flash-preview}") String modelName,
+            @Value("${ktab.story.ai.temperature:0.7}") double temperature,
+            @Value("${ktab.story.ai.max-tokens:8192}") int maxTokens) {
+        return VertexAiGeminiChatModel.builder()
+                .vertexAI(vertexAI)
+                .defaultOptions(VertexAiGeminiChatOptions.builder()
+                        .model(modelName)
+                        .temperature(temperature)
+                        .topP(0.9)
+                        .topK(64)
+                        .maxOutputTokens(maxTokens)
+                        .build())
+                .build();
+    }
+
+    @Bean
+    @Qualifier("storySummaryGeminiModel")
+    public VertexAiGeminiChatModel storySummaryGeminiModel(
+            VertexAI vertexAI,
+            @Value("${ktab.story.ai.model:gemini-3-flash-preview}") String modelName) {
+        return VertexAiGeminiChatModel.builder()
+                .vertexAI(vertexAI)
+                .defaultOptions(VertexAiGeminiChatOptions.builder()
+                        .model(modelName)
+                        .temperature(0.2)
+                        .topP(0.9)
+                        .topK(64)
+                        .maxOutputTokens(4096)
+                        .build())
+                .build();
+    }
+
+    @Bean
+    @Qualifier("storyGeminiChatClient")
+    public ChatClient storyGeminiChatClient(
+            @Qualifier("storyGeminiModel") VertexAiGeminiChatModel model) {
+        return ChatClient.builder(model).build();
+    }
+
+    @Bean
+    @Qualifier("storySummaryGeminiChatClient")
+    public ChatClient storySummaryGeminiChatClient(
+            @Qualifier("storySummaryGeminiModel") VertexAiGeminiChatModel model) {
         return ChatClient.builder(model).build();
     }
 

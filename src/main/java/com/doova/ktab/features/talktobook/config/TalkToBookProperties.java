@@ -20,9 +20,14 @@ public class TalkToBookProperties {
     private String answerVersion = "1";
 
     /**
+     * Reasoning effort for OpenAI reasoning models ('none' for instant chat, 'low' for extra deliberation).
+     */
+    private String reasoningEffort = "none";
+
+    /**
      * Dedicated temperature for factual and grounded book answers.
      */
-    private double temperature = 0.3;
+    private double temperature = 1.0;
 
     /**
      * Maximum number of question-answer records cached per book before eviction triggers.
@@ -36,8 +41,9 @@ public class TalkToBookProperties {
 
     /**
      * Dedicated OpenAI model for generating vector embeddings for semantic cache lookups.
+     * Defaults to the global text embedding model.
      */
-    private String embeddingModel = "text-embedding-3-small";
+    private String embeddingModel;
 
     /**
      * Cosine similarity threshold for considering two questions identical (0.0 to 1.0).

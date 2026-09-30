@@ -51,6 +51,7 @@ public class ImageGenServiceImpl implements ImageGenService {
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final ImageGenProperties properties;
+    private final com.doova.ktab.config.ai.GlobalAiProperties globalAi;
     private final ApplicationEventPublisher eventPublisher;
     private final org.springframework.context.MessageSource messageSource;
 
@@ -140,7 +141,10 @@ public class ImageGenServiceImpl implements ImageGenService {
         image.setAspectRatio(request.aspectRatio().getRatio());
         image.setStyleNotes(request.styleNotes() != null ? promptBuilder.sanitize(request.styleNotes()) : null);
         image.setPromptHash(promptHash);
-        image.setAiModel(properties.getAiModel());
+        String modelName = (properties.getAiModel() != null && !properties.getAiModel().isBlank())
+                ? properties.getAiModel()
+                : globalAi.getImage().getPrimary();
+        image.setAiModel(modelName);
         image.setStatus(ImageGenerationStatus.QUEUED);
 
         GeneratedImage saved = imageRepository.save(image);
