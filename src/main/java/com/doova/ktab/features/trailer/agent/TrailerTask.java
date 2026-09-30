@@ -23,7 +23,7 @@ public final class TrailerTask {
                                   int maxJobs, int maxInFlight, String generateArgs, boolean hasCover,
                                   List<TrailerVoice> voices) {
         String voiceBlock = voices == null || voices.isEmpty() ? "ElevenLabs voice_id for the Arabic narration: " + voiceId
-                : voiceCatalogText(voiceId, voices);
+                : voiceCatalogText(voices);
         String coverLine = hasCover ? "Cover image: /workspace/cover.jpg\n" : "";
         return """
                 Produce the 30-second trailer for this book.
@@ -43,9 +43,10 @@ public final class TrailerTask {
                 generateArgs == null || generateArgs.isBlank() ? "(see your instructions)" : generateArgs);
     }
 
-    private static String voiceCatalogText(String defaultVoiceId, List<TrailerVoice> voices) {
-        StringBuilder sb = new StringBuilder("Approved narration voices (choose the one whose genre and tone best fit this book; "
-                + "if none fits, use the default voice_id: ").append(defaultVoiceId).append("):");
+    /** The list is the whole choice: no separate default voice id is sent. */
+    private static String voiceCatalogText(List<TrailerVoice> voices) {
+        StringBuilder sb = new StringBuilder("Approved narration voices (choose the one whose genre and tone best fit this book. "
+                + "You must use one of these voices; if none fits perfectly, use the closest):");
         for (TrailerVoice v : voices) {
             sb.append("\n- ").append(v.id()).append(" — ").append(v.name() == null ? "" : v.name())
                     .append(": suits ").append(v.suits() == null ? "any genre" : v.suits());

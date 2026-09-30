@@ -95,7 +95,7 @@ class ControlPlaneFilesTest {
     @Test
     void systemPromptPicksTheNarrationVoiceFromTheApprovedList() throws Exception {
         String prompt = Files.readString(dir.resolve("system-prompt.md"));
-        assertThat(prompt).contains("Approved narration voices").contains("best fit the book").contains("default voice_id")
+        assertThat(prompt).contains("Approved narration voices").contains("best fit the book").doesNotContain("default voice_id").contains("closest")
                 .contains("voice_reason").contains("Never use a voice that is not in the approved list");
     }
 

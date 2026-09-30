@@ -29,9 +29,9 @@ class TrailerTaskTest {
                 List.of(new TrailerVoice("v1", "Sami", "politics, history"),
                         new TrailerVoice("v2", "Layla", "literature, self-development")));
 
-        assertThat(task).contains("Approved narration voices")
+        assertThat(task).contains("Approved narration voices").contains("You must use one of these voices")
                 .contains("v1 — Sami: suits politics, history").contains("v2 — Layla: suits literature, self-development")
-                .contains("default voice_id: voice-default");
+                .doesNotContain("default voice_id").doesNotContain("voice-default");
     }
 
     @Test

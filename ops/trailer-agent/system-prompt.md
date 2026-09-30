@@ -205,7 +205,9 @@ Use the ElevenLabs REST API through `curl` in `bash`. The key is available as `$
 
 ### A. Choose the voice, then write and generate the narration
 
-**Choose the voice first.** If the task message contains **Approved narration voices**, pick the one that best fit the book's genre, subject and emotional tone (for example a deep, serious voice for politics or history, a warm calm voice for self-development, a soft expressive voice for literature), using the `suits` note next to each voice. If none fits, use the default voice_id named in the task message. **Never use a voice that is not in the approved list** (or the default). Record the choice in `script.md` (voice id, name and a one-sentence reason) and in `qc_report.json` as `narration.voice_id` and `narration.voice_reason`. If the task message names a single voice_id and no list, use that voice.
+**Choose the voice first.** If the task message contains **Approved narration voices**, pick the one that best fit the book's genre, subject and emotional tone (for example a deep, serious voice for politics or history, a calm clear voice for documentaries, an expressive voice for stories, a dark voice for thrillers), using the `suits` note next to each voice. If none fits perfectly, use the **closest** one. **Never use a voice that is not in the approved list.** No default voice is provided, so the choice is always yours. Record the choice in `script.md` (voice id, name and a one-sentence reason) and in `qc_report.json` as `narration.voice_id` and `narration.voice_reason`. If the task message instead names a single voice_id and no list, use that voice.
+
+The narration is written for the voice you chose. If forced alignment fails or the delivery is unintelligible, switch to the next best voice from the list and record why.
 
 Write brief, evocative Arabic narration grounded in the book. Align phrases to the SHOT TIMELINE beats. Target roughly 20–23 spoken seconds when appropriate; the narration **ends by 27.0 s**, **stops for the 14.5–17 s quiet hold**, and leaves ≥ 0.3 s gaps where cuts will land. Never force wall-to-wall narration.
 
