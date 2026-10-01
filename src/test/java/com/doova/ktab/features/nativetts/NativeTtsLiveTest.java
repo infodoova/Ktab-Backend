@@ -38,4 +38,25 @@ class NativeTtsLiveTest {
             assertThat(audio.startMs()[i]).isGreaterThanOrEqualTo(audio.startMs()[i - 1]);
         }
     }
+
+    @Test
+    void anExtractedChapterOfARealPdfIsReadAloudWithTimingsThatMatchTheAudio(@TempDir Path dir) throws Exception {
+        NativeTtsProperties props = new NativeTtsProperties();
+        props.setApiKey(System.getenv("ELEVENLABS_API_KEY"));
+        props.setVoiceId(System.getenv("NATIVE_TTS_LIVE_VOICE"));
+        com.doova.ktab.features.extraction.dto.BookExtractionResult book = com.doova.ktab.features.extraction.ExtractionTestSupport
+                .service().extract(com.doova.ktab.features.extraction.ExtractionTestSupport.fixture("book-outline.pdf"));
+        com.doova.ktab.features.extraction.dto.Chapter chapter = book.chapters().get(0);
+        String text = chapter.title() + "\n\n" + chapter.text();
+
+        ChapterAudio audio = new ChapterSynthesizer(new ElevenLabsChunkTtsProvider(props), new FfmpegMediaTools(props), props)
+                .synthesize(text, dir);
+
+        int measured = new FfmpegMediaTools(props).durationMs(audio.mp3());
+        int last = audio.endMs()[audio.endMs().length - 1];
+        System.out.println("PDF chapter \"" + chapter.title() + "\": inputChars=" + text.length() + " audioChars=" + audio.chars().length()
+                + " measuredMs=" + measured + " lastEndMs=" + last + " driftMs=" + Math.abs(measured - last));
+        assertThat(Math.abs(measured - last)).isLessThan(1500);
+        assertThat(audio.chars().replaceAll("\\s+", "")).isEqualTo(text.replaceAll("\\s+", ""));
+    }
 }
