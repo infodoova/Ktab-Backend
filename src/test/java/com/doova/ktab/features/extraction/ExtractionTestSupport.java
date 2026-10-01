@@ -1,10 +1,13 @@
 package com.doova.ktab.features.extraction;
 
+import com.doova.ktab.features.extraction.config.ExtractionProperties;
 import com.doova.ktab.features.extraction.dto.BookMetadata;
 import com.doova.ktab.features.extraction.dto.PageContent;
 import com.doova.ktab.features.extraction.pdf.PdfMetadataExtractor;
 import com.doova.ktab.features.extraction.pdf.PdfPageExtractor;
 import com.doova.ktab.features.extraction.pdf.PdfValidationService;
+import com.doova.ktab.features.extraction.quality.StructureQualityChecker;
+import com.doova.ktab.features.extraction.structure.*;
 import com.doova.ktab.features.extraction.text.ArabicTextCleaner;
 import org.apache.pdfbox.pdmodel.PDDocument;
 
@@ -20,6 +23,15 @@ public final class ExtractionTestSupport {
     private static final Path DIR = Path.of("src/test/resources/extraction");
 
     private ExtractionTestSupport() {
+    }
+
+    /** The real extraction pipeline, wired without Spring. */
+    public static BookExtractionService service() {
+        return new BookExtractionService(new PdfValidationService(200L * 1024 * 1024), new PdfMetadataExtractor(),
+                new PdfPageExtractor(), new ArabicTextCleaner(),
+                new BookStructureExtractor(new EmbeddedOutlineExtractor(), new PrintedTocDetector(), new PrintedTocParser(),
+                        new PageNumberResolver(), new HeadingDetector()),
+                new TocNormalizer(), new ChapterBuilder(), new StructureQualityChecker(new ExtractionProperties()));
     }
 
     public static byte[] fixture(String name) {
