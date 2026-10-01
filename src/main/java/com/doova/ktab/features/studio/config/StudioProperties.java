@@ -18,6 +18,9 @@ import java.time.Duration;
 @Setter
 public class StudioProperties {
 
+    /** The Studio switch (KTAB_STUDIO_ENABLED). false = Ktab's own extraction + TTS. Read only when a job is launched. */
+    private boolean enabled = false;
+
     private String apiKey;
     private String baseUrl = "https://api.elevenlabs.io";
 

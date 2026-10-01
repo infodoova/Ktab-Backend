@@ -4,6 +4,8 @@ import com.doova.ktab.enums.book.IngestionRoute;
 import com.doova.ktab.enums.book.PdfType;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.features.ingestion.config.IngestionProperties;
+import com.doova.ktab.features.ingestion.config.OcrSwitchProperties;
+import com.doova.ktab.features.studio.config.StudioProperties;
 import com.doova.ktab.features.ingestion.pdf.PdfClassificationResult;
 import com.doova.ktab.features.ingestion.pdf.PdfTypeClassifier;
 import com.doova.ktab.model.book.Book;
@@ -58,6 +60,10 @@ public class IngestionRouter {
     private final Job ocrJob;
     @Qualifier("studioIngestionJob")
     private final Job studioIngestionJob;
+    @Qualifier("nativeIngestionJob")
+    private final Job nativeIngestionJob;
+    private final StudioProperties studioProperties;
+    private final OcrSwitchProperties ocrSwitch;
 
     /**
      * Full flow for a fresh ingestion: classify, persist the verdict, resolve (and persist)
@@ -163,24 +169,15 @@ public class IngestionRouter {
     }
 
     private IngestionRoute resolveRoute(Book book, PdfClassificationResult result) {
-        if (book.isIngestionRouteLocked() && book.getIngestionRoute() != null) {
-            return book.getIngestionRoute();
-        }
-
-        IngestionProperties.Classification cfg = properties.getClassification();
-        if (!cfg.isEnabled() || cfg.isShadowMode()) {
-            // Shadow mode: classify and record, but never let it drive routing yet.
-            // See docs/ocr_engine_v3.md, Phase 5 rollout.
-            return IngestionRoute.OCR;
-        }
-
-        return cfg.getRouting().getOrDefault(result.getPdfType(), IngestionRoute.OCR);
+        return RouteResolver.resolve(result.getPdfType(), properties.getClassification(), studioProperties.isEnabled(),
+                ocrSwitch.isEnabled(), book.getIngestionRoute(), book.isIngestionRouteLocked());
     }
 
     private void launch(Long bookId, String pdfKey, IngestionRoute route) throws Exception {
         switch (route) {
             case OCR -> launchOcr(bookId, pdfKey);
             case STUDIO -> launchStudio(bookId, pdfKey);
+            case NATIVE -> launchNative(bookId, pdfKey);
         }
     }
 
@@ -193,6 +190,19 @@ public class IngestionRouter {
 
         JobExecution execution = jobLauncher.run(studioIngestionJob, params);
         log.info("Started Studio ingestion batch job for bookId={}, executionId={}, status={}",
+                bookId, execution.getId(), execution.getStatus());
+        return execution;
+    }
+
+    private JobExecution launchNative(Long bookId, String pdfKey) throws Exception {
+        JobParameters params = new JobParametersBuilder()
+                .addLong("bookId", bookId)
+                .addString("pdfKey", pdfKey)
+                .addLong("run.id", System.currentTimeMillis())
+                .toJobParameters();
+
+        JobExecution execution = jobLauncher.run(nativeIngestionJob, params);
+        log.info("Started native ingestion batch job for bookId={}, executionId={}, status={}",
                 bookId, execution.getId(), execution.getStatus());
         return execution;
     }
@@ -215,6 +225,9 @@ public class IngestionRouter {
                 .filter(exec -> bookId.equals(exec.getJobParameters().getLong("bookId")))
                 .findFirst()
                 .or(() -> jobExplorer.findRunningJobExecutions("studioIngestionJob").stream()
+                        .filter(exec -> bookId.equals(exec.getJobParameters().getLong("bookId")))
+                        .findFirst())
+                .or(() -> jobExplorer.findRunningJobExecutions("nativeIngestionJob").stream()
                         .filter(exec -> bookId.equals(exec.getJobParameters().getLong("bookId")))
                         .findFirst());
     }

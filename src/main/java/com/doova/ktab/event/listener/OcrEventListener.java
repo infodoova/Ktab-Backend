@@ -3,6 +3,7 @@ package com.doova.ktab.event.listener;
 import com.doova.ktab.enums.book.IngestionRoute;
 import com.doova.ktab.enums.status.OcrStatus;
 import com.doova.ktab.event.model.BookPublishedEvent;
+import com.doova.ktab.features.ingestion.config.OcrSwitchProperties;
 import com.doova.ktab.features.ingestion.routing.IngestionRouter;
 import com.doova.ktab.features.ocr.sqs.OcrQueueService;
 import com.doova.ktab.repository.book.BookRepository;
@@ -30,6 +31,7 @@ public class OcrEventListener {
     private final BookRepository bookRepository;
     private final OcrQueueService queueService;
     private final MeterRegistry meterRegistry;
+    private final OcrSwitchProperties ocrSwitch;
 
     @Value("${qstash.ocr.worker-enabled:${aws.sqs.ocr.worker-enabled:false}}")
     private boolean queueWorkerEnabled;
@@ -49,7 +51,8 @@ public class OcrEventListener {
             // Update book status to PENDING
             bookRepository.updateOcrStatus(event.bookId(), OcrStatus.PENDING);
 
-            if (queueWorkerEnabled && queueService != null && queueService.isEnabled()) {
+            // The queue path sends every page straight to OCR, so it is closed while OCR is off.
+            if (ocrSwitch.isEnabled() && queueWorkerEnabled && queueService != null && queueService.isEnabled()) {
                 // NOTE: the distributed queue path bypasses classification entirely and always
                 // goes straight to OCR page-by-page dispatch. Wiring classification into
                 // OcrQueueService is future work — see docs/ocr_engine_v3.md, Phase 2.
