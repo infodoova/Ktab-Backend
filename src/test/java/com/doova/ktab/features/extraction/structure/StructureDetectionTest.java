@@ -109,6 +109,44 @@ class StructureDetectionTest {
         assertThat(r.warnings()).extracting(ExtractionWarning::code).containsExactly(WarningCode.TOC_PAGE_MISMATCH);
     }
 
+    private static List<PageContent> bodyPages(int count, java.util.Map<Integer, String> headings) {
+        List<PageContent> pages = new java.util.ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            String body = headings.getOrDefault(i, "") + "نص الصفحة رقم " + i + " كلام كثير يملأ الصفحة.";
+            pages.add(new PageContent(i, body, body, null, null, List.of(body.split("\n")), false));
+        }
+        return pages;
+    }
+
+    @Test
+    void aTocTitleWithASubtitleMatchesTheBareHeadingInTheBody() {
+        // real books: the فهرس says "الفصل الأول: شرق عدن" but the page heading is just "الفصل الأول"
+        List<PageContent> pages = bodyPages(8, java.util.Map.of(3, "الجزء الأول\nالربيع\n", 4, "الفصل الأول\nشرق عدن\n",
+                6, "الفصل الثاني\nالتشريفات\n"));
+        List<RawEntry> toc = List.of(new RawEntry("الجزء الأول - الربيع", 1, null, 3),
+                new RawEntry("الفصل الأول: شرق عدن", 1, null, 4), new RawEntry("الفصل الثاني: التشريفات", 1, null, 6));
+
+        PageNumberResolver.Resolution r = new PageNumberResolver().resolve(toc, pages);
+
+        assertThat(r.offset()).isZero();
+        assertThat(r.entries()).extracting(RawEntry::startPage).containsExactly(3, 4, 6);
+        assertThat(r.confidence()).isEqualTo(1.0);
+        assertThat(r.warnings()).isEmpty();
+        assertThat(r.entries().get(1).title()).isEqualTo("الفصل الأول: شرق عدن"); // the richer title is kept
+    }
+
+    @Test
+    void theOffsetIsFoundWhenPrintedAndPdfPagesDifferAndTitlesHaveSubtitles() {
+        List<PageContent> pages = bodyPages(10, java.util.Map.of(6, "الفصل الأول\nشرق عدن\n", 9, "الفصل الثاني\nالتشريفات\n"));
+
+        PageNumberResolver.Resolution r = new PageNumberResolver().resolve(List.of(
+                new RawEntry("الفصل الأول: شرق عدن", 1, null, 4), new RawEntry("الفصل الثاني: التشريفات", 1, null, 7)), pages);
+
+        assertThat(r.offset()).isEqualTo(2);
+        assertThat(r.entries()).extracting(RawEntry::startPage).containsExactly(6, 9);
+        assertThat(r.warnings()).isEmpty();
+    }
+
     // ---- headings ----
 
     @Test

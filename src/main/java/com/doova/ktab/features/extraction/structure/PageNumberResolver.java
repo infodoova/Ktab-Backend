@@ -99,6 +99,8 @@ public class PageNumberResolver {
     /** First page after {@code after} whose top lines contain the title as a heading (not as a TOC line). */
     private static Integer findHeadingPage(String title, List<PageContent> pages, int after) {
         String wanted = HeadingWords.norm(title);
+        // Printed TOCs often carry a subtitle the page heading does not repeat: "الفصل الأول: شرق عدن" / "الجزء الأول - الربيع".
+        String bare = HeadingWords.norm(title.split("\\s*[:：]\\s*|\\s+[-–—]\\s+", 2)[0]);
         for (PageContent page : pages) {
             if (page.pdfPage() <= after || page.imageOnly()) {
                 continue;
@@ -110,7 +112,10 @@ public class PageNumberResolver {
                 }
                 if (PrintedTocParser.parseLine(line).isEmpty()) {
                     String n = HeadingWords.norm(line);
-                    if (n.equals(wanted) || n.startsWith(wanted + " ")) {
+                    boolean full = n.equals(wanted) || n.startsWith(wanted + " ");
+                    boolean withoutSubtitle = !bare.isEmpty() && (n.equals(bare) || n.startsWith(bare + " "));
+                    boolean headingIsStartOfTitle = HeadingWords.isHeadingLine(line) && wanted.startsWith(n + " ");
+                    if (full || withoutSubtitle || headingIsStartOfTitle) {
                         return page.pdfPage();
                     }
                 }
