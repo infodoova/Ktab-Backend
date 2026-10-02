@@ -12,13 +12,23 @@ class CostCalculatorTest {
 
     @Test
     void llmCostUsesPerMillionPrices() {
-        // 1,000 in at $2/M + 500 out at $10/M = 0.002 + 0.005
-        assertThat(calculator.llmCostUsd("claude-sonnet-5", 1_000, 500)).isEqualByComparingTo("0.007");
+        // 10,000 in at $0.10/M + 2,000 out at $0.50/M = 0.0010 + 0.0010 = 0.002
+        assertThat(calculator.llmCostUsd("gpt-6-luna", 10_000, 2_000)).isEqualByComparingTo("0.002");
     }
 
     @Test
     void imageCostIsPerImage() {
-        assertThat(calculator.imageCostUsd("gemini-3.1-flash-image-preview")).isEqualByComparingTo("0.101");
+        // GA model names — direct map hit
+        assertThat(calculator.imageCostUsd("gemini-3.1-flash-image")).isEqualByComparingTo("0.067");
+        assertThat(calculator.imageCostUsd("gemini-3-pro-image")).isEqualByComparingTo("0.134");
+    }
+
+    @Test
+    void imageCostLenientLookupAcceptsPreviewAliases() {
+        // CostCalculator must still resolve -preview names via strip/append fallback
+        // (pricing map keeps both GA and -preview as aliases for forward-compat)
+        assertThat(calculator.imageCostUsd("gemini-3.1-flash-image-preview")).isEqualByComparingTo("0.067");
+        assertThat(calculator.imageCostUsd("gemini-3-pro-image-preview")).isEqualByComparingTo("0.134");
     }
 
     @Test

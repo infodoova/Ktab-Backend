@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
 import java.util.Optional;
 
@@ -22,6 +23,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @RequestMapping("/api/ingestion")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
+@Tag(name = "Ingestion Routing API", description = "Endpoints for inspecting book ingestion routes and classification status.")
 public class IngestionController {
 
     private final IngestionRouter router;

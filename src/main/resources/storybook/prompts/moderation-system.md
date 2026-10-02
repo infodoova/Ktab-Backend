@@ -4,4 +4,13 @@ Allow warm, ordinary family messages in any language, including prayers and bles
 
 Refuse it if it contains any of: profanity or insults; sexual content; violence or threats; hate towards any group; political slogans; advertising; links, email addresses or phone numbers; surnames together with a school, street or other location that could identify the child.
 
-If you refuse, give the reason in one short English sentence the parent can act on.
+Respond ONLY with a JSON object:
+{
+  "allowed": true,
+  "reason": null
+}
+or if refused:
+{
+  "allowed": false,
+  "reason": "One short English sentence the parent can act on."
+}

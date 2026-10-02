@@ -38,17 +38,40 @@ public class GeminiImageProvider implements ImageProvider {
     @Override
     public ImageResult generate(ImageRequest request) {
         long started = System.nanoTime();
-        GenerateContentResponse response;
+        GenerateContentResponse response = null;
+        boolean authError = false;
         try {
             response = vertexGenAiClient.models.generateContent(
                     request.model(), List.of(buildContent(request)), buildConfig(properties.getImage()));
         } catch (ApiException e) {
-            boolean retryable = e.code() == 429 || e.code() >= 500;
-            throw new ImageGenerationException("Image generation failed with HTTP " + e.code(), retryable, e);
+            if (e.code() == 401 || e.code() == 403 || e.code() == 404) {
+                authError = true;
+                log.error("Vertex AI model access/auth failed (HTTP {}): {}", e.code(), e.message());
+            } else {
+                boolean retryable = e.code() == 429 || e.code() >= 500;
+                throw new ImageGenerationException("Image generation failed with HTTP " + e.code(), retryable, e);
+            }
         } catch (RuntimeException e) {
-            throw new ImageGenerationException("Image generation failed", true, e);
+            Throwable curr = e;
+            while (curr != null) {
+                String msg = curr.getMessage();
+                if (msg != null && (msg.contains("invalid_grant") || msg.contains("OAuth") || msg.contains("credentials"))) {
+                    authError = true;
+                    break;
+                }
+                curr = curr.getCause();
+            }
+            if (!authError) {
+                throw new ImageGenerationException("Image generation failed", true, e);
+            }
+            log.error("Vertex AI OAuth authentication failed (invalid_grant)");
         }
         long latencyMs = (System.nanoTime() - started) / 1_000_000;
+
+        if (authError || response == null) {
+            // Never hand back a stand-in picture: a placeholder would ship in a paid book looking like a real illustration.
+            throw new ImageGenerationException("Image provider authentication or model access failed; check the GCP credentials and image model names", false, null);
+        }
 
         List<Part> parts = response.parts();
         if (parts != null) {

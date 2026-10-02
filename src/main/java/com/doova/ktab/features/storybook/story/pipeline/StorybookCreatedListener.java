@@ -16,6 +16,6 @@ public class StorybookCreatedListener {
 
     @EventListener
     public void onCreated(StorybookCreatedEvent event) {
-        enqueuer.enqueue(event.storybookId(), JobStep.STORY_PLAN, -1, 0);
+        enqueuer.enqueue(event.storybookId(), JobStep.CHARACTER_BIBLE, -1, 0);
     }
 }

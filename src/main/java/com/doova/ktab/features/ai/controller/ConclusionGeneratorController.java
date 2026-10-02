@@ -27,7 +27,7 @@ import java.time.Duration;
 @RequestMapping(path = "/conclusion")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "Conclusion Generator API", description = "Generate summaries and conclusions from uploaded PDF files using AI.")
+@Tag(name = "Conclusion Generator API", description = "Endpoints for generating summaries and conclusions from uploaded PDF files using AI.")
 public class ConclusionGeneratorController {
 
     private final ConclusionGeneratorService conclusionGeneratorService;

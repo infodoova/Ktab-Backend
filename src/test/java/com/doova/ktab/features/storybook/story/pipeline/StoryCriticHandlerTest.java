@@ -13,6 +13,7 @@ import com.doova.ktab.features.storybook.story.CriticResponse;
 import com.doova.ktab.features.storybook.story.PagePlan;
 import com.doova.ktab.features.storybook.story.PageVerdict;
 import com.doova.ktab.features.storybook.story.StoryCritic;
+import com.doova.ktab.features.storybook.story.TitleRewriteResponse;
 import com.doova.ktab.features.storybook.story.StoryPlanResponse;
 import com.doova.ktab.features.storybook.story.StoryWriter;
 import com.doova.ktab.features.storybook.support.FakeLlmGateway;
@@ -67,7 +68,7 @@ class StoryCriticHandlerTest {
         llm.enqueue(verdicts(-1));
 
         assertThat(handler.handle(job(0)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
-        verify(persistence).acceptStory(eq(42L), any());
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
     }
 
     @Test
@@ -79,47 +80,74 @@ class StoryCriticHandlerTest {
 
         handler.handle(job(0));
 
-        ArgumentCaptor<StoryPlanResponse> accepted = ArgumentCaptor.forClass(StoryPlanResponse.class);
-        verify(persistence).acceptStory(eq(42L), accepted.capture());
-        assertThat(accepted.getValue().pages().get(3).textAr()).isEqualTo("ذَهَبَ سامي إِلَى البَيْتِ.");
+        ArgumentCaptor<StoryPlanResponse> saved = ArgumentCaptor.forClass(StoryPlanResponse.class);
+        verify(persistence).saveRewrittenPages(eq(42L), saved.capture());
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
+        assertThat(saved.getValue().pages().get(3).textAr()).isEqualTo("ذَهَبَ سامي إِلَى البَيْتِ.");
         assertThat(llm.requests()).hasSize(3);
     }
 
     @Test
-    void persistentFailureStartsAFreshPlan() {
+    void aPageStillFlaggedAfterItsRewritesIsAcceptedAsRewritten() {
         stored(StoryFixtures.plan(10, GOOD));
         PagePlan rewrite = new PagePlan(4, GOOD, "scene", List.of(), com.doova.ktab.features.storybook.enums.TextZone.TOP);
         llm.enqueue(verdicts(4)); llm.enqueue(rewrite);   // round 1
         llm.enqueue(verdicts(4)); llm.enqueue(rewrite);   // round 2
-        llm.enqueue(verdicts(4));                         // still failing
+        llm.enqueue(verdicts(4));                         // the editor still nitpicks
 
         handler.handle(job(0));
 
-        verify(persistence).restartPlan(eq(42L), eq(1), anyMap());
-        verify(persistence, never()).acceptStory(any(), any());
+        verify(persistence).saveRewrittenPages(eq(42L), any());
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
+        verify(persistence, never()).restartPlan(any(), anyInt(), anyMap());
+        verify(persistence, never()).failStory(any(), any());
+        // what the editor still objected to is kept on the page, not thrown away
+        verify(persistence).recordUnresolvedProblems(eq(42L), eq("story"), argThat(m -> m.containsKey(4)), argThat(r -> r.contains(4)));
     }
 
     @Test
-    void givesUpAfterThreePlans() {
+    void aFlaggedTitleIsRewrittenInPlaceAndTheStoryIsNotRestarted() {
         stored(StoryFixtures.plan(10, GOOD));
-        PagePlan rewrite = new PagePlan(4, GOOD, "scene", List.of(), com.doova.ktab.features.storybook.enums.TextZone.TOP);
-        llm.enqueue(verdicts(4)); llm.enqueue(rewrite);
-        llm.enqueue(verdicts(4)); llm.enqueue(rewrite);
+        llm.enqueue(verdicts(0));                                           // the editor flags the title
+        llm.enqueue(new TitleRewriteResponse("خَرِيطَةُ النُّجُومِ الْمَنْسِيَّةُ")); // the title alone is rewritten
+        llm.enqueue(verdicts(-1));                                          // now everything passes
+
+        handler.handle(job(0));
+
+        ArgumentCaptor<StoryPlanResponse> saved = ArgumentCaptor.forClass(StoryPlanResponse.class);
+        verify(persistence).saveRewrittenPages(eq(42L), saved.capture());
+        assertThat(saved.getValue().titleAr()).isEqualTo("خَرِيطَةُ النُّجُومِ الْمَنْسِيَّةُ");
+        verify(persistence).enqueueLanguageCritic(eq(42L), eq(0));
+        verify(persistence, never()).restartPlan(any(), anyInt(), anyMap());
+        verify(persistence, never()).failStory(any(), any());
+    }
+
+    @Test
+    void theStoryRestartsOnlyWhenRewritingIsSwitchedOff() {
+        StorybookProperties noRewrites = new StorybookProperties();
+        noRewrites.getLimits().setCriticRewritesPerPage(0);
+        StoryCriticHandler strict = new StoryCriticHandler(new StoryCritic(llm, prompts), new StoryWriter(llm, prompts),
+                persistence, mock(AiCallLedger.class), noRewrites);
+        stored(StoryFixtures.plan(10, GOOD));
         llm.enqueue(verdicts(4));
 
-        assertThat(handler.handle(job(2)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
-        verify(persistence).failStory(eq(42L), contains("gender agreement"));
-        verify(persistence, never()).restartPlan(any(), anyInt(), anyMap());
+        strict.handle(job(0));
+
+        verify(persistence).restartPlan(eq(42L), eq(1), anyMap());
     }
 
     @Test
-    void aFailingTitleCannotBeRewrittenSoTheStoryRestarts() {
+    void givesUpAfterThreePlansWhenRewritingIsSwitchedOff() {
+        StorybookProperties noRewrites = new StorybookProperties();
+        noRewrites.getLimits().setCriticRewritesPerPage(0);
+        StoryCriticHandler strict = new StoryCriticHandler(new StoryCritic(llm, prompts), new StoryWriter(llm, prompts),
+                persistence, mock(AiCallLedger.class), noRewrites);
         stored(StoryFixtures.plan(10, GOOD));
-        llm.enqueue(verdicts(0));
+        llm.enqueue(verdicts(4));
 
-        handler.handle(job(0));
-
-        verify(persistence).restartPlan(eq(42L), eq(1), anyMap());
+        assertThat(strict.handle(job(2)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
+        verify(persistence).failStory(eq(42L), contains("gender agreement"));
+        verify(persistence, never()).restartPlan(any(), anyInt(), anyMap());
     }
 
     @Test
@@ -128,5 +156,15 @@ class StoryCriticHandlerTest {
                 StoryFixtures.request(LanguageVariety.MSA, ChildGender.BOY, 10), null));
         assertThat(handler.handle(job(0)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
         assertThat(llm.requests()).isEmpty();
+    }
+
+    @Test
+    void aCleanStoryRecordsNoComplaints() {
+        stored(StoryFixtures.plan(10, GOOD));
+        llm.enqueue(verdicts(-1));
+
+        handler.handle(job(0));
+
+        verify(persistence, never()).recordUnresolvedProblems(any(), any(), any(), any());
     }
 }

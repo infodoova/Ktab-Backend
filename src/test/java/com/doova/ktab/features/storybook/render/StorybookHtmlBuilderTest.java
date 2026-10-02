@@ -33,7 +33,7 @@ public class StorybookHtmlBuilderTest {
     void isRightToLeftArabicWithSquarePages() {
         String html = builder().build(model(null));
         assertThat(html).contains("dir=\"rtl\"").contains("lang=\"ar\"").contains("size: 21cm 21cm");
-        assertThat(html).contains("NotoNaskhArabic-Regular.ttf");
+        assertThat(html).contains("Cairo.ttf");
         assertThat(html.split("class=\"page ", -1)).hasSize(5); // cover, dedication, 1 story, back
     }
 

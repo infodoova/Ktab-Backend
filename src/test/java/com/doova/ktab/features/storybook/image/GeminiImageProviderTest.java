@@ -15,12 +15,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GeminiImageProviderTest {
 
     @Test
-    void configAsksForOneSquare2kImage() {
+    void configAsksForOnePortrait1kImage() {
         GenerateContentConfig config = GeminiImageProvider.buildConfig(new StorybookProperties.Image());
 
         assertThat(config.responseModalities().orElseThrow().toString()).contains("IMAGE");
-        assertThat(config.imageConfig().orElseThrow().aspectRatio()).contains("1:1");
-        assertThat(config.imageConfig().orElseThrow().imageSize()).contains("2K");
+        assertThat(config.imageConfig().orElseThrow().aspectRatio()).contains("3:4");
+        assertThat(config.imageConfig().orElseThrow().imageSize()).contains("1K");
     }
 
     @Test
@@ -35,7 +35,7 @@ class GeminiImageProviderTest {
 
     @Test
     void referenceImagesComeBeforeThePrompt() {
-        ImageRequest request = new ImageRequest("gemini-3.1-flash-image-preview", "draw a cat",
+        ImageRequest request = new ImageRequest("gemini-3.1-flash-image", "draw a cat",
                 List.of(new ReferenceImage(new byte[]{1, 2}, "image/png"), new ReferenceImage(new byte[]{3}, "image/png")));
 
         Content content = GeminiImageProvider.buildContent(request);

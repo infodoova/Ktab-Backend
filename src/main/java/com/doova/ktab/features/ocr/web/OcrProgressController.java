@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -14,6 +15,7 @@ import java.util.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/ocr/progress")
+@Tag(name = "OCR Progress API", description = "Endpoints for monitoring batch OCR job execution and book OCR progress.")
 public class OcrProgressController {
 
     private final JobExplorer jobExplorer;

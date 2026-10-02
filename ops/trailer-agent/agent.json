@@ -1,0 +1,107 @@
+{
+  "name": "Ktab Cinematic Trailer Agent",
+  "description": "Turns a Ktab book PDF into a 30-second 16:9 trailer: one Seedance 2.5 generation anchored by FLUX.2 references carrying the full montage, ElevenLabs eleven_v3 Arabic narration and instrumental score mixed in FFmpeg, Ktab-rendered end card, downloadable Arabic captions (not burned in).",
+  "model": {
+    "id": "claude-opus-5-5",
+    "effort": "high"
+  },
+  "system": "",
+  "mcp_servers": [
+    {
+      "type": "url",
+      "name": "higgsfield",
+      "url": "https://mcp.higgsfield.ai/mcp"
+    }
+  ],
+  "tools": [
+    {
+      "type": "agent_toolset_20260401",
+      "default_config": {
+        "enabled": true,
+        "permission_policy": {
+          "type": "always_allow"
+        }
+      }
+    },
+    {
+      "type": "mcp_toolset",
+      "mcp_server_name": "higgsfield",
+      "default_config": {
+        "enabled": false,
+        "permission_policy": {
+          "type": "always_allow"
+        }
+      },
+      "configs": [
+        {
+          "name": "generate_video",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "generate_image",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "models_explore",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "balance",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "motion_control",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "media_upload",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "jobs_wait",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "job_display",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        },
+        {
+          "name": "show_generation_by_ids",
+          "enabled": true,
+          "permission_policy": {
+            "type": "always_allow"
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "owner": "ktab",
+    "feature": "book-trailer",
+    "version": "v20"
+  }
+}

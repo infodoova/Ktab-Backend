@@ -21,7 +21,7 @@ class StorybookMessagesTest {
                 .filter(k -> k.name().startsWith("STORYBOOK_"))
                 .forEach(k -> assertThat(source.getMessage(k.getKey(), null, Locale.ENGLISH))
                         .as(k.name()).isNotBlank());
-        assertThat(Arrays.stream(ApiMessageKey.values()).filter(k -> k.name().startsWith("STORYBOOK_"))).hasSize(21);
+        assertThat(Arrays.stream(ApiMessageKey.values()).filter(k -> k.name().startsWith("STORYBOOK_"))).hasSize(22);
     }
 
     @Test

@@ -93,4 +93,59 @@ class StoryPersistenceIT extends StorybookJpaIT {
                 .extracting(j -> j.getStep() + ":" + j.getGeneration())
                 .containsExactly(JobStep.STORY_CRITIC + ":0", JobStep.STORY_PLAN + ":1");
     }
+
+    @Test
+    void unresolvedComplaintsAreStoredPerPageAndLabelledByCritic() {
+        Storybook book = StorybookEntityFixtures.newBook(em, UserFixtures.reader(em, "p5@example.com"));
+        persistence.savePlan(book.getId(), StoryFixtures.plan(10, "x."), 0);
+
+        persistence.recordUnresolvedProblems(book.getId(), "story", Map.of(0, List.of("title case"), 4, List.of("unclear")), java.util.Set.of());
+        persistence.recordUnresolvedProblems(book.getId(), "language", Map.of(4, List.of("dialect")), java.util.Set.of());
+        em.flush();
+        em.clear();
+
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 0).orElseThrow().getCriticProblems()).containsExactly("story: title case");
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 4).orElseThrow().getCriticProblems())
+                .containsExactlyInAnyOrder("story: unclear", "language: dialect");
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 5).orElseThrow().getCriticProblems()).isNullOrEmpty();
+    }
+
+    @Test
+    void aCritcsOwnOldComplaintsAreReplacedAndRewrittenPagesDropTheOtherCriticsStaleOnes() {
+        Storybook book = StorybookEntityFixtures.newBook(em, UserFixtures.reader(em, "p6@example.com"));
+        persistence.savePlan(book.getId(), StoryFixtures.plan(10, "x."), 0);
+        persistence.recordUnresolvedProblems(book.getId(), "story", Map.of(2, List.of("old story"), 3, List.of("keep me")), java.util.Set.of());
+
+        // the language critic rewrote page 2 and still dislikes page 6
+        persistence.recordUnresolvedProblems(book.getId(), "language", Map.of(6, List.of("dialect")), java.util.Set.of(2));
+        em.flush();
+        em.clear();
+
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 2).orElseThrow().getCriticProblems()).isNullOrEmpty();
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 3).orElseThrow().getCriticProblems()).containsExactly("story: keep me");
+        assertThat(pages.findByStorybook_IdAndPageIndex(book.getId(), 6).orElseThrow().getCriticProblems()).containsExactly("language: dialect");
+    }
+
+    @Autowired com.doova.ktab.features.storybook.repository.StorybookCharacterRepository characterRows;
+
+    @Test
+    void loadCarriesTheSupportingCharactersInOrderWithTheirTags() {
+        Storybook book = StorybookEntityFixtures.newBook(em, UserFixtures.reader(em, "p7@example.com"));
+        persistence.savePlan(book.getId(), StoryFixtures.plan(10, "x."), 0);
+        for (String id : new String[]{"grandpa", "salma"}) {
+            com.doova.ktab.features.storybook.model.StorybookCharacter c = new com.doova.ktab.features.storybook.model.StorybookCharacter();
+            c.setStorybook(book);
+            c.setKind(com.doova.ktab.features.storybook.enums.CharacterKind.SUPPORTING);
+            c.setCharacterId(id);
+            c.setRelationship(id.equals("grandpa") ? "grandfather" : "friend");
+            c.setAttributes(new com.doova.ktab.features.storybook.model.CharacterAttributes(null, null));
+            em.persist(c);
+        }
+        em.flush();
+        em.clear();
+
+        StoryContext ctx = persistence.load(book.getId());
+
+        assertThat(ctx.supporting()).extracting(c -> c.ref() + ":" + c.id()).containsExactly("SUPPORT_1:grandpa", "SUPPORT_2:salma");
+    }
 }

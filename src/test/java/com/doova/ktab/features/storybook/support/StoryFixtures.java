@@ -25,6 +25,10 @@ public final class StoryFixtures {
             ChildAppearance.SkinTone.OLIVE, ChildAppearance.HairColor.BLACK,
             ChildAppearance.HairStyle.SHORT_CURLY, ChildAppearance.EyeColor.BROWN, false, false);
 
+    public static final com.doova.ktab.features.storybook.model.StoryInputs INPUTS =
+            new com.doova.ktab.features.storybook.model.StoryInputs("سامي", ChildGender.BOY, AgeBand.AGE_6_8,
+                    APPEARANCE, List.of(Interest.FOOTBALL), null, StorySetting.BEIRUT, CATALOG.get("first-day-of-school"));
+
     private StoryFixtures() {
     }
 

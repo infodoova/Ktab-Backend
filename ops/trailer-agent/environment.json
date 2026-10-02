@@ -1,0 +1,8 @@
+{
+  "name": "ktab-trailer-env",
+  "config": {
+    "type": "cloud",
+    "packages": { "type": "packages", "apt": ["ffmpeg", "poppler-utils", "jq", "fonts-dejavu-core", "fonts-hosny-amiri", "pdftk"] },
+    "networking": { "type": "unrestricted" }
+  }
+}

@@ -9,6 +9,7 @@ import com.doova.ktab.features.storybook.web.StorybookAccessGuard;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.service.file.FileStorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReaderService {
 
     private final StorybookAccessGuard guard;
@@ -49,6 +51,15 @@ public class ReaderService {
     private String imageUrl(RenderContext ctx, String imageFile) {
         int pageIndex = Integer.parseInt(imageFile.substring("img/p".length(), imageFile.length() - ".jpg".length()));
         String key = ctx.imageKeysByPageIndex().get(pageIndex);
-        return key == null ? null : storage.getFileUrl(key, UrlStrategy.SIGNED);
+        if (key == null) {
+            // This is only called for a cover/story page (see manifest() above), so a missing key here
+            // means the same "every page has an image" invariant RenderPdfHandler enforces at render time
+            // broke afterward for a book that's already READY (e.g. its image row/asset got deleted).
+            // Keep serving the rest of the manifest rather than 500ing the whole reader over one picture,
+            // but log it loudly so it's not a silent broken-image icon with no diagnostic trail.
+            log.error("storybook {} page {} has no image key; reader will show a missing picture", ctx.bookId(), pageIndex);
+            return null;
+        }
+        return storage.getFileUrl(key, UrlStrategy.SIGNED);
     }
 }

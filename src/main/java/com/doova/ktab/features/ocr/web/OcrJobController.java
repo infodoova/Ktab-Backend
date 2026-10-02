@@ -3,6 +3,7 @@ package com.doova.ktab.features.ocr.web;
 import com.doova.ktab.enums.book.ReadingDirection;
 import com.doova.ktab.enums.book.SpreadSide;
 import com.doova.ktab.enums.status.OcrStatus;
+import com.doova.ktab.features.ingestion.config.OcrSwitchProperties;
 import com.doova.ktab.features.ocr.image.BorderCropper;
 import com.doova.ktab.features.ocr.image.OrientationPreChecker;
 import com.doova.ktab.features.ocr.image.PageRenumberer;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import javax.imageio.ImageIO;
@@ -36,6 +38,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @RequestMapping("/api/ocr")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
+@Tag(name = "OCR Job API", description = "Endpoints for launching and managing batch OCR processing and book restructure jobs.")
 public class OcrJobController {
 
     private final S3OcrStorageService s3;
@@ -53,12 +56,23 @@ public class OcrJobController {
     private final PageRenumberer pageRenumberer;
     private final SpreadSplitter spreadSplitter;
     private final BorderCropper borderCropper;
+    private final OcrSwitchProperties ocrSwitch;
+
+    /** 409 while OCR is switched off (KTAB_OCR_ENABLED=false); null when OCR may run. */
+    private ResponseEntity<Map<String, Object>> ocrDisabled() {
+        return ocrSwitch.isEnabled() ? null
+                : ResponseEntity.status(409).body(Map.of("message", "OCR is disabled (KTAB_OCR_ENABLED=false)"));
+    }
 
     /**
      * Upload PDF to S3 and start full OCR pipeline.
      */
     @PostMapping("/books/{bookId}/start")
     public ResponseEntity<Map<String, Object>> start(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+        if (disabled != null) {
+            return disabled;
+        }
         Optional<JobExecution> running = jobExplorer.findRunningJobExecutions("ocrJob").stream()
                 .filter(exec -> bookId.equals(exec.getJobParameters().getLong("bookId")))
                 .findFirst();
@@ -88,6 +102,10 @@ public class OcrJobController {
      */
     @PostMapping("/books/{bookId}/restructure")
     public ResponseEntity<Map<String, Object>> restructure(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+        if (disabled != null) {
+            return disabled;
+        }
         JobParameters params = new JobParametersBuilder()
                 .addLong("bookId", bookId)
                 .addLong("run.id", System.currentTimeMillis())
@@ -102,6 +120,10 @@ public class OcrJobController {
      */
     @PostMapping("/books/{bookId}/harmonize")
     public ResponseEntity<Map<String, Object>> harmonize(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+        if (disabled != null) {
+            return disabled;
+        }
         JobParameters params = new JobParametersBuilder()
                 .addLong("bookId", bookId)
                 .addLong("run.id", System.currentTimeMillis())
@@ -117,6 +139,10 @@ public class OcrJobController {
     @PostMapping("/books/{bookId}/pages/retry-flagged")
     @Transactional
     public ResponseEntity<Map<String, Object>> retryFlagged(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+        if (disabled != null) {
+            return disabled;
+        }
         List<BookPage> flaggedPages = pageRepository.findByBookIdAndStatusInOrderByPageNumberAsc(
                 bookId,
                 List.of(OcrStatus.FLAGGED, OcrStatus.FAILED)
@@ -253,6 +279,10 @@ public class OcrJobController {
      */
     @PostMapping("/books/{bookId}/resume-latest")
     public ResponseEntity<Map<String, Object>> resumeLatest(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+        if (disabled != null) {
+            return disabled;
+        }
         JobExecution latest = findLatestForBook(bookId);
         if (latest == null) {
             return ResponseEntity.notFound().build();

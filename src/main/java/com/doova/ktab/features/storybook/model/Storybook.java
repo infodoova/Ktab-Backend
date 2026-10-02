@@ -95,4 +95,38 @@ public class Storybook extends BaseEntity {
 
     @Column(name = "col_total_cost_usd", nullable = false, precision = 10, scale = 4)
     private BigDecimal totalCostUsd = BigDecimal.ZERO;
+
+    @Column(name = "col_theme", length = 128)
+    private String theme;
+
+    @Column(name = "col_story_tone", length = 64)
+    private String storyTone;
+
+    @Column(name = "col_lesson", length = 128)
+    private String lesson;
+
+    @Column(name = "col_story_idea", columnDefinition = "TEXT")
+    private String storyIdea;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_things_to_avoid", columnDefinition = "JSONB")
+    private java.util.List<String> thingsToAvoid;
+
+    @Column(name = "col_orientation", length = 32, nullable = false)
+    private String orientation = "PORTRAIT";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_character_bible", columnDefinition = "JSONB")
+    private String characterBible;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_story_blueprint", columnDefinition = "JSONB")
+    private String storyBlueprint;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_style_bible", columnDefinition = "JSONB")
+    private String styleBible;
+
+    @Column(name = "col_language_ruleset", length = 64)
+    private String languageRuleset;
 }

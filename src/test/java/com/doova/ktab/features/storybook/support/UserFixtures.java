@@ -12,6 +12,7 @@ public final class UserFixtures {
         User user = new User();
         user.setEmail(email);
         user.setFirstName("Parent");
+        user.setLastName("Tester"); // tbl_users.col_last_name is NOT NULL even though the entity allows null
         user.setPasswordDigest("not-a-real-hash");
         user.setRole("20"); // READER
         return em.persistAndFlush(user);

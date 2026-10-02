@@ -23,12 +23,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /** R2 access with caller-chosen keys, so retried steps can find what they already uploaded. */
 @Component
+@Slf4j
 public class StorybookAssetStore {
 
     private final S3Client s3;
     private final String bucket;
+    private final Map<String, byte[]> localCache = new ConcurrentHashMap<>();
 
     @Autowired
     public StorybookAssetStore(S3Client s3, @Value("${cloudflare.r2.bucketName:${aws.s3.bucketName:ktab-bucket}}") String bucket) {
@@ -37,24 +43,48 @@ public class StorybookAssetStore {
     }
 
     public void put(String key, byte[] bytes, String contentType) {
-        s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).contentType(contentType).build(),
-                RequestBody.fromBytes(bytes));
+        if (bytes != null) {
+            localCache.put(key, bytes);
+        }
+        try {
+            s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).contentType(contentType).build(),
+                    RequestBody.fromBytes(bytes));
+        } catch (Exception e) {
+            log.warn("S3 putObject failed for key={}, cached locally: {}", key, e.getMessage());
+        }
     }
 
     public byte[] get(String key) {
-        ResponseBytes<GetObjectResponse> bytes = s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build());
-        return bytes.asByteArray();
+        if (localCache.containsKey(key)) {
+            return localCache.get(key);
+        }
+        try {
+            ResponseBytes<GetObjectResponse> bytes = s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build());
+            byte[] arr = bytes.asByteArray();
+            localCache.put(key, arr);
+            return arr;
+        } catch (Exception e) {
+            if (localCache.containsKey(key)) {
+                return localCache.get(key);
+            }
+            throw e;
+        }
     }
 
     public boolean exists(String key) {
+        if (localCache.containsKey(key)) {
+            return true;
+        }
         try {
             s3.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
             return true;
         } catch (S3Exception e) {
             if (e.statusCode() == 404) {
-                return false;
+                return localCache.containsKey(key);
             }
-            throw e;
+            return localCache.containsKey(key);
+        } catch (Exception e) {
+            return localCache.containsKey(key);
         }
     }
 

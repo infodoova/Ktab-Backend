@@ -11,9 +11,9 @@ import static org.mockito.Mockito.verify;
 class StorybookCreatedListenerTest {
 
     @Test
-    void enqueuesTheFirstStoryPlan() {
+    void enqueuesTheFirstCharacterBible() {
         JobEnqueuer enqueuer = mock(JobEnqueuer.class);
         new StorybookCreatedListener(enqueuer).onCreated(new StorybookCreatedEvent(42L));
-        verify(enqueuer).enqueue(42L, JobStep.STORY_PLAN, -1, 0);
+        verify(enqueuer).enqueue(42L, JobStep.CHARACTER_BIBLE, -1, 0);
     }
 }

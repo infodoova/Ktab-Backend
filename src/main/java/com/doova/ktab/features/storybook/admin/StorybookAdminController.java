@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyAuthority('ADMIN')")
 @ConditionalOnProperty(prefix = "ktab.storybook", name = "enabled", havingValue = "true")
+@Tag(name = "Admin Storybook Management API", description = "Endpoints for administrators to review flagged storybook pages and manage storybook quotas.")
 public class StorybookAdminController {
 
     private final StorybookAdminService admin;

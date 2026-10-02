@@ -1,3 +1,4 @@
 package com.doova.ktab.features.storybook.enums;
 
-public enum CharacterKind { CHILD, COMPANION }
+/** CHILD and COMPANION are unique per book; any number of SUPPORTING characters (a grandparent, a friend) may follow. */
+public enum CharacterKind { CHILD, COMPANION, SUPPORTING }

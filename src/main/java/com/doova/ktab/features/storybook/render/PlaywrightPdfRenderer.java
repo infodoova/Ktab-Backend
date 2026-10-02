@@ -7,6 +7,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -22,9 +23,10 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 @Component
+@Slf4j
 public class PlaywrightPdfRenderer implements AutoCloseable {
 
-    private static final String FONT = "storybook/fonts/NotoNaskhArabic-Regular.ttf";
+    private static final String FONT = "storybook/fonts/Cairo.ttf";
 
     private final StorybookHtmlBuilder htmlBuilder;
     private final Semaphore slots;
@@ -45,7 +47,7 @@ public class PlaywrightPdfRenderer implements AutoCloseable {
             Files.createDirectories(dir.resolve("fonts"));
             Files.createDirectories(dir.resolve("img"));
             try (InputStream font = new ClassPathResource(FONT).getInputStream()) {
-                Files.copy(font, dir.resolve("fonts/NotoNaskhArabic-Regular.ttf"));
+                Files.copy(font, dir.resolve("fonts/Cairo.ttf"));
             }
             for (Map.Entry<Integer, byte[]> e : imagesByPageIndex.entrySet()) {
                 Files.write(dir.resolve(RenderModelFactory.imageFile(e.getKey())), ImageDownscaler.toJpeg(e.getValue(), 2048));
@@ -81,13 +83,32 @@ public class PlaywrightPdfRenderer implements AutoCloseable {
     }
 
     private synchronized Browser browser() {
+        if (browser != null && !browser.isConnected()) {
+            // Chromium can die under memory pressure or a driver crash; without this the singleton would
+            // stay wedged on the dead handle and every render job would fail until the pod is restarted.
+            // Just drop the reference rather than calling browser.close(): max-concurrent may be >1, so
+            // another thread's render() can still be mid-call on this same (now-dead) object, and its own
+            // Playwright calls will already fail and retry on their own once the process is actually gone
+            // — explicitly closing it here would only race that thread for no benefit. The Playwright
+            // driver process itself (`playwright`) is unaffected by a Chromium crash, so it's kept and
+            // reused for the relaunch below instead of being torn down too.
+            log.warn("storybook Playwright browser disconnected; relaunching");
+            browser = null;
+        }
         if (browser == null) {
-            playwright = Playwright.create();
-            // Our own trusted template and images only; the container user cannot use Chromium's sandbox.
-            browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                    .setHeadless(true)
-                    .setChromiumSandbox(false)
-                    .setArgs(List.of("--disable-dev-shm-usage")));
+            try {
+                if (playwright == null) {
+                    playwright = Playwright.create();
+                }
+                // Our own trusted template and images only; the container user cannot use Chromium's sandbox.
+                browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                        .setHeadless(true)
+                        .setChromiumSandbox(false)
+                        .setArgs(List.of("--disable-dev-shm-usage")));
+            } catch (RuntimeException e) {
+                closeQuietly(); // don't leak a half-started driver process; let the next call try fully fresh
+                throw e;
+            }
         }
         return browser;
     }
@@ -95,12 +116,24 @@ public class PlaywrightPdfRenderer implements AutoCloseable {
     @Override
     @PreDestroy
     public synchronized void close() {
+        closeQuietly();
+    }
+
+    private void closeQuietly() {
         if (browser != null) {
-            browser.close();
+            try {
+                browser.close();
+            } catch (RuntimeException e) {
+                log.warn("storybook Playwright browser close failed", e);
+            }
             browser = null;
         }
         if (playwright != null) {
-            playwright.close();
+            try {
+                playwright.close();
+            } catch (RuntimeException e) {
+                log.warn("storybook Playwright driver close failed", e);
+            }
             playwright = null;
         }
     }

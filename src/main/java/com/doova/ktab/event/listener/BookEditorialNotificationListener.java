@@ -45,12 +45,12 @@ public class BookEditorialNotificationListener {
         try {
             EmailRequest request = EmailRequest.builder()
                     .to(event.recipientEmail())
-                    .subject("Ktab Editorial Review: Update on \"" + event.bookTitle() + "\"")
+                    .subject("المراجعة التحريرية لكِتاب: تحديث بخصوص «" + event.bookTitle() + "»")
                     .template("book-rejected")
-                    .variable("NAME", event.recipientName() != null ? event.recipientName() : "Author")
+                    .variable("NAME", event.recipientName() != null ? event.recipientName() : "عزيزنا المؤلف")
                     .variable("BOOK_TITLE", event.bookTitle())
                     .variable("REVIEW_NOTE", event.reviewNote() != null ? event.reviewNote() : "")
-                    .variable("REVIEWER_NAME", event.reviewerName() != null ? event.reviewerName() : "Editorial Team")
+                    .variable("REVIEWER_NAME", event.reviewerName() != null ? event.reviewerName() : "فريق التحرير")
                     .variable("STUDIO_URL", frontendUrl + "/studio/books/" + event.bookId())
                     .variable("SUPPORT_EMAIL", "support@ktab.app")
                     .build();
@@ -85,19 +85,19 @@ public class BookEditorialNotificationListener {
         }
 
         String recipientEmail = recipient.getEmail();
-        String recipientName = recipient.getFirstName() != null ? recipient.getFirstName() : "Author";
+        String recipientName = recipient.getFirstName() != null ? recipient.getFirstName() : "عزيزنا المؤلف";
 
         log.info("Sending book published celebration email to '{}' for bookId={}", recipientEmail, event.bookId());
 
         try {
             EmailRequest request = EmailRequest.builder()
                     .to(recipientEmail)
-                    .subject("Congratulations! Your Book \"" + book.getTitle() + "\" is Live on Ktab")
+                    .subject("تهانينا! تم نشر كتابك «" + book.getTitle() + "» على كِتاب")
                     .template("book-published")
                     .variable("NAME", recipientName)
                     .variable("BOOK_TITLE", book.getTitle())
                     .variable("BOOK_ID", book.getId())
-                    .variable("PUBLISH_DATE", book.getPublishDate() != null ? book.getPublishDate().toString() : "Today")
+                    .variable("PUBLISH_DATE", book.getPublishDate() != null ? book.getPublishDate().toString() : "اليوم")
                     .variable("REVIEW_NOTE", book.getReviewNote() != null ? book.getReviewNote() : "")
                     .variable("BOOK_URL", frontendUrl + "/books/" + book.getId())
                     .build();

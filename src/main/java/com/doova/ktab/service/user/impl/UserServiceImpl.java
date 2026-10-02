@@ -79,10 +79,10 @@ public class UserServiceImpl implements UserService {
 
         emailService.sendAfterCommit(EmailRequest.builder()
                 .to(savedUser.getEmail())
-                .subject("Ktab — Verify Your Account")
+                .subject("كِتاب — تأكيد حسابك")
                 .template("verify-email")
                 .variable("CODE", code.getCode())
-                .variable("NAME", savedUser.getFirstName() != null ? savedUser.getFirstName() : "Reader")
+                .variable("NAME", savedUser.getFirstName() != null ? savedUser.getFirstName() : "عزيزنا القارئ")
                 .build());
 
         log.info("User registered: {}", email);
@@ -149,10 +149,10 @@ public class UserServiceImpl implements UserService {
 
         emailService.sendAfterCommit(EmailRequest.builder()
                 .to(user.getEmail())
-                .subject("Reset Your Ktab Password")
+                .subject("كِتاب — إعادة تعيين كلمة المرور")
                 .template("reset-password")
                 .variable("RESET_CODE", code.getCode())
-                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "User")
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "عزيزنا المستخدم")
                 .build());
     }
 
@@ -174,10 +174,10 @@ public class UserServiceImpl implements UserService {
 
         emailService.sendAfterCommit(EmailRequest.builder()
                 .to(user.getEmail())
-                .subject("Ktab — Verify Your Account")
+                .subject("كِتاب — تأكيد حسابك")
                 .template("verify-email")
                 .variable("CODE", code.getCode())
-                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "Reader")
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "عزيزنا القارئ")
                 .build());
     }
 
@@ -204,9 +204,9 @@ public class UserServiceImpl implements UserService {
         // Security notification: alert user that password was updated
         emailService.sendAfterCommit(EmailRequest.builder()
                 .to(user.getEmail())
-                .subject("Your Ktab Password Has Been Changed")
+                .subject("كِتاب — تم تغيير كلمة المرور بنجاح")
                 .template("password-reset-success")
-                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "User")
+                .variable("NAME", user.getFirstName() != null ? user.getFirstName() : "عزيزنا المستخدم")
                 .build());
     }
 

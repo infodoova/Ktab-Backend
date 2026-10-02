@@ -28,6 +28,7 @@ public class StoryPersistence {
 
     private final StorybookRepository books;
     private final StorybookPageRepository pages;
+    private final com.doova.ktab.features.storybook.repository.StorybookCharacterRepository characters;
     private final JobEnqueuer enqueuer;
     private final StorybookStateMachine stateMachine;
     private final EntityManager entityManager;
@@ -45,7 +46,11 @@ public class StoryPersistence {
                     .toList());
         }
         return new StoryContext(bookId, book.getStatus(),
-                book.getInputs().toStoryRequest(book.getVariety(), book.getPageCount()), plan);
+                book.getInputs().toStoryRequest(book.getVariety(), book.getPageCount()), plan,
+                book.getCharacterBible(), book.getStoryBlueprint(),
+                book.getTheme(), book.getStoryTone(), book.getLesson(), book.getStoryIdea(), book.getThingsToAvoid(),
+                com.doova.ktab.features.storybook.story.SupportingCast.of(characters.findByStorybook_IdAndKindOrderByIdAsc(
+                        bookId, com.doova.ktab.features.storybook.enums.CharacterKind.SUPPORTING)));
     }
 
     @Transactional
@@ -74,6 +79,52 @@ public class StoryPersistence {
     }
 
     @Transactional
+    public void enqueueLanguageCritic(Long bookId, int generation) {
+        enqueuer.enqueue(bookId, JobStep.LANGUAGE_CRITIC, -1, generation);
+    }
+
+    @Transactional
+    public void saveRewrittenPages(Long bookId, StoryPlanResponse updatedPlan) {
+        if (updatedPlan != null && updatedPlan.titleAr() != null && !updatedPlan.titleAr().isBlank()) {
+            books.findById(bookId).ifPresent(book -> book.setTitleAr(updatedPlan.titleAr()));
+        }
+        if (updatedPlan != null && updatedPlan.pages() != null) {
+            for (PagePlan p : updatedPlan.pages()) {
+                pages.findByStorybook_IdAndPageIndex(bookId, p.pageNumber()).ifPresent(page -> {
+                    page.setTextAr(p.textAr());
+                    page.setSceneEn(p.sceneEn());
+                    page.setTextZone(p.textZone());
+                });
+            }
+        }
+    }
+
+    /**
+     * Keeps what a critic still objected to when the story was accepted anyway, so a human can see it. Each complaint is labelled with
+     * its critic; a critic's own earlier complaints are replaced, and complaints from the other critic about a page that was rewritten
+     * since are dropped because they describe text that no longer exists.
+     */
+    @Transactional
+    public void recordUnresolvedProblems(Long bookId, String source, Map<Integer, List<String>> problems, java.util.Set<Integer> rewrittenPages) {
+        String prefix = source + ": ";
+        for (StorybookPage page : pages.findByStorybook_IdOrderByPageIndexAsc(bookId)) {
+            int index = page.getPageIndex();
+            List<String> kept = new ArrayList<>();
+            if (page.getCriticProblems() != null) {
+                for (String old : page.getCriticProblems()) {
+                    if (!old.startsWith(prefix) && !rewrittenPages.contains(index)) {
+                        kept.add(old);
+                    }
+                }
+            }
+            for (String problem : problems.getOrDefault(index, List.of())) {
+                kept.add(prefix + problem);
+            }
+            page.setCriticProblems(kept.isEmpty() ? null : kept);
+        }
+    }
+
+    @Transactional
     public void acceptStory(Long bookId, StoryPlanResponse checkedPlan) {
         Storybook book = books.findById(bookId).orElseThrow();
         book.setTitleAr(checkedPlan.titleAr());
@@ -82,7 +133,6 @@ public class StoryPersistence {
             page.setTextAr(p.textAr());
             page.setSceneEn(p.sceneEn());
             page.setTextZone(p.textZone());
-            page.setCriticProblems(null);
         }
         stateMachine.transition(book, StorybookStatus.STORY_READY);
     }

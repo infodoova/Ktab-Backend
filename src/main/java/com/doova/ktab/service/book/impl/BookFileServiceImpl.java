@@ -40,7 +40,7 @@ public class BookFileServiceImpl implements BookFileService {
     public void handleCreateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) {
 
         validateCoverIfPresent(coverImage);
-        validatePdfIfPresent(pdfFile);
+        validatePdfIfPresent(book, pdfFile);
 
         String coverDirectory = resolveStorageDirectory(book, "cover");
         String pdfDirectory = resolveStorageDirectory(book, "pdf");
@@ -87,7 +87,7 @@ public class BookFileServiceImpl implements BookFileService {
     public void handleUpdateFiles(Book book, MultipartFile coverImage, MultipartFile pdfFile) {
 
         validateCoverIfPresent(coverImage);
-        validatePdfIfPresent(pdfFile);
+        validatePdfIfPresent(book, pdfFile);
 
         Optional<Attachment> existingCover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE,
                 "COVER_IMAGE");
@@ -223,12 +223,13 @@ public class BookFileServiceImpl implements BookFileService {
         }
     }
 
-    private void validatePdfIfPresent(MultipartFile file) {
+    private void validatePdfIfPresent(Book book, MultipartFile file) {
         if (file == null || file.isEmpty())
             return;
 
         try {
-            pdfValidator.validatePdf(file);
+            String languageCode = book != null ? book.getLanguage() : null;
+            pdfValidator.validatePdf(file, languageCode);
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {

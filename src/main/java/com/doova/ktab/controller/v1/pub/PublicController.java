@@ -25,7 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping(path = "/public", produces = "application/json")
 @RequiredArgsConstructor
-@Tag(name = "Public", description = "Public (unauthenticated) catalog and metadata endpoints")
+@Tag(name = "Public API", description = "Public (unauthenticated) catalog and metadata endpoints.")
 public class PublicController {
 
     private final PublicService publicService;

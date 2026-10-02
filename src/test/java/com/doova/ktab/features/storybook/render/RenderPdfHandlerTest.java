@@ -65,4 +65,24 @@ class RenderPdfHandlerTest {
         handler.handle(job(0));
         verifyNoInteractions(renderer, store);
     }
+
+    @Test
+    void refusesToRenderWhenAStoryPageHasNoImage() {
+        // IllustrationPersistence#advance is supposed to guarantee every cover/story page has a QA-passed
+        // image before the book reaches RENDERING; this pins the fallback if that invariant ever breaks,
+        // so a book is never silently shipped with a blank page instead of failing loudly.
+        RenderContext broken = new RenderContext(9L, StorybookStatus.RENDERING, "يومي", "سامي", null, TashkeelLevel.FULL,
+                List.of(new RenderModelFactory.PageSource(0, PageKind.COVER, null, TextZone.TOP),
+                        new RenderModelFactory.PageSource(1, PageKind.STORY, "ذَهَبَ.", TextZone.TOP)),
+                Map.of(0, "k0")); // page 1's image key is missing
+        when(persistence.context(9L)).thenReturn(broken);
+
+        StepOutcome outcome = handler.handle(job(0));
+
+        assertThat(outcome.type()).isEqualTo(StepOutcome.Type.FAIL);
+        assertThat(outcome.reason()).contains("page 1");
+        verifyNoInteractions(renderer);
+        verify(store, never()).put(anyString(), any(), anyString());
+        verify(persistence, never()).finish(anyLong(), anyString());
+    }
 }

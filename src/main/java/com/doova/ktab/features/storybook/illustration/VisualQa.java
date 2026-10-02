@@ -10,6 +10,7 @@ import com.doova.ktab.features.storybook.llm.LlmImage;
 import com.doova.ktab.features.storybook.llm.LlmRequest;
 import com.doova.ktab.features.storybook.prompt.PromptLibrary;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class VisualQa {
 
     private final LlmGateway llm;
@@ -40,6 +42,7 @@ public class VisualQa {
                 + ". Image " + images.size() + " is the illustration to check.\n"
                 + "The scene it should show: " + sceneEn;
 
+        // No catch-and-pass: a check that could not run is not a pass. The failure is retryable, so the job is tried again.
         return llm.call(LlmRequest.of(LlmPurpose.VISUAL_QA, prompts.get("visual-qa-system"), user, VisualQaResponse.class)
                 .withImages(images));
     }

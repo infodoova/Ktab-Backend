@@ -16,13 +16,18 @@ import com.doova.ktab.features.storybook.orchestrator.StepOutcome;
 import com.doova.ktab.features.storybook.storage.StorybookAssetStore;
 import com.doova.ktab.features.storybook.storage.StorybookKeys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class CharacterSheetHandler implements StepHandler {
+
+    /** A sheet on a tinted backdrop is redrawn; after this many tries the last one is kept so the book is never blocked. */
+    static final int MAX_SHEET_TRIES = 3;
 
     private final ImageProvider images;
     private final StorybookAssetStore store;
@@ -51,6 +56,7 @@ public class CharacterSheetHandler implements StepHandler {
 
         String childKey = StorybookKeys.characterSheet(ctx.bookId(), CharacterKind.CHILD, version);
         boolean photoUsed = false;
+        byte[] childSheetBytes = null;
         if (!store.exists(childKey)) {
             ImageRequest request;
             if (ctx.photoKey() != null) {
@@ -62,12 +68,12 @@ public class CharacterSheetHandler implements StepHandler {
                 request = new ImageRequest(model, CharacterPrompts.sheetFromPreviousSheet(ctx.gender(), ctx.ageBand()),
                         List.of(new ReferenceImage(store.get(ctx.childSheetKey()), "image/png"), new ReferenceImage(style, "image/png")));
             } else {
-                request = new ImageRequest(model, CharacterPrompts.sheet(ctx.gender(), ctx.ageBand(), ctx.appearance()),
+                request = new ImageRequest(model, CharacterPrompts.sheet(ctx.gender(), ctx.ageBand(), ctx.appearance(), ctx.childClothing()),
                         List.of(new ReferenceImage(style, "image/png")));
             }
-            ImageResult result = images.generate(request);
-            ledger.recordImage(ctx.bookId(), job.getId(), "IMAGE_CHARACTER_SHEET", result);
+            ImageResult result = generateSheet(request, "IMAGE_CHARACTER_SHEET", ctx.bookId(), job);
             store.put(childKey, result.bytes(), result.mimeType());
+            childSheetBytes = result.bytes();
         } else if (ctx.photoKey() != null) {
             photoUsed = true; // sheet was made from the photo before a crash; still purge it
         }
@@ -76,14 +82,57 @@ public class CharacterSheetHandler implements StepHandler {
         if (ctx.companion() != null && !ctx.companionSheetExists()) {
             companionKey = StorybookKeys.characterSheet(ctx.bookId(), CharacterKind.COMPANION, 1);
             if (!store.exists(companionKey)) {
-                ImageResult result = images.generate(new ImageRequest(model,
-                        CharacterPrompts.companionSheet(ctx.companion()), List.of(new ReferenceImage(style, "image/png"))));
-                ledger.recordImage(ctx.bookId(), job.getId(), "IMAGE_COMPANION_SHEET", result);
+                if (childSheetBytes == null) {
+                    childSheetBytes = store.get(childKey);
+                }
+                // the child's sheet is the style guide, so the two characters look drawn by the same hand
+                List<ReferenceImage> refs = new java.util.ArrayList<>(List.of(new ReferenceImage(style, "image/png")));
+                if (childSheetBytes != null) {
+                    refs.add(new ReferenceImage(childSheetBytes, "image/png"));
+                }
+                ImageResult result = generateSheet(new ImageRequest(model,
+                        CharacterPrompts.companionSheet(ctx.companion(), childSheetBytes != null), refs), "IMAGE_COMPANION_SHEET", ctx.bookId(), job);
                 store.put(companionKey, result.bytes(), result.mimeType());
             }
         }
 
-        persistence.saveSheets(ctx.bookId(), version, childKey, companionKey, photoUsed);
+        java.util.Map<String, String> supportingKeys = new java.util.LinkedHashMap<>();
+        for (SheetContext.SupportingSheet s : ctx.supporting()) {
+            if (s.sheetKey() != null) {
+                continue; // drawn before; a new look regenerates the child only
+            }
+            String key = StorybookKeys.supportingSheet(ctx.bookId(), s.id(), 1);
+            if (!store.exists(key)) {
+                if (childSheetBytes == null) {
+                    childSheetBytes = store.get(childKey);
+                }
+                List<ReferenceImage> refs = new java.util.ArrayList<>(List.of(new ReferenceImage(style, "image/png")));
+                if (childSheetBytes != null) {
+                    refs.add(new ReferenceImage(childSheetBytes, "image/png"));
+                }
+                ImageResult result = generateSheet(new ImageRequest(model,
+                        CharacterPrompts.supportingSheet(s.describeEn(), s.clothing(), childSheetBytes != null), refs),
+                        "IMAGE_SUPPORTING_SHEET", ctx.bookId(), job);
+                store.put(key, result.bytes(), result.mimeType());
+            }
+            supportingKeys.put(s.id(), key);
+        }
+
+        persistence.saveSheets(ctx.bookId(), version, childKey, companionKey, photoUsed, supportingKeys);
         return StepOutcome.success();
+    }
+
+    private ImageResult generateSheet(ImageRequest request, String purpose, Long bookId, StorybookJob job) {
+        ImageResult result = null;
+        for (int attempt = 1; attempt <= MAX_SHEET_TRIES; attempt++) {
+            result = images.generate(request);
+            ledger.recordImage(bookId, job.getId(), purpose, result);
+            if (SheetBackgroundCheck.isPlainWhite(result.bytes())) {
+                return result;
+            }
+            log.warn("storybook {} {} is not on a plain white backdrop (try {}/{}){}", bookId, purpose, attempt, MAX_SHEET_TRIES,
+                    attempt < MAX_SHEET_TRIES ? ", drawing it again" : ", keeping it");
+        }
+        return result;
     }
 }

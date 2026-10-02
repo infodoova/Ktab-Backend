@@ -1,0 +1,27 @@
+{
+  "key": "the-lost-little-kitten",
+  "version": 1,
+  "titleAr": "القطة الصغيرة التائهة",
+  "titleEn": "The Lost Little Kitten",
+  "theme": "animals",
+  "ageBands": ["AGE_3_5"],
+  "allowedSettings": ["BEIRUT", "CAIRO", "RIYADH", "DUBAI", "AMMAN", "GENERIC_CITY", "COUNTRYSIDE"],
+  "religious": false,
+  "beats": [
+    {"order": 1,  "minPageCount": 10, "beat": "The CHILD is playing happily in the garden when a tiny, soft meow sounds from behind the flowerpots."},
+    {"order": 2,  "minPageCount": 10, "beat": "The CHILD peeks behind the big green leaves and discovers a fluffy little kitten with curious eyes."},
+    {"order": 3,  "minPageCount": 15, "beat": "The kitten takes two cautious steps forward, gently sniffing the CHILD's shoe with a twitching pink nose."},
+    {"order": 4,  "minPageCount": 10, "beat": "The CHILD speaks in a very quiet, gentle voice and slowly extends a welcoming hand."},
+    {"order": 5,  "minPageCount": 10, "beat": "The kitten nuzzles the CHILD's palm and begins to purr softly like a tiny motor."},
+    {"order": 6,  "minPageCount": 12, "beat": "The CHILD notices the kitten's little tummy rumbling softly from hunger."},
+    {"order": 7,  "minPageCount": 10, "beat": "The CHILD brings out a shallow dish of fresh water and a small bowl of tasty treats."},
+    {"order": 8,  "minPageCount": 15, "beat": "The kitten laps up the water eagerly and playfully chases a fluttering butterfly across the grass."},
+    {"order": 9,  "minPageCount": 10, "beat": "The CHILD and the family look around the friendly neighborhood street to see where the kitten belongs."},
+    {"order": 10, "minPageCount": 12, "beat": "A smiling neighbor with a warm smile calls out, delighted to spot her adventurous little pet."},
+    {"order": 11, "minPageCount": 10, "beat": "The neighbor hugs the kitten and warmly thanks the CHILD for being such a kind and caring friend."},
+    {"order": 12, "minPageCount": 15, "beat": "The neighbor says the CHILD is always welcome to visit and play with the kitten whenever they want."},
+    {"order": 13, "minPageCount": 10, "beat": "The kitten gives one last happy purr and rubs affectionately against the CHILD's leg before heading inside."},
+    {"order": 14, "minPageCount": 10, "beat": "As evening arrives, the CHILD tells their family all about the special four-legged friend they helped today."},
+    {"order": 15, "minPageCount": 10, "beat": "The CHILD falls asleep with a warm heart and a big smile, dreaming of playful garden adventures."}
+  ]
+}

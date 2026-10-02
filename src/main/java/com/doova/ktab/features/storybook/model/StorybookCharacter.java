@@ -47,4 +47,30 @@ public class StorybookCharacter extends BaseEntity {
 
     @Column(name = "col_photo_purged_at")
     private Instant photoPurgedAt;
+
+    @Column(name = "col_character_id", length = 64)
+    private String characterId;
+
+    @Column(name = "col_character_type", length = 32, nullable = false)
+    private String characterType = "HUMAN";
+
+    @Column(name = "col_role", length = 32, nullable = false)
+    private String role = "MAIN";
+
+    @Column(name = "col_relationship", length = 128)
+    private String relationship;
+
+    @Column(name = "col_clothing", columnDefinition = "TEXT")
+    private String clothing;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_personality", columnDefinition = "JSONB")
+    private java.util.List<String> personality;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "col_advanced_details", columnDefinition = "JSONB")
+    private java.util.Map<String, Object> advancedDetails;
+
+    @Column(name = "col_master_sheet_key", columnDefinition = "TEXT")
+    private String masterSheetKey;
 }

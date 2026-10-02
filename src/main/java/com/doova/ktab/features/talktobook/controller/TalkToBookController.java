@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(path = "/books/{bookId}/talk")
 @RequiredArgsConstructor
 @Validated
-@Tag(name = "Talk to Book", description = "Interactive conversational AI agent strictly grounded in book content")
+@Tag(name = "Talk to Book API", description = "Endpoints for interactive conversational AI agent strictly grounded in book content.")
 public class TalkToBookController {
 
     private final TalkToBookService talkToBookService;

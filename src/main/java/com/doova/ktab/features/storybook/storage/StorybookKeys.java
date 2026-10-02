@@ -13,6 +13,15 @@ public final class StorybookKeys {
         return "storybook/" + bookId + "/characters/" + kind.name().toLowerCase(Locale.ROOT) + "/v" + version + ".png";
     }
 
+    /** The id is the parent's own text, so it is reduced to a safe path segment. */
+    public static String supportingSheet(Long bookId, String characterId, int version) {
+        String slug = characterId == null ? "" : characterId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (slug.isEmpty()) {
+            slug = "c" + Integer.toHexString(characterId == null ? 0 : characterId.hashCode());
+        }
+        return "storybook/" + bookId + "/characters/supporting/" + slug + "/v" + version + ".png";
+    }
+
     public static String pageImage(Long bookId, int pageIndex, int generation) {
         return "storybook/" + bookId + "/pages/" + pageIndex + "/g" + generation + ".png";
     }

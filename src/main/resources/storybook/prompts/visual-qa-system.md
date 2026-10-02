@@ -6,3 +6,12 @@ Report:
 - anatomyOk: no extra or missing fingers, limbs or eyes, no merged or distorted faces or bodies.
 - safeForChildren: nothing frightening, violent, immodest or otherwise unsuitable for a young child.
 - problems: one short sentence per issue you found; empty if none.
+
+Respond strictly as a JSON object:
+{
+  "identityMatch": true,
+  "strayText": false,
+  "anatomyOk": true,
+  "safeForChildren": true,
+  "problems": []
+}

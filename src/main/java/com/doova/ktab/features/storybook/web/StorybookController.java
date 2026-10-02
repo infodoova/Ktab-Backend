@@ -12,6 +12,7 @@ import com.doova.ktab.features.storybook.web.dto.StorybookSummary;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.utils.response.ResponseUtils;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.MessageSource;
@@ -28,6 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 @ConditionalOnProperty(prefix = "ktab.storybook", name = "enabled", havingValue = "true")
+@Tag(name = "Storybook API", description = "Endpoints for creating, managing, and generating AI-powered personalized children storybooks.")
 public class StorybookController {
 
     private final StorybookService service;

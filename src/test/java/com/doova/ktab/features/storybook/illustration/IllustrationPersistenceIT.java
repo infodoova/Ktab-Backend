@@ -105,4 +105,99 @@ class IllustrationPersistenceIT extends StorybookJpaIT {
         assertThat(images.findById(imageId(book.getId(), 4, 4)).orElseThrow().getStatus()).isEqualTo(PageImageStatus.FLAGGED);
         assertThat(books.findById(book.getId()).orElseThrow().getStatus()).isEqualTo(StorybookStatus.QA);
     }
+
+    private Storybook bookWithOnlyTheCoverReleased() {
+        Storybook book = illustratedBook();
+        // in the real flow only the cover has a job; the story pages are released by its verdict
+        jobs.deleteAll(jobs.findByStorybookIdOrderByIdAsc(book.getId()).stream()
+                .filter(j -> j.getStep() == JobStep.ILLUSTRATE_PAGE).toList());
+        em.flush();
+        return book;
+    }
+
+    private long illustrateJobs(Storybook book) {
+        return jobs.findByStorybookIdOrderByIdAsc(book.getId()).stream().filter(j -> j.getStep() == JobStep.ILLUSTRATE_PAGE).count();
+    }
+
+    @Test
+    void aPassedCoverReleasesEveryStoryPage() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+
+        judge(book, 0, 1, PASS);
+
+        assertThat(jobs.findByStorybookIdOrderByIdAsc(book.getId()))
+                .filteredOn(j -> j.getStep() == JobStep.ILLUSTRATE_PAGE)
+                .extracting(j -> (int) j.getPageIndex())
+                .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+    }
+
+    @Test
+    void aCoverThatFailsItsCheckKeepsTheStoryPagesWaiting() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+
+        judge(book, 0, 1, FAIL);
+
+        assertThat(jobs.findByStorybookIdOrderByIdAsc(book.getId()))
+                .filteredOn(j -> j.getStep() == JobStep.ILLUSTRATE_PAGE)
+                .extracting(j -> j.getPageIndex() + ":" + j.getGeneration())
+                .containsExactly("0:2"); // only the cover's retry
+    }
+
+    @Test
+    void aStoryPageVerdictNeverReleasesAnything() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+
+        judge(book, 3, 1, PASS);
+
+        assertThat(illustrateJobs(book)).isZero();
+    }
+
+    @Test
+    void theApprovedCoverIsTheAnchorForTheStoryPages() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+        judge(book, 0, 1, PASS);
+
+        PageContext story = persistence.pageContext(book.getId(), 3, 1);
+        PageContext cover = persistence.pageContext(book.getId(), 0, 1);
+
+        assertThat(story.anchorKey()).isEqualTo("k0");
+        assertThat(cover.anchorKey()).isNull();
+    }
+
+    @Test
+    void thePageContextCarriesTheIdentityLockAndTheBooksStyleNotes() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+        Storybook stored = books.findById(book.getId()).orElseThrow();
+        stored.setStyleBible(StyleBible.toJson("soft watercolor, warm light, thin brown outlines"));
+        em.flush();
+
+        PageContext ctx = persistence.pageContext(book.getId(), 3, 1);
+
+        assertThat(ctx.glasses()).isFalse();
+        assertThat(ctx.appearanceEn()).isNotBlank();
+        assertThat(ctx.styleNotes()).isEqualTo("soft watercolor, warm light, thin brown outlines");
+    }
+
+    @Test
+    void thePageContextCarriesTheSupportingCharactersAndTheirSheets() {
+        Storybook book = bookWithOnlyTheCoverReleased();
+        com.doova.ktab.features.storybook.model.StorybookCharacter c = new com.doova.ktab.features.storybook.model.StorybookCharacter();
+        c.setStorybook(book);
+        c.setKind(com.doova.ktab.features.storybook.enums.CharacterKind.SUPPORTING);
+        c.setCharacterId("grandpa");
+        c.setRelationship("grandfather");
+        c.setClothing("a brown jalabiya");
+        c.setSheetKey("k-grandpa");
+        c.setAttributes(new com.doova.ktab.features.storybook.model.CharacterAttributes(null, null));
+        em.persist(c);
+        em.flush();
+
+        PageContext ctx = persistence.pageContext(book.getId(), 3, 1);
+
+        assertThat(ctx.supporting()).hasSize(1);
+        assertThat(ctx.supporting().get(0).ref()).isEqualTo("SUPPORT_1");
+        assertThat(ctx.supporting().get(0).sheetKey()).isEqualTo("k-grandpa");
+        assertThat(ctx.supporting().get(0).clothing()).isEqualTo("a brown jalabiya");
+        assertThat(ctx.supporting().get(0).describeEn()).contains("grandfather");
+    }
 }
