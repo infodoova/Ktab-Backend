@@ -52,30 +52,47 @@ public class PageIllustrationHandler implements StepHandler {
         BigDecimal cost = BigDecimal.ZERO;
         if (!store.exists(key)) {
             boolean hasCompanion = ctx.companionSheetKey() != null;
-            // the approved cover is the style anchor for every story page; it goes last so the other references keep their places
+            // A model takes only so many reference images (four for the cheaper one, five for Pro). Who must be recognisable on this
+            // page comes first (the child, the companion and the supporting characters in the scene); the approved cover, which carries
+            // the book's style, comes next; the generic style image only if there is still room.
+            int max = models.maxReferencesFor(model);
             byte[] anchor = ctx.anchorKey() == null ? null : store.get(ctx.anchorKey());
-            var references = new java.util.ArrayList<>(ReferenceAssembler.forPage(store.get(ctx.childSheetKey()), styles.get(ctx.style()),
-                    hasCompanion ? store.get(ctx.companionSheetKey()) : null, ctx.cast()));
-            // supporting characters in this scene bring their own sheets: after the companion, before the cover
-            java.util.List<CharacterPrompts.SupportingLook> looks = new java.util.ArrayList<>();
             java.util.Set<String> inScene = new java.util.HashSet<>();
             ctx.cast().forEach(c -> inScene.add(c.ref()));
+            java.util.List<com.doova.ktab.features.storybook.image.ReferenceImage> identity = new java.util.ArrayList<>();
+            byte[] companionSheet = hasCompanion && inScene.contains("COMPANION") ? store.get(ctx.companionSheetKey()) : null;
+            if (companionSheet != null) {
+                identity.add(new com.doova.ktab.features.storybook.image.ReferenceImage(companionSheet, "image/png"));
+            }
+            java.util.List<CharacterPrompts.SupportingLook> looks = new java.util.ArrayList<>();
             for (PageContext.SupportingLook s : ctx.supporting()) {
+                if (1 + identity.size() >= max) {
+                    break; // the model cannot take another sheet
+                }
                 byte[] sheet = inScene.contains(s.ref()) && s.sheetKey() != null ? store.get(s.sheetKey()) : null;
                 if (sheet != null) {
-                    references.add(new com.doova.ktab.features.storybook.image.ReferenceImage(sheet, "image/png"));
+                    identity.add(new com.doova.ktab.features.storybook.image.ReferenceImage(sheet, "image/png"));
                     looks.add(new CharacterPrompts.SupportingLook(s.ref(), s.describeEn(), s.clothing()));
                 }
             }
+            int room = max - 1 - identity.size();
+            boolean keepAnchor = anchor != null && room >= 1;
+            boolean keepStyle = room - (keepAnchor ? 1 : 0) >= 1;
+            var references = new java.util.ArrayList<com.doova.ktab.features.storybook.image.ReferenceImage>();
+            references.add(new com.doova.ktab.features.storybook.image.ReferenceImage(store.get(ctx.childSheetKey()), "image/png"));
+            if (keepStyle) {
+                references.add(new com.doova.ktab.features.storybook.image.ReferenceImage(styles.get(ctx.style()), "image/png"));
+            }
+            references.addAll(identity);
+            if (keepAnchor) {
+                references.add(new com.doova.ktab.features.storybook.image.ReferenceImage(anchor, "image/png"));
+            }
             CharacterPrompts.PageLock lock = new CharacterPrompts.PageLock(ctx.hijab(), ctx.glasses(), ctx.appearanceEn(),
-                    ctx.childClothing(), ctx.companionEn(), ctx.styleNotes(), anchor != null, looks);
+                    ctx.childClothing(), ctx.companionEn(), ctx.styleNotes(), keepAnchor, looks, keepStyle);
             String prompt = ctx.kind() == PageKind.COVER
                     ? CharacterPrompts.cover(SceneText.withoutOutfit(ctx.sceneEn()), hasCompanion, lock)
                     : CharacterPrompts.scene(SceneText.withoutOutfit(ctx.sceneEn()), ctx.textZone(), hasCompanion
-                        && ctx.cast().stream().anyMatch(c -> "COMPANION".equals(c.ref())), lock);
-            if (anchor != null) {
-                references.add(new com.doova.ktab.features.storybook.image.ReferenceImage(anchor, "image/png"));
-            }
+                        && inScene.contains("COMPANION"), lock);
             ImageResult result = images.generate(new ImageRequest(model, prompt, references));
             cost = ledger.recordImage(ctx.bookId(), job.getId(), "IMAGE_PAGE", result);
             store.put(key, result.bytes(), result.mimeType());

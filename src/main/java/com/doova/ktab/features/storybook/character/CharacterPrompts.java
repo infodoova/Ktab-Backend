@@ -63,11 +63,16 @@ public final class CharacterPrompts {
      * changes the outfit and drifts in style. {@code anchor} says the approved cover is attached as the last reference image.
      */
     public record PageLock(boolean hijab, boolean glasses, String appearanceEn, String clothing, String companionEn,
-                           String styleNotes, boolean anchor, java.util.List<SupportingLook> supporting) {
+                           String styleNotes, boolean anchor, java.util.List<SupportingLook> supporting, boolean styleReference) {
+
+        public PageLock(boolean hijab, boolean glasses, String appearanceEn, String clothing, String companionEn,
+                        String styleNotes, boolean anchor, java.util.List<SupportingLook> supporting) {
+            this(hijab, glasses, appearanceEn, clothing, companionEn, styleNotes, anchor, supporting, true);
+        }
 
         public PageLock(boolean hijab, boolean glasses, String appearanceEn, String clothing, String companionEn,
                         String styleNotes, boolean anchor) {
-            this(hijab, glasses, appearanceEn, clothing, companionEn, styleNotes, anchor, null);
+            this(hijab, glasses, appearanceEn, clothing, companionEn, styleNotes, anchor, null, true);
         }
     }
 
@@ -143,7 +148,10 @@ public final class CharacterPrompts {
                 sb.append("keep the same colours on every page. ");
             }
             if (!lock.supporting().isEmpty()) {
-                java.util.List<String> order = new java.util.ArrayList<>(java.util.List.of("CHILD sheet", "style reference"));
+                java.util.List<String> order = new java.util.ArrayList<>(java.util.List.of("CHILD sheet"));
+                if (lock.styleReference()) {
+                    order.add("style reference");
+                }
                 if (hasCompanion) {
                     order.add("COMPANION sheet");
                 }

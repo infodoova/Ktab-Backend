@@ -16,4 +16,19 @@ class ModelSelectorTest {
         assertThat(selector.modelFor(3)).isEqualTo("gemini-3-pro-image");
         assertThat(selector.modelFor(4)).isEqualTo("gemini-3-pro-image");
     }
+
+    @Test
+    void eachModelHasItsOwnReferenceLimit() {
+        assertThat(selector.maxReferencesFor("gemini-3.1-flash-image")).isEqualTo(4);
+        assertThat(selector.maxReferencesFor("gemini-3-pro-image")).isEqualTo(5);
+    }
+
+    @Test
+    void aMistypedLimitNeverExceedsTheHardCap() {
+        StorybookProperties tooMany = new StorybookProperties();
+        tooMany.getImage().setFallbackMaxReferences(9);
+
+        assertThat(new ModelSelector(tooMany).maxReferencesFor(tooMany.getImage().getFallbackModel()))
+                .isEqualTo(com.doova.ktab.features.storybook.image.ImageRequest.MAX_REFERENCES);
+    }
 }

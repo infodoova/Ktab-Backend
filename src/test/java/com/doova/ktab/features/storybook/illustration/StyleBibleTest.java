@@ -76,4 +76,15 @@ class StyleBibleTest {
 
         assertThat(prompt).doesNotContain("Reference images, in order").doesNotContain("SUPPORT_");
     }
+
+    @Test
+    void theGuideLeavesOutTheStyleReferenceWhenItWasDropped() {
+        CharacterPrompts.PageLock lock = new CharacterPrompts.PageLock(true, false, null, null, null, null, true,
+                java.util.List.of(new CharacterPrompts.SupportingLook("SUPPORT_1", "the grandfather", null)), false);
+
+        String prompt = CharacterPrompts.scene("CHILD walks with SUPPORT_1.", TextZone.BOTTOM, true, lock);
+
+        assertThat(prompt).contains("Reference images, in order: CHILD sheet, COMPANION sheet, SUPPORT_1 sheet, approved book cover")
+                .doesNotContain("style reference,");
+    }
 }
