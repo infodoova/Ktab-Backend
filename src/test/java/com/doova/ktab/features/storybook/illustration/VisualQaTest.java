@@ -44,6 +44,7 @@ class VisualQaTest {
         assertThat(new VisualQaResponse(false, false, true, true, List.of()).passed()).isFalse();
         assertThat(new VisualQaResponse(true, false, false, true, List.of()).passed()).isFalse();
         assertThat(new VisualQaResponse(true, false, true, false, List.of()).passed()).isFalse();
+        assertThat(new VisualQaResponse(true, false, false, true, true, List.of("wrong setting/lighting")).passed()).isFalse();
     }
 
     @Test

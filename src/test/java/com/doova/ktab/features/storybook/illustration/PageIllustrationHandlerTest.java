@@ -66,7 +66,7 @@ class PageIllustrationHandlerTest {
         verify(images).generate(req.capture());
         assertThat(req.getValue().model()).isEqualTo("gemini-3.1-flash-image");
         assertThat(req.getValue().references()).hasSize(3);
-        assertThat(req.getValue().prompt()).contains("The CHILD waves.").contains("top third");
+        assertThat(req.getValue().prompt()).contains("The CHILD waves.").contains("top text-safe area");
         verify(store).put(eq("storybook/9/pages/3/g1.png"), any(), eq("image/png"));
         verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
                 "gemini-3.1-flash-image", new BigDecimal("0.101"));

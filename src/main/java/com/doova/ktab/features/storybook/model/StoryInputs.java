@@ -8,6 +8,7 @@ import com.doova.ktab.features.storybook.enums.ChildGender;
 import com.doova.ktab.features.storybook.enums.Interest;
 import com.doova.ktab.features.storybook.enums.LanguageVariety;
 import com.doova.ktab.features.storybook.enums.StorySetting;
+import com.doova.ktab.features.storybook.enums.StoryTime;
 import com.doova.ktab.features.storybook.story.StoryRequest;
 
 import java.util.List;
@@ -24,10 +25,25 @@ public record StoryInputs(
         List<Interest> interests,
         CompanionSpec companion,
         StorySetting setting,
+        StoryTime timeOfDay,
+        String place,
         Blueprint blueprint
 ) {
+    public StoryInputs(
+            String childNameAr,
+            ChildGender gender,
+            AgeBand ageBand,
+            ChildAppearance appearance,
+            List<Interest> interests,
+            CompanionSpec companion,
+            StorySetting setting,
+            Blueprint blueprint
+    ) {
+        this(childNameAr, gender, ageBand, appearance, interests, companion, setting, null, null, blueprint);
+    }
+
     public StoryRequest toStoryRequest(LanguageVariety variety, int pageCount) {
         return new StoryRequest(childNameAr, gender, ageBand, appearance, variety, blueprint, pageCount,
-                interests, companion, setting);
+                interests, companion, setting, timeOfDay, place);
     }
 }

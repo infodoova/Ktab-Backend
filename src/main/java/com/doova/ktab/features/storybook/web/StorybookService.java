@@ -120,7 +120,7 @@ public class StorybookService {
 
         StoryInputs inputs = new StoryInputs(child.getNameAr(), child.getGender(), child.getAgeBand(),
                 child.getAppearance(), interests, r.companion(),
-                r.setting(), blueprint);
+                r.setting(), r.timeOfDay(), r.place(), blueprint);
         Storybook book = writer.insertDraft(owner, child, inputs,
                 new StorybookDraftWriter.ResolvedSettings(r, variety, tashkeel, dedication));
         return detail(owner, book.getId());

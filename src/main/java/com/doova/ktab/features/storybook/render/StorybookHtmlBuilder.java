@@ -15,17 +15,14 @@ public class StorybookHtmlBuilder {
     private final ITemplateEngine templateEngine;
 
     public StorybookHtmlBuilder() {
-        this(createDefaultEngine());
+        this(defaultEngine());
     }
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
     public StorybookHtmlBuilder(ITemplateEngine templateEngine) {
-        // Use a dedicated template engine with templates/ prefix to avoid collisions
-        // with email template prefixes (e.g. templates/emails/).
-        this.templateEngine = createDefaultEngine();
+        this.templateEngine = templateEngine != null ? templateEngine : defaultEngine();
     }
 
-    private static ITemplateEngine createDefaultEngine() {
+    private static ITemplateEngine defaultEngine() {
         ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix("templates/");
         resolver.setSuffix(".html");

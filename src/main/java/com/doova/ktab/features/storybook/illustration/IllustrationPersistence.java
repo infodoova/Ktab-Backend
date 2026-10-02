@@ -126,15 +126,25 @@ public class IllustrationPersistence {
                     .map(com.doova.ktab.features.storybook.model.StorybookPageImage::getImageKey).orElse(null);
         }
         String clothing = characters.findByStorybook_IdAndKind(bookId, CharacterKind.CHILD).map(StorybookCharacter::getClothing).orElse(null);
-        var companion = book.getInputs().companion();
+        boolean hijab = book.getInputs() != null && book.getInputs().appearance() != null
+                && book.getInputs().appearance().hijab();
+        boolean glasses = book.getInputs() != null && book.getInputs().appearance() != null
+                && book.getInputs().appearance().glasses();
+        String appearanceEn = book.getInputs() != null && book.getInputs().appearance() != null
+                ? book.getInputs().appearance().describeEn() : null;
+        var companion = book.getInputs() != null ? book.getInputs().companion() : null;
+        var setting = book.getInputs() != null ? book.getInputs().setting() : null;
+        var timeOfDay = book.getInputs() != null ? book.getInputs().timeOfDay() : null;
+        var place = book.getInputs() != null ? book.getInputs().place() : null;
         return new PageContext(bookId, book.getStatus(), page.getId(), page.getPageIndex(), page.getKind(),
                 page.getSceneEn(), page.getTextZone(), page.getCharacters(), page.getGeneration(),
                 page.getRoundStartGeneration(), images.findByPage_IdAndGeneration(page.getId(), generation).isPresent(),
-                childSheet, companionSheet, book.getStyle(), book.getInputs().appearance().hijab(),
-                anchorKey, book.getInputs().appearance().glasses(), book.getInputs().appearance().describeEn(), clothing,
+                childSheet, companionSheet, book.getStyle(), hijab,
+                anchorKey, glasses, appearanceEn, clothing,
                 companion == null ? null : companion.describeEn(), StyleBible.notesOf(book.getStyleBible()),
                 supportingSheets(bookId).stream()
-                        .map(x -> new PageContext.SupportingLook(x.ref(), x.describeEn(), x.clothing(), x.sheetKey())).toList());
+                        .map(x -> new PageContext.SupportingLook(x.ref(), x.describeEn(), x.clothing(), x.sheetKey())).toList(),
+                setting, timeOfDay, place);
     }
 
     @Transactional

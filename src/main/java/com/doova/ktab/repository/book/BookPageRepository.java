@@ -33,6 +33,17 @@ public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSp
             """)
     int getTotalWordCount(@Param("bookId") Long bookId);
 
+    @Modifying
+    @Query(value = """
+            UPDATE tbl_book_pages
+            SET col_word_count = CASE
+                WHEN trim(coalesce(col_markdown_clean, col_markdown_content)) = '' THEN 0
+                ELSE array_length(regexp_split_to_array(trim(coalesce(col_markdown_clean, col_markdown_content)), E'\\\\s+'), 1)
+            END
+            WHERE col_book_id = :bookId AND (col_word_count IS NULL OR col_word_count = 0)
+            """, nativeQuery = true)
+    int backfillWordCountsIfMissing(@Param("bookId") Long bookId);
+
     @Query("""
                 select cast(coalesce(sum(length(coalesce(bp.markdownClean, bp.markdownContent))), 0) as long)
                 from BookPage bp
@@ -50,6 +61,8 @@ public interface BookPageRepository extends JpaRepository<BookPage, Long>, JpaSp
     @Query("UPDATE BookPage p SET p.pageNumber = p.pageNumber + :delta WHERE p.book.id = :bookId AND p.pageNumber >= :fromPage")
     void shiftPageNumbers(@Param("bookId") Long bookId, @Param("fromPage") int fromPage, @Param("delta") int delta);
 
+    @Modifying
+    @Query("DELETE FROM BookPage p WHERE p.book.id = :bookId")
     void deleteByBook_Id(@Param("bookId") Long bookId);
 
     @Query(value = """

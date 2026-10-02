@@ -15,6 +15,8 @@ public interface BookTextService {
 
     TextRangeResponse getTextByWordRange(Long bookId, int startWord, int endWord);
 
+    com.doova.ktab.dto.book.ReaderPageResponse getReaderPage(Long bookId, int page, int wordsPerPage);
+
     com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse> searchInBook(
             Long bookId,
             String keyword,

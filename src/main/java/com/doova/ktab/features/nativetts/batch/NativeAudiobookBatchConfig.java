@@ -24,7 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import software.amazon.awssdk.services.s3.S3Client;
 
 /** nativeAudiobookJob: estimate, then read every chapter aloud. Writes what Studio's audiobook job writes. */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 public class NativeAudiobookBatchConfig {
 
@@ -49,13 +49,13 @@ public class NativeAudiobookBatchConfig {
     }
 
     @Bean
-    public Step nativeEstimateStep() {
-        return new StepBuilder("nativeEstimateStep", jobRepository).tasklet(nativeEstimateTasklet(null), tx).build();
+    public Step nativeEstimateStep(NativeEstimateTasklet nativeEstimateTasklet) {
+        return new StepBuilder("nativeEstimateStep", jobRepository).tasklet(nativeEstimateTasklet, tx).build();
     }
 
     @Bean
-    public Step nativeSynthesizeStep() {
-        return new StepBuilder("nativeSynthesizeStep", jobRepository).tasklet(nativeSynthesizeTasklet(null), tx).build();
+    public Step nativeSynthesizeStep(NativeSynthesizeTasklet nativeSynthesizeTasklet) {
+        return new StepBuilder("nativeSynthesizeStep", jobRepository).tasklet(nativeSynthesizeTasklet, tx).build();
     }
 
     @Bean

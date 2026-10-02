@@ -90,9 +90,11 @@ public class PageIllustrationHandler implements StepHandler {
             CharacterPrompts.PageLock lock = new CharacterPrompts.PageLock(ctx.hijab(), ctx.glasses(), ctx.appearanceEn(),
                     ctx.childClothing(), ctx.companionEn(), ctx.styleNotes(), keepAnchor, looks, keepStyle);
             String prompt = ctx.kind() == PageKind.COVER
-                    ? CharacterPrompts.cover(SceneText.withoutOutfit(ctx.sceneEn()), hasCompanion, lock)
+                    ? CharacterPrompts.cover(SceneText.withoutOutfit(ctx.sceneEn()), hasCompanion, lock,
+                            ctx.setting(), ctx.timeOfDay(), ctx.place())
                     : CharacterPrompts.scene(SceneText.withoutOutfit(ctx.sceneEn()), ctx.textZone(), hasCompanion
-                        && inScene.contains("COMPANION"), lock);
+                        && inScene.contains("COMPANION"), lock,
+                            ctx.setting(), ctx.timeOfDay(), ctx.place());
             ImageResult result = images.generate(new ImageRequest(model, prompt, references));
             cost = ledger.recordImage(ctx.bookId(), job.getId(), "IMAGE_PAGE", result);
             store.put(key, result.bytes(), result.mimeType());

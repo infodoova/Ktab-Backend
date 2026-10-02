@@ -26,6 +26,8 @@ public class ArabicTextCleaner {
     private static final Pattern DIGITS = Pattern.compile("[0-9\\u0660-\\u0669\\u06F0-\\u06F9]+");
     private static final Pattern SPACES = Pattern.compile("[ \\t\\u00A0]+");
     private static final Pattern BLANK_RUNS = Pattern.compile("\\n{3,}");
+    /** The same tashkeel mark twice in a row, which no Arabic text has: fake-bold overprinting in the source PDF. */
+    private static final Pattern DUPLICATE_MARK = Pattern.compile("([\\u064B-\\u0652\\u0670])\\1+");
 
     public List<PageContent> clean(List<PageContent> pages, BookMetadata metadata) {
         Set<String> chrome = repeatedEdgeLines(pages);
@@ -68,7 +70,7 @@ public class ArabicTextCleaner {
                 text.append(lines.get(i)).append('\n');
             }
         }
-        return new PageContent(page.pdfPage(), page.rawText(), collapseWhitespace(text.toString()), label, header,
+        return new PageContent(page.pdfPage(), page.rawText(), collapseDuplicateMarks(collapseWhitespace(text.toString())), label, header,
                 page.lines(), false);
     }
 
@@ -116,6 +118,14 @@ public class ArabicTextCleaner {
             }
         }
         return idx;
+    }
+
+    /**
+     * Collapses an identical diacritic repeated back to back ("جوًًا" becomes "جوًا"). Many publisher PDFs draw each mark
+     * twice; leaving both makes the text (and a voice reading it) wrong. Different marks and letters are never touched.
+     */
+    public static String collapseDuplicateMarks(String text) {
+        return text == null ? null : DUPLICATE_MARK.matcher(text).replaceAll("$1");
     }
 
     /** Only runs of spaces and blank lines change: letters and diacritics are untouched. */

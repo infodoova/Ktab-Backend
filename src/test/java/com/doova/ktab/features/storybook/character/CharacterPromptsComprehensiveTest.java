@@ -23,7 +23,7 @@ class CharacterPromptsComprehensiveTest {
                 .contains("front view on the left")
                 .contains("three-quarter view in the center")
                 .contains("side profile view on the right")
-                .contains("full body, standing, gentle smile, identical locked outfit in all three views")
+                .contains("Full body, standing, gentle smile, identical locked outfit in all three views")
                 .contains("Appearance: olive skin, black short curly hair, brown eyes")
                 .contains("Modest, simple, bright everyday children's clothes with long sleeves")
                 .contains("Match the art style of the style reference image exactly")
@@ -129,7 +129,7 @@ class CharacterPromptsComprehensiveTest {
                 .contains("front view on the left")
                 .contains("three-quarter view in the center")
                 .contains("side profile view on the right")
-                .contains("friendly expression")
+                .contains("Friendly expression")
                 .contains("Match the art style of the style reference image exactly")
                 .contains("Absolutely no text");
     }
@@ -143,9 +143,9 @@ class CharacterPromptsComprehensiveTest {
                 .contains("Match the art style of the style reference image exactly")
                 .contains("The CHILD is exactly the character in the character sheet")
                 .contains("Scene: Sami is playing with blocks on a soft carpet.")
-                .contains("Composition: the bottom third of the picture (bottom 20% text container) is calm, clean, low-contrast, and empty")
+                .contains("Composition: keep the bottom text-safe area, approximately 20% of the picture")
                 .contains("plain sky, wall, grass, water or floor")
-                .contains("reserved exclusively for text placement")
+                .contains("Reserve it exclusively for later text placement")
                 .doesNotContain("COMPANION")
                 .doesNotContain("hijab");
     }
@@ -155,8 +155,8 @@ class CharacterPromptsComprehensiveTest {
         String prompt = CharacterPrompts.scene("Sami looks at the stars.", TextZone.TOP, false, false);
 
         assertThat(prompt)
-                .contains("Composition: the top third of the picture (bottom 20% text container) is calm, clean, low-contrast, and empty")
-                .contains("reserved exclusively for text placement");
+                .contains("Composition: keep the top text-safe area, approximately 20% of the picture")
+                .contains("Reserve it exclusively for later text placement");
     }
 
     @Test
@@ -194,8 +194,8 @@ class CharacterPromptsComprehensiveTest {
         String prompt = CharacterPrompts.cover("Sami under a rainbow.", false, false);
 
         assertThat(prompt)
-                .contains("This is the book cover: warm, inviting, the CHILD clearly visible.")
-                .contains("Composition: the top third of the picture")
+                .contains("This is the book cover: warm, inviting, visually memorable, with the CHILD clearly visible and immediately recognizable.")
+                .contains("Composition: keep the top text-safe area")
                 .doesNotContain("COMPANION")
                 .doesNotContain("hijab");
     }
@@ -205,9 +205,9 @@ class CharacterPromptsComprehensiveTest {
         String prompt = CharacterPrompts.cover("Aya and her kitten exploring.", true, true);
 
         assertThat(prompt)
-                .contains("This is the book cover: warm, inviting, the CHILD clearly visible.")
+                .contains("This is the book cover: warm, inviting, visually memorable, with the CHILD clearly visible and immediately recognizable.")
                 .contains("The COMPANION is exactly the character in the companion sheet.")
                 .contains("always wearing the same hijab")
-                .contains("Composition: the top third of the picture");
+                .contains("Composition: keep the top text-safe area");
     }
 }

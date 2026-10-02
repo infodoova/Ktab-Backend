@@ -24,15 +24,16 @@ public class PdfPageExtractor {
 
     public List<PageContent> extract(PDDocument doc) {
         List<PageContent> pages = new ArrayList<>();
+        LogicalOrderTextStripper stripper;
+        try {
+            stripper = new LogicalOrderTextStripper();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         for (int i = 1; i <= doc.getNumberOfPages(); i++) {
             try {
-                PDFTextStripper stripper = new PDFTextStripper();
-                stripper.setStartPage(i);
-                stripper.setEndPage(i);
-                stripper.setSortByPosition(true);
-                stripper.setLineSeparator("\n");
-                String raw = stripper.getText(doc).strip();
-                List<String> lines = raw.isEmpty() ? List.of() : Arrays.asList(raw.split("\n", -1));
+                List<String> lines = stripper.pageLines(doc, i);
+                String raw = String.join("\n", lines).strip();
                 boolean imageOnly = raw.replaceAll("\\s+", "").length() <= IMAGE_ONLY_MAX_CHARS && hasImage(doc.getPage(i - 1));
                 pages.add(new PageContent(i, raw, raw, null, null, lines, imageOnly));
             } catch (IOException e) {
@@ -40,6 +41,16 @@ public class PdfPageExtractor {
             }
         }
         return pages;
+    }
+
+    /** Extracts lines from a single page with bold typography wrapped in **...** (for structural TOC classification). */
+    public List<String> extractFormattedLines(PDDocument doc, int pageNumber) {
+        try {
+            LogicalOrderTextStripper stripper = new LogicalOrderTextStripper();
+            return stripper.pageLinesFormatted(doc, pageNumber);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not extract formatted lines for page " + pageNumber, e);
+        }
     }
 
     private static boolean hasImage(PDPage page) throws IOException {

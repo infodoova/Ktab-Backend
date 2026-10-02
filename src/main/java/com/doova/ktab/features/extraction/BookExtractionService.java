@@ -54,12 +54,16 @@ public class BookExtractionService {
         try (PDDocument doc = validation.load(pdf)) {
             BookMetadata metadata = metadataExtractor.extract(doc);
             List<PageContent> pages = cleaner.clean(pageExtractor.extract(doc), metadata);
-            BookStructureExtractor.StructureResult structure = structureExtractor.extract(doc, pages);
+            BookStructureExtractor.StructureResult structure = structureExtractor.extract(
+                    doc, pages, metadata.language(), metadata.title());
             List<TocEntry> toc = normalizer.normalize(structure.entries(), pages.size());
             List<Chapter> chapters = chapterBuilder.build(toc, pages);
 
             List<ExtractionWarning> warnings = new ArrayList<>(structure.warnings());
-            warnings.addAll(quality.check(chapters, pages.size(), arabicRatio(pages)));
+            double arRatio = arabicRatio(pages);
+            boolean isEnglish = (metadata.language() != null && metadata.language().toLowerCase().startsWith("en"))
+                    || isPredominantlyLatin(pages);
+            warnings.addAll(quality.check(chapters, pages.size(), isEnglish ? 1.0 : arRatio));
             warnings.addAll(quality.checkPages(pages));
             return new BookExtractionResult(metadata, new StructureDetection(structure.source(), structure.confidence()),
                     toc, chapters, pages, warnings);
@@ -84,5 +88,23 @@ public class BookExtractionService {
             }
         }
         return letters == 0 ? 0 : (double) arabic / letters;
+    }
+
+    static boolean isPredominantlyLatin(List<PageContent> pages) {
+        long latin = 0;
+        long arabic = 0;
+        for (PageContent p : pages) {
+            for (int i = 0; i < p.cleanedText().length(); i++) {
+                char c = p.cleanedText().charAt(i);
+                if (Character.isLetter(c)) {
+                    if (c < 0x0250) {
+                        latin++;
+                    } else if (c >= '\u0600' && c <= '\u06FF' || c >= '\u0750' && c <= '\u077F' || c >= '\uFB50' && c <= '\uFEFF') {
+                        arabic++;
+                    }
+                }
+            }
+        }
+        return latin > arabic;
     }
 }

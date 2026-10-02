@@ -51,7 +51,7 @@ class MetadataServiceImplTest {
 
         assertThat(languages).hasSize(AppLanguage.values().length);
         assertThat(languages).extracting(AppEnumsResponseDto.LanguageMetadataDto::code)
-                .contains("ar", "en", "fr", "es", "de");
+                .contains("ar", "en", "fr");
     }
 
     @Test

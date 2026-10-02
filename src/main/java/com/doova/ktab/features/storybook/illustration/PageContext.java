@@ -2,6 +2,8 @@ package com.doova.ktab.features.storybook.illustration;
 
 import com.doova.ktab.features.storybook.enums.ArtStyle;
 import com.doova.ktab.features.storybook.enums.PageKind;
+import com.doova.ktab.features.storybook.enums.StorySetting;
+import com.doova.ktab.features.storybook.enums.StoryTime;
 import com.doova.ktab.features.storybook.enums.StorybookStatus;
 import com.doova.ktab.features.storybook.enums.TextZone;
 import com.doova.ktab.features.storybook.story.CharacterInScene;
@@ -13,7 +15,8 @@ public record PageContext(Long bookId, StorybookStatus status, Long pageId, int 
                           int roundStartGeneration, boolean imageRowExists, String childSheetKey,
                           String companionSheetKey, ArtStyle style, boolean hijab,
                           String anchorKey, boolean glasses, String appearanceEn, String childClothing,
-                          String companionEn, String styleNotes, List<SupportingLook> supporting) {
+                          String companionEn, String styleNotes, List<SupportingLook> supporting,
+                          StorySetting setting, StoryTime timeOfDay, String place) {
 
     /** A supporting character: its tag, description and outfit, and the sheet already drawn for it (null until then). */
     public record SupportingLook(String ref, String describeEn, String clothing, String sheetKey) {
@@ -28,18 +31,39 @@ public record PageContext(Long bookId, StorybookStatus status, Long pageId, int 
                        int roundStartGeneration, boolean imageRowExists, String childSheetKey,
                        String companionSheetKey, ArtStyle style, boolean hijab,
                        String anchorKey, boolean glasses, String appearanceEn, String childClothing,
+                       String companionEn, String styleNotes, List<SupportingLook> supporting) {
+        this(bookId, status, pageId, pageIndex, kind, sceneEn, textZone, cast, pageGeneration, roundStartGeneration,
+                imageRowExists, childSheetKey, companionSheetKey, style, hijab, anchorKey, glasses, appearanceEn, childClothing,
+                companionEn, styleNotes, supporting, null, null, null);
+    }
+
+    public PageContext(Long bookId, StorybookStatus status, Long pageId, int pageIndex, PageKind kind,
+                       String sceneEn, TextZone textZone, List<CharacterInScene> cast, int pageGeneration,
+                       int roundStartGeneration, boolean imageRowExists, String childSheetKey,
+                       String companionSheetKey, ArtStyle style, boolean hijab,
+                       String anchorKey, boolean glasses, String appearanceEn, String childClothing,
                        String companionEn, String styleNotes) {
         this(bookId, status, pageId, pageIndex, kind, sceneEn, textZone, cast, pageGeneration, roundStartGeneration,
                 imageRowExists, childSheetKey, companionSheetKey, style, hijab, anchorKey, glasses, appearanceEn, childClothing,
-                companionEn, styleNotes, null);
+                companionEn, styleNotes, null, null, null, null);
     }
 
+    public PageContext(Long bookId, StorybookStatus status, Long pageId, int pageIndex, PageKind kind,
+                       String sceneEn, TextZone textZone, List<CharacterInScene> cast, int pageGeneration,
+                       int roundStartGeneration, boolean imageRowExists, String childSheetKey,
+                       String companionSheetKey, ArtStyle style, boolean hijab,
+                       StorySetting setting, StoryTime timeOfDay, String place) {
+        this(bookId, status, pageId, pageIndex, kind, sceneEn, textZone, cast, pageGeneration, roundStartGeneration,
+                imageRowExists, childSheetKey, companionSheetKey, style, hijab, null, false, null, null, null, null, null,
+                setting, timeOfDay, place);
+    }
 
     public PageContext(Long bookId, StorybookStatus status, Long pageId, int pageIndex, PageKind kind,
                        String sceneEn, TextZone textZone, List<CharacterInScene> cast, int pageGeneration,
                        int roundStartGeneration, boolean imageRowExists, String childSheetKey,
                        String companionSheetKey, ArtStyle style, boolean hijab) {
         this(bookId, status, pageId, pageIndex, kind, sceneEn, textZone, cast, pageGeneration, roundStartGeneration,
-                imageRowExists, childSheetKey, companionSheetKey, style, hijab, null, false, null, null, null, null, null);
+                imageRowExists, childSheetKey, companionSheetKey, style, hijab, null, false, null, null, null, null, null,
+                null, null, null);
     }
 }

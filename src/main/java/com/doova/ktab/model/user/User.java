@@ -91,6 +91,10 @@ public class User extends BaseEntity {
         return fullName.toString();
     }
 
+    public String getName() {
+        return getFullName();
+    }
+
     @PrePersist
     @PreUpdate
     private void normalizeEmail() {

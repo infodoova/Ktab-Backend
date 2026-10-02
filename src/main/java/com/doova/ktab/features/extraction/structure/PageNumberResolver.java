@@ -63,6 +63,13 @@ public class PageNumberResolver {
         int matched = 0;
         for (int i = 0; i < toc.size(); i++) {
             RawEntry e = toc.get(i);
+            if (e.printedPage() == null) {
+                // LLM-produced entry with no printed page — keep startPage as-is (may already be set)
+                if (e.startPage() != null) {
+                    resolved.add(e);
+                }
+                continue;
+            }
             int expected = e.printedPage() + offset;
             if (expected < 1 || expected > pages.size()) {
                 warnings.add(new ExtractionWarning(WarningCode.TOC_PAGE_OUT_OF_RANGE, Severity.WARNING,
@@ -80,7 +87,26 @@ public class PageNumberResolver {
                 resolved.add(new RawEntry(e.title(), e.level(), expected, e.printedPage()));
             }
         }
-        double confidence = toc.isEmpty() ? 0 : (votes.isEmpty() ? fallbackConfidence : (double) matched / toc.size());
+        double confidence;
+        if (toc.isEmpty()) {
+            confidence = 0.0;
+        } else if (votes.isEmpty()) {
+            confidence = fallbackConfidence;
+        } else {
+            int winningVotes = votes.getOrDefault(offset, 0);
+            int totalVotes = votes.values().stream().mapToInt(Integer::intValue).sum();
+            double consensus = totalVotes > 0 ? (double) winningVotes / totalVotes : 0.0;
+            double voteConfidence = 0.0;
+            if (winningVotes >= 5 && consensus >= 0.6) {
+                voteConfidence = 0.90;
+            } else if (winningVotes >= 3 && consensus >= 0.5) {
+                voteConfidence = 0.80;
+            } else if (winningVotes >= 1) {
+                voteConfidence = 0.60;
+            }
+            double matchRatio = (double) matched / toc.size();
+            confidence = Math.max(matchRatio, voteConfidence);
+        }
         return new Resolution(resolved, offset, confidence, warnings);
     }
 

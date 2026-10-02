@@ -60,6 +60,16 @@ public final class StoryPromptBuilder {
                 sb.append("Page ").append(i + 1).append(": ").append(beats.get(i).beat()).append('\n');
             }
         }
+        if (r.timeOfDay() != null || (r.place() != null && !r.place().isBlank())) {
+            sb.append("\nContinuity: Maintain consistent setting");
+            if (r.place() != null && !r.place().isBlank()) {
+                sb.append(" (").append(r.place().trim()).append(")");
+            }
+            if (r.timeOfDay() != null) {
+                sb.append(" and consistent time of day/lighting (").append(r.timeOfDay().name().toLowerCase()).append(")");
+            }
+            sb.append(" across all page illustrations.\n");
+        }
         sb.append("\nReturn exactly ").append(r.pageCount())
                 .append(" pages numbered 1 to ").append(r.pageCount())
                 .append(", plus the title and cover scene. Reserve the bottom 20% text zone for each story page.");
@@ -118,6 +128,13 @@ public final class StoryPromptBuilder {
         }
         if (r.setting() != null) {
             sb.append("- Setting: ").append(r.setting().sceneEn()).append('\n');
+        }
+        if (r.place() != null && !r.place().isBlank()) {
+            sb.append("- Specific Place: ").append(r.place().trim()).append('\n');
+        }
+        if (r.timeOfDay() != null) {
+            sb.append("- Time of day & lighting: ").append(r.timeOfDay().name().toLowerCase())
+                    .append(" (").append(r.timeOfDay().sceneEn()).append(")\n");
         }
         if (r.companion() != null) {
             sb.append("- Companion (COMPANION in scenes), named «").append(r.companion().nameAr()).append("»: ")

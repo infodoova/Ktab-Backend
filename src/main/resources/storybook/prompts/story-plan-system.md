@@ -17,9 +17,12 @@ Illustration descriptions (English)
 - Describe what the picture shows: place, action, poses, facial expressions, time of day. 2 to 4 sentences.
 - Refer to the characters only as CHILD and COMPANION, and, when the request lists supporting characters, by their tags SUPPORT_1, SUPPORT_2 and SUPPORT_3. Use only the people the request lists; never introduce anyone else.
 - Never describe the characters' clothing, hair, accessories or the colours of what they wear: their look is fixed by the character sheets. Say what they do and where they are, not what they wear.
+- Setting and place: Ground the story in the requested setting and specific place. Maintain environmental and architectural consistency across all pages unless the plot beat explicitly moves to a new location.
+- Time of day and lighting: Maintain strict time-of-day and lighting continuity across pages. Match the requested time of day and lighting. Do NOT jump erratically between morning, daytime, sunset, or nighttime across pages unless the story explicitly spans across days or shows an intentional chronological progression.
+- Every page description must explicitly mention the specific location and the time of day / lighting conditions (e.g. "morning sunlight in the school courtyard", "soft sunset light in the kitchen") so each illustration is generated with matching lighting and atmosphere.
 - Never ask for text, letters, numbers, signs, labels, book covers with writing, or screens with writing.
 - Choose a text zone, TOP or BOTTOM, and describe that third of the picture as calm and empty (sky, wall, grass, water, floor) so text can be printed over it.
-- The cover shows the CHILD (and COMPANION if there is one) in the story's main setting, with a calm TOP third for the title.
+- The cover shows the CHILD (and COMPANION if there is one) in the story's main setting and time of day, with a calm TOP third for the title.
 
 Respond with exactly one JSON object using these exact keys:
 {
