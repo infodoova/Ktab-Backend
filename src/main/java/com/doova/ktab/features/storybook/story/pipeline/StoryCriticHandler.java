@@ -11,6 +11,8 @@ import com.doova.ktab.features.storybook.orchestrator.StepHandler;
 import com.doova.ktab.features.storybook.orchestrator.StepOutcome;
 import com.doova.ktab.features.storybook.story.CriticReport;
 import com.doova.ktab.features.storybook.story.PagePlan;
+import com.doova.ktab.features.storybook.story.RewriteContext;
+import com.doova.ktab.features.storybook.story.TitleRewriteResponse;
 import com.doova.ktab.features.storybook.story.StoryCritic;
 import com.doova.ktab.features.storybook.story.StoryPlanResponse;
 import com.doova.ktab.features.storybook.story.StoryWriter;
@@ -46,12 +48,22 @@ public class StoryCriticHandler implements StepHandler {
 
         CriticReport report = review(ctx, ctx.storedPlan(), job);
         int rounds = 0;
-        while (!report.allPass() && !report.problemsByPage().containsKey(0)
-                && rounds < properties.getLimits().getCriticRewritesPerPage()) {
+        java.util.Set<Integer> rewritten = new java.util.TreeSet<>();
+        while (!report.allPass() && rounds < properties.getLimits().getCriticRewritesPerPage()) {
             StoryPlanResponse plan = report.plan();
             for (int pageNumber : report.failingPages()) {
+                rewritten.add(pageNumber);
+                if (pageNumber == 0) {
+                    // The title is fixed on its own; it must never cost the whole story a restart.
+                    LlmCall<TitleRewriteResponse> title = writer.rewriteTitle(ctx.request(), plan.titleAr(),
+                            report.problemsByPage().get(0), RewriteContext.of(ctx.storyBlueprint(), plan, 0));
+                    ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_PAGE_REWRITE, title);
+                    plan = plan.withTitle(title.value().titleAr());
+                    continue;
+                }
                 PagePlan current = plan.pages().get(pageNumber - 1);
-                LlmCall<PagePlan> rewrite = writer.rewritePage(ctx.request(), current, report.problemsByPage().get(pageNumber));
+                LlmCall<PagePlan> rewrite = writer.rewritePage(ctx.request(), current, report.problemsByPage().get(pageNumber),
+                        RewriteContext.of(ctx.storyBlueprint(), plan, pageNumber));
                 ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_PAGE_REWRITE, rewrite);
                 plan = plan.withPage(rewrite.value());
             }
@@ -60,6 +72,12 @@ public class StoryCriticHandler implements StepHandler {
         }
 
         if (report.allPass() || rounds > 0) {
+            if (!report.problemsByPage().isEmpty() || !rewritten.isEmpty()) {
+                if (!report.problemsByPage().isEmpty()) {
+                    log.warn("storybook {} accepted with unresolved story critic complaints: {}", ctx.bookId(), report.problemsByPage());
+                }
+                persistence.recordUnresolvedProblems(ctx.bookId(), "story", report.problemsByPage(), rewritten);
+            }
             persistence.saveRewrittenPages(ctx.bookId(), report.plan());
             persistence.enqueueLanguageCritic(ctx.bookId(), job.getGeneration());
         } else if (job.getGeneration() + 1 < MAX_PLANS) {
@@ -75,6 +93,9 @@ public class StoryCriticHandler implements StepHandler {
     private CriticReport review(StoryContext ctx, StoryPlanResponse plan, StorybookJob job) {
         CriticReport report = critic.review(ctx.request(), plan);
         ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_CRITIC, report.llmCall());
+        if (!report.problemsByPage().isEmpty()) {
+            log.info("storybook {} story critic flagged: {}", ctx.bookId(), report.problemsByPage());
+        }
         return report;
     }
 }

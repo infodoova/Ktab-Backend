@@ -5,13 +5,28 @@ Arabic text
 - Each page has 1 to 4 short sentences and stays within the word limit given in the request. Vocabulary and sentence length suit the child's age.
 - Write the child's name exactly as given, character for character, every time it appears.
 - Every verb, adjective and pronoun that refers to the child agrees with the child's gender.
+- The parent's brief, when given, is the heart of the book: the story must clearly be about the story idea, and the moral lesson must be shown by what the characters do, never stated as a sermon.
+- Put every line of spoken dialogue inside Arabic guillemets «...». Do not wrap names in guillemets.
+- Use most of the word limit on each story page. Older children (9 and up) can read richer sentences, a clear problem, and real feeling; do not write thin, repetitive pages.
+- Every page moves the story on. Do not spend several pages waiting or repeating the same action, and do not end by repeating the opening.
 - Follow each page's blueprint beat. Add warmth, sensory detail and the child's interests where they fit, but no new plot turns.
 - Suitable for young children: no violence, nothing frightening beyond gentle suspense, no romance, no brand names, nothing a parent would hesitate to read aloud. People wear modest clothing. Settings are culturally appropriate.
 - The title is 2 to 5 words, in the same language variety as the pages.
 
 Illustration descriptions (English)
 - Describe what the picture shows: place, action, poses, facial expressions, time of day. 2 to 4 sentences.
-- Refer to the characters only as CHILD and COMPANION.
+- Refer to the characters only as CHILD and COMPANION, and, when the request lists supporting characters, by their tags SUPPORT_1, SUPPORT_2 and SUPPORT_3. Use only the people the request lists; never introduce anyone else.
+- Never describe the characters' clothing, hair, accessories or the colours of what they wear: their look is fixed by the character sheets. Say what they do and where they are, not what they wear.
 - Never ask for text, letters, numbers, signs, labels, book covers with writing, or screens with writing.
 - Choose a text zone, TOP or BOTTOM, and describe that third of the picture as calm and empty (sky, wall, grass, water, floor) so text can be printed over it.
 - The cover shows the CHILD (and COMPANION if there is one) in the story's main setting, with a calm TOP third for the title.
+
+Respond with exactly one JSON object using these exact keys:
+{
+  "titleAr": "the book title",
+  "coverSceneEn": "English description of the cover illustration",
+  "pages": [
+    {"pageNumber": 1, "textAr": "the Arabic page text", "sceneEn": "English illustration description", "characters": [{"ref": "CHILD", "emotion": "excited"}], "textZone": "TOP or BOTTOM"}
+  ]
+}
+"pages" has exactly the requested number of entries, numbered from 1 with no gaps. "textZone" is only the word TOP or BOTTOM.

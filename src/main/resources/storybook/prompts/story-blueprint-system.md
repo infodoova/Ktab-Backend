@@ -15,4 +15,12 @@ For each page, provide:
 - sceneSetting: the visual background environment
 - characters: names of characters present in the scene
 
-Return your response strictly as valid JSON conforming to the requested schema.
+Respond with exactly one JSON object using these exact keys:
+{
+  "titleConcept": "a short working title",
+  "premise": "one or two sentences: the core idea and emotional arc",
+  "beats": [
+    {"pageNumber": 1, "beat": "...", "emotionalArc": "...", "sceneSetting": "...", "characters": ["name", "name"]}
+  ]
+}
+"beats" holds one entry per page, numbered from 1 with no gaps.

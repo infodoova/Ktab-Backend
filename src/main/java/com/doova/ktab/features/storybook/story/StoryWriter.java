@@ -22,18 +22,26 @@ public class StoryWriter {
     }
 
     public LlmCall<StoryPlanResponse> writePlan(StoryRequest r, String characterBible, String storyBlueprint) {
-        String user = StoryPromptBuilder.planUserMessage(r, prompts.dialectGuide(r.variety()), characterBible, storyBlueprint);
+        return writePlan(r, characterBible, storyBlueprint, null);
+    }
+
+    public LlmCall<StoryPlanResponse> writePlan(StoryRequest r, String characterBible, String storyBlueprint, String brief) {
+        String user = StoryPromptBuilder.planUserMessage(r, prompts.dialectGuide(r.variety()), characterBible, storyBlueprint, brief);
         LlmCall<StoryPlanResponse> call = llm.call(LlmRequest.of(LlmPurpose.STORY_PLAN,
                 prompts.get("story-plan-system"), user, StoryPlanResponse.class));
         String defaultTitle = "مغامرة " + r.childNameAr();
         String defaultCover = "Cover illustration showing " + r.childNameAr() + " with a calm top third for title";
-        StoryPlanResponse normalized = call.value() == null ? null : call.value().normalized(defaultTitle, defaultCover, r.pageCount());
+        StoryPlanResponse normalized = call.value() == null ? null : call.value().normalized(defaultTitle, defaultCover);
         validate(normalized, r.pageCount());
         return new LlmCall<>(normalized, call.model(), call.inputTokens(), call.outputTokens(), call.latencyMs());
     }
 
     public LlmCall<PagePlan> rewritePage(StoryRequest r, PagePlan page, List<String> problems) {
-        String user = StoryPromptBuilder.rewriteUserMessage(r, prompts.dialectGuide(r.variety()), page, problems);
+        return rewritePage(r, page, problems, null);
+    }
+
+    public LlmCall<PagePlan> rewritePage(StoryRequest r, PagePlan page, List<String> problems, RewriteContext context) {
+        String user = StoryPromptBuilder.rewriteUserMessage(r, prompts.dialectGuide(r.variety()), page, problems, context);
         LlmCall<PagePlan> call = llm.call(LlmRequest.of(LlmPurpose.STORY_PAGE_REWRITE,
                 prompts.get("page-rewrite-system"), user, PagePlan.class));
         PagePlan v = call.value() == null ? null : call.value().normalized(page.pageNumber());
@@ -43,6 +51,11 @@ public class StoryWriter {
         // The page number is ours, not the model's.
         PagePlan fixed = new PagePlan(page.pageNumber(), v.textAr(), v.sceneEn(), v.characters(), v.textZone());
         return new LlmCall<>(fixed, call.model(), call.inputTokens(), call.outputTokens(), call.latencyMs());
+    }
+
+    public LlmCall<TitleRewriteResponse> rewriteTitle(StoryRequest r, String currentTitle, List<String> problems, RewriteContext context) {
+        String user = StoryPromptBuilder.titleRewriteUserMessage(r, prompts.dialectGuide(r.variety()), currentTitle, problems, context);
+        return llm.call(LlmRequest.of(LlmPurpose.STORY_PAGE_REWRITE, prompts.get("title-rewrite-system"), user, TitleRewriteResponse.class));
     }
 
     private static void validate(StoryPlanResponse plan, int pageCount) {

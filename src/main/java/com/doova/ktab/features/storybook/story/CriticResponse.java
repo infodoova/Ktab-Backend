@@ -9,5 +9,10 @@ import java.util.List;
 public record CriticResponse(
         @JsonAlias({"verdicts", "reviews", "results", "evaluations", "pageVerdicts"})
         List<PageVerdict> pages
-) {
+) implements com.doova.ktab.features.storybook.llm.ValidatedLlmResponse {
+    @Override
+    public List<String> problems() {
+        return pages == null || pages.isEmpty() ? List.of("the critic gave no verdicts") : List.of();
+    }
+
 }

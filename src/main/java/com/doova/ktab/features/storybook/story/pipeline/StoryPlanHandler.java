@@ -9,6 +9,7 @@ import com.doova.ktab.features.storybook.model.StorybookJob;
 import com.doova.ktab.features.storybook.orchestrator.StepHandler;
 import com.doova.ktab.features.storybook.orchestrator.StepOutcome;
 import com.doova.ktab.features.storybook.story.StoryPlanResponse;
+import com.doova.ktab.features.storybook.story.StoryPromptBuilder;
 import com.doova.ktab.features.storybook.story.StoryWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -36,7 +37,9 @@ public class StoryPlanHandler implements StepHandler {
             persistence.enqueueCritic(ctx.bookId(), job.getGeneration());
             return StepOutcome.success();
         }
-        LlmCall<StoryPlanResponse> call = writer.writePlan(ctx.request(), ctx.characterBible(), ctx.storyBlueprint());
+        LlmCall<StoryPlanResponse> call = writer.writePlan(ctx.request(), ctx.characterBible(), ctx.storyBlueprint(),
+                StoryPromptBuilder.brief(ctx.theme(), ctx.storyTone(), ctx.lesson(), ctx.storyIdea(), ctx.thingsToAvoid())
+                        + com.doova.ktab.features.storybook.story.SupportingCast.legend(ctx.supporting()));
         ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_PLAN, call);
         persistence.savePlan(ctx.bookId(), call.value(), job.getGeneration());
         return StepOutcome.success();

@@ -46,7 +46,7 @@ public class OpenAiLlmGateway implements LlmGateway {
         if (model == null || model.isBlank()) {
             model = "gpt-6-luna";
         }
-        String effectiveApiEngine = "gpt-6-luna".equalsIgnoreCase(model) ? "gpt-4o-mini" : model;
+        String effectiveApiEngine = model;
 
         List<Media> mediaList = new ArrayList<>();
         for (LlmImage img : request.images()) {
@@ -65,14 +65,13 @@ public class OpenAiLlmGateway implements LlmGateway {
         String systemText = request.system();
         if (request.responseType() != String.class) {
             systemText = (systemText == null ? "" : systemText)
-                    + "\n\nCRITICAL INSTRUCTION: You must respond ONLY with a valid, parsable JSON object. For array fields (like 'characters', 'beats', 'pages'), always output a JSON array [ { ... } ], NEVER an object or dictionary. Do not include markdown code block formatting or any surrounding prose.";
+                    + "\n\nCRITICAL INSTRUCTION: You must respond ONLY with a valid, parsable JSON object. For array fields (like 'characters', 'beats', 'pages'), always output a JSON array [ { ... } ], NEVER an object or dictionary. Do not include markdown code block formatting or any surrounding prose. Inside any string value never type a bare double-quote character: quote Arabic words with « » instead, or escape the quote as \\\".";
         }
         SystemMessage systemMessage = new SystemMessage(systemText);
 
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .model(effectiveApiEngine)
-                .maxCompletionTokens(request.maxTokens())
-                .build();
+        // Typed answers are forced to a strict JSON schema built from the response record (see OpenAiStructuredOutput).
+        boolean structured = request.responseType() != String.class;
+        OpenAiChatOptions options = options(effectiveApiEngine, request, structured);
 
         Prompt prompt = new Prompt(List.of(systemMessage, userMessage), options);
         OpenAiChatModel chatModel = OpenAiChatModel.builder()
@@ -88,6 +87,17 @@ public class OpenAiLlmGateway implements LlmGateway {
                 response = chatModel.call(prompt);
                 break;
             } catch (Exception e) {
+                if (structured && isSchemaRejection(e)) {
+                    // OpenAI refused the schema itself: keep serving with the prompt-only path, and say so loudly.
+                    log.error("storybook openai llm purpose={} schema for {} was rejected, falling back to unconstrained JSON: {}",
+                            request.purpose(), request.responseType().getSimpleName(), e.getMessage());
+                    structured = false;
+                    OpenAiChatOptions plain = options(effectiveApiEngine, request, false);
+                    prompt = new Prompt(List.of(systemMessage, userMessage), plain);
+                    chatModel = OpenAiChatModel.builder().openAiApi(openAiApi).defaultOptions(plain).build();
+                    attempt--;
+                    continue;
+                }
                 boolean retryable = isRetryable(e);
                 if (retryable && attempt < maxAttempts) {
                     log.warn("storybook openai llm purpose={} hit retryable error: {}, retrying attempt {}...",
@@ -99,6 +109,9 @@ public class OpenAiLlmGateway implements LlmGateway {
                         throw new LlmCallFailedException(request.purpose() + " interrupted", false, ie);
                     }
                 } else {
+                    if (isOutOfCredits(e)) {
+                        log.error("storybook openai llm purpose={}: the OpenAI account is out of credits; add credits at https://platform.openai.com/settings/organization/billing/", request.purpose());
+                    }
                     throw new LlmCallFailedException(request.purpose() + " call failed: " + e.getMessage(), retryable, e);
                 }
             }
@@ -119,7 +132,7 @@ public class OpenAiLlmGateway implements LlmGateway {
             value = (T) rawText;
         } else {
             try {
-                String json = normalizeJson(extractJson(rawText));
+                String json = unwrapSingleItem(normalizeJson(extractJson(rawText)), request.responseType());
                 value = objectMapper.readValue(json, request.responseType());
             } catch (Exception e) {
                 if (request.responseType() == com.doova.ktab.features.storybook.story.ModerationResponse.class) {
@@ -127,7 +140,7 @@ public class OpenAiLlmGateway implements LlmGateway {
                     value = (T) new com.doova.ktab.features.storybook.story.ModerationResponse(!refuse, refuse ? rawText : null);
                 } else {
                     log.error("Failed to parse JSON for {}: raw text was: {}", request.purpose(), rawText, e);
-                    throw new LlmCallFailedException(request.purpose() + " failed to parse JSON: " + e.getMessage(), false, e);
+                    throw new LlmCallFailedException(request.purpose() + " failed to parse JSON: " + e.getMessage(), true, e);
                 }
             }
             if (value instanceof com.doova.ktab.features.storybook.story.ModerationResponse mod) {
@@ -190,6 +203,25 @@ public class OpenAiLlmGateway implements LlmGateway {
         return trimmed;
     }
 
+    /**
+     * Without a response schema the model sometimes wraps a single object in {"pages":[{...}]}. When the caller wants one
+     * page, hand it that page; a whole plan, which really has a pages array, is left untouched.
+     */
+    static String unwrapSingleItem(String json, Class<?> type) {
+        if (type != com.doova.ktab.features.storybook.story.PagePlan.class || json == null) {
+            return json;
+        }
+        try {
+            com.fasterxml.jackson.databind.JsonNode tree = new com.fasterxml.jackson.databind.ObjectMapper().readTree(json);
+            com.fasterxml.jackson.databind.JsonNode pages = tree.get("pages");
+            if (tree.isObject() && tree.size() == 1 && pages != null && pages.isArray() && pages.size() == 1) {
+                return pages.get(0).toString();
+            }
+        } catch (Exception ignored) {
+        }
+        return json;
+    }
+
     private String normalizeJson(String json) {
         if (json == null || json.isBlank()) {
             return json;
@@ -212,7 +244,32 @@ public class OpenAiLlmGateway implements LlmGateway {
         return json;
     }
 
-    private static boolean isRetryable(Exception e) {
+    private static OpenAiChatOptions options(String engine, LlmRequest<?> request, boolean structured) {
+        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder()
+                .model(engine)
+                .maxCompletionTokens(request.maxTokens());
+        if (structured) {
+            builder.responseFormat(OpenAiStructuredOutput.formatFor(request.responseType()));
+        }
+        return builder.build();
+    }
+
+    /** A 400 that is about the response_format / schema itself (not the prompt, a rate limit or a server error). */
+    static boolean isSchemaRejection(Exception e) {
+        String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+        return msg.contains("400") && (msg.contains("response_format") || msg.contains("json_schema") || msg.contains("invalid schema"));
+    }
+
+    /** Waiting never fixes an empty account: this is a billing problem for a person, not a transient one. */
+    static boolean isOutOfCredits(Exception e) {
+        String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+        return msg.contains("insufficient_quota") || msg.contains("credit_balance_exhausted") || msg.contains("no credits remaining");
+    }
+
+    static boolean isRetryable(Exception e) {
+        if (isOutOfCredits(e)) {
+            return false;
+        }
         String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
         return msg.contains("429") || msg.contains("rate limit") || msg.contains("timeout")
                 || msg.contains("timed out") || msg.contains("500") || msg.contains("502")

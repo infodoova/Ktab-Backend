@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface StorybookCharacterRepository extends JpaRepository<StorybookCharacter, Long> {
     Optional<StorybookCharacter> findByStorybook_IdAndKind(Long storybookId, CharacterKind kind);
     List<StorybookCharacter> findByStorybook_Id(Long storybookId);
+    List<StorybookCharacter> findByStorybook_IdAndKindOrderByIdAsc(Long storybookId, CharacterKind kind);
 }

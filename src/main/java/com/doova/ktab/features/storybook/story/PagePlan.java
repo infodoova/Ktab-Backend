@@ -20,16 +20,19 @@ public record PagePlan(
         @JsonAlias({"text_zone", "zone", "textPlacement", "placement", "textZone"})
         @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.doova.ktab.features.storybook.llm.LenientTextZoneDeserializer.class)
         @JsonPropertyDescription("Which third of the picture is left calm and empty for the text") TextZone textZone
-) {
+) implements com.doova.ktab.features.storybook.llm.ValidatedLlmResponse {
+    @Override
+    public List<String> problems() {
+        return textAr == null || textAr.isBlank() ? List.of("the page has no text") : List.of();
+    }
+
     public PagePlan withText(String newText) {
         return new PagePlan(pageNumber, newText, sceneEn, characters, textZone);
     }
 
     public PagePlan normalized(int expectedPageNumber) {
-        int num = expectedPageNumber;
         TextZone zone = (textZone != null) ? textZone : TextZone.BOTTOM;
-        String text = (textAr != null && !textAr.isBlank()) ? textAr : "في هذه الصفحة، واصل سامي وبسبوس مغامرتهما الشيقة في الحديقة.";
-        String scene = (sceneEn != null && !sceneEn.isBlank()) ? sceneEn : "Illustration showing CHILD in the garden";
-        return new PagePlan(num, text, scene, characters == null ? List.of() : characters, zone);
+        String scene = (sceneEn != null && !sceneEn.isBlank()) ? SceneText.withoutOutfit(sceneEn) : "Illustration showing CHILD in the garden";
+        return new PagePlan(expectedPageNumber, textAr, scene, characters == null ? List.of() : characters, zone);
     }
 }

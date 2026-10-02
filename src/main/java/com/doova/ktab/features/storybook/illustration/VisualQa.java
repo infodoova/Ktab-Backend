@@ -42,13 +42,8 @@ public class VisualQa {
                 + ". Image " + images.size() + " is the illustration to check.\n"
                 + "The scene it should show: " + sceneEn;
 
-        try {
-            return llm.call(LlmRequest.of(LlmPurpose.VISUAL_QA, prompts.get("visual-qa-system"), user, VisualQaResponse.class)
-                    .withImages(images));
-        } catch (Exception e) {
-            log.warn("Visual QA check encountered exception ({}): defaulting to pass", e.getMessage());
-            return new LlmCall<>(new VisualQaResponse(true, false, true, true, List.of()),
-                    "gpt-6-luna", 0, 0, 50);
-        }
+        // No catch-and-pass: a check that could not run is not a pass. The failure is retryable, so the job is tried again.
+        return llm.call(LlmRequest.of(LlmPurpose.VISUAL_QA, prompts.get("visual-qa-system"), user, VisualQaResponse.class)
+                .withImages(images));
     }
 }

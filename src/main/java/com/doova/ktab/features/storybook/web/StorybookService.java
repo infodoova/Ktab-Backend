@@ -37,6 +37,9 @@ public class StorybookService {
 
     private static final Set<Integer> PAGE_COUNTS = Set.of(10, 12, 15, 18, 20);
 
+    /** Every character costs a sheet and a reference image on each page it appears in, so the cast is capped. */
+    static final int MAX_CHARACTERS = 4;
+
     private final ChildProfileService children;
     private final BlueprintCatalog blueprints;
     private final ModerationService moderation;
@@ -67,11 +70,19 @@ public class StorybookService {
             throw new BadRequestException(ApiMessageKey.STORYBOOK_TOO_MANY_INTERESTS);
         }
 
+        if (r.characters() != null && r.characters().size() > MAX_CHARACTERS) {
+            throw new BadRequestException(ApiMessageKey.STORYBOOK_TOO_MANY_CHARACTERS);
+        }
+
         Blueprint blueprint;
-        try {
-            blueprint = blueprints.get(r.blueprintKey());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException(ApiMessageKey.STORYBOOK_BLUEPRINT_NOT_ALLOWED);
+        if (r.blueprintKey() == null || r.blueprintKey().isBlank()) {
+            blueprint = Blueprint.custom();
+        } else {
+            try {
+                blueprint = blueprints.get(r.blueprintKey());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException(ApiMessageKey.STORYBOOK_BLUEPRINT_NOT_ALLOWED);
+            }
         }
         if (!blueprint.ageBands().contains(child.getAgeBand())) {
             throw new BadRequestException(ApiMessageKey.STORYBOOK_BLUEPRINT_NOT_ALLOWED);

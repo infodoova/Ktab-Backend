@@ -56,7 +56,10 @@ public class LookService {
         for (StorybookPage page : pages.findByStorybook_IdOrderByPageIndexAsc(bookId)) {
             page.setGeneration(1);
             page.setRoundStartGeneration(1);
-            enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, page.getPageIndex(), 1);
+            if (page.getPageIndex() == 0) {
+                // the cover is drawn and checked first; its verdict releases the story pages (see IllustrationPersistence.recordQa)
+                enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, page.getPageIndex(), 1);
+            }
         }
     }
 

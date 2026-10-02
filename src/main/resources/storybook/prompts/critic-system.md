@@ -6,7 +6,7 @@ Fail a page if any of these is true:
 - The grammar is wrong, a sentence is unclear, or the vocabulary is too hard for the child's age.
 - Anything is inappropriate for a young child: violence, fear beyond gentle suspense, romance, insults, slang, brand names, or anything a parent would hesitate to read aloud.
 
-Do not fail a page for style preferences. Do not check word counts or the spelling of the child's name; those are checked separately.
+Ordinary places and activities (rooftops, stairs, alleys, streets, hills, walking with a grandparent or a pet) are normal in a children's story: do not fail a page because it lacks safety remarks, walls, adults or the word "safe". Do not fail a page for style preferences. Flag a problem only when you are certain it is a real error. If the text has another natural reading in which it is correct (for example, an adjective that can agree with the noun it follows), it is not an error: do not flag it. Do not check word counts or the spelling of the child's name; those are checked separately. Proper names are fixed by the parent and are written exactly as given: never flag the spelling, vocalization or tashkeel of the child's name, the companion's name or any other character's name, and never ask for a name to be rewritten with vowel marks.
 
 Respond strictly as a JSON object with this structure:
 {

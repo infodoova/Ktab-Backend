@@ -167,6 +167,7 @@ public enum ApiMessageKey {
     STORYBOOK_SETTING_NOT_ALLOWED("storybook.setting.not.allowed"),
     STORYBOOK_INVALID_PAGE_COUNT("storybook.invalid.page.count"),
     STORYBOOK_TOO_MANY_INTERESTS("storybook.too.many.interests"),
+    STORYBOOK_TOO_MANY_CHARACTERS("storybook.too.many.characters"),
     STORYBOOK_DIALECT_REQUIRES_NO_TASHKEEL("storybook.dialect.requires.no.tashkeel"),
     STORYBOOK_TASHKEEL_REQUIRED("storybook.tashkeel.required"),
     STORYBOOK_DEDICATION_REJECTED("storybook.dedication.rejected"),

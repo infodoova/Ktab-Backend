@@ -66,7 +66,10 @@ public class CharacterBibleHandler implements StepHandler {
         ));
         ledger.recordLlm(bookId, job.getId(), LlmPurpose.CHARACTER_BIBLE, call);
 
-        CharacterBibleResponse bible = call.value();
+        CharacterBibleResponse bible = keepTheParentsOutfits(call.value(), charList);
+        if (bible == null || bible.characters() == null || bible.characters().isEmpty()) {
+            throw new com.doova.ktab.features.storybook.llm.LlmCallFailedException("Character bible has no characters", true, null);
+        }
         try {
             book.setCharacterBible(objectMapper.writeValueAsString(bible));
         } catch (JsonProcessingException e) {
@@ -74,11 +77,16 @@ public class CharacterBibleHandler implements StepHandler {
             book.setCharacterBible(bible.toString());
         }
 
+        // the art direction is written once and appended to every page prompt
+        book.setStyleBible(com.doova.ktab.features.storybook.illustration.StyleBible.toJson(bible.visualStyleNotes()));
+
         if (bible.characters() != null) {
             for (CharacterVisualSpec spec : bible.characters()) {
                 for (StorybookCharacter c : charList) {
                     if (matches(c, spec)) {
-                        if (spec.clothing() != null && !spec.clothing().isBlank()) {
+                        // the clothes the parent chose are never overwritten; the bible only fills a missing outfit
+                        if (spec.clothing() != null && !spec.clothing().isBlank()
+                                && (c.getClothing() == null || c.getClothing().isBlank())) {
                             c.setClothing(spec.clothing());
                         }
                         if (spec.personality() != null && !spec.personality().isBlank()) {
@@ -95,6 +103,12 @@ public class CharacterBibleHandler implements StepHandler {
         return StepOutcome.success();
     }
 
+    /** The name the parent gave a character (Arabic, usually), else its id. */
+    private static String nameOf(StorybookCharacter c) {
+        Object n = c.getAdvancedDetails() == null ? null : c.getAdvancedDetails().get("name");
+        return n instanceof String str && !str.isBlank() ? str.strip() : c.getCharacterId();
+    }
+
     private static boolean matches(StorybookCharacter c, CharacterVisualSpec spec) {
         if (c.getKind() == CharacterKind.CHILD && ("PROTAGONIST".equalsIgnoreCase(spec.role()) || "CHILD".equalsIgnoreCase(spec.role()))) {
             return true;
@@ -105,10 +119,32 @@ public class CharacterBibleHandler implements StepHandler {
         if (c.getCharacterId() != null && c.getCharacterId().equalsIgnoreCase(spec.name())) {
             return true;
         }
+        if (c.getKind() == CharacterKind.SUPPORTING && spec.name() != null && nameOf(c) != null && nameOf(c).equalsIgnoreCase(spec.name().strip())) {
+            return true;
+        }
         if (c.getRole() != null && c.getRole().equalsIgnoreCase(spec.role())) {
             return true;
         }
         return false;
+    }
+
+    /** The bible is fed to the story writer, so it must never carry an outfit other than the one the parent chose. */
+    private CharacterBibleResponse keepTheParentsOutfits(CharacterBibleResponse bible, List<StorybookCharacter> charList) {
+        if (bible == null || bible.characters() == null || charList == null) {
+            return bible;
+        }
+        List<CharacterVisualSpec> fixed = new java.util.ArrayList<>();
+        for (CharacterVisualSpec spec : bible.characters()) {
+            CharacterVisualSpec out = spec;
+            for (StorybookCharacter c : charList) {
+                if (matches(c, spec) && c.getClothing() != null && !c.getClothing().isBlank()) {
+                    out = new CharacterVisualSpec(spec.name(), spec.role(), spec.visualLock(), c.getClothing().strip(), spec.personality());
+                    break;
+                }
+            }
+            fixed.add(out);
+        }
+        return new CharacterBibleResponse(fixed, bible.visualStyleNotes(), bible.summary());
     }
 
     private static String buildUserMessage(Storybook book, List<StorybookCharacter> charList) {
@@ -130,7 +166,7 @@ public class CharacterBibleHandler implements StepHandler {
             sb.append("\nAdditional Characters:\n");
             for (StorybookCharacter c : charList) {
                 if (c.getKind() != CharacterKind.CHILD && c.getKind() != CharacterKind.COMPANION) {
-                    sb.append("- Character: ").append(c.getCharacterId() != null ? c.getCharacterId() : c.getKind().name())
+                    sb.append("- Character: ").append(nameOf(c) != null ? nameOf(c) : c.getKind().name())
                             .append(", Role: ").append(c.getRole())
                             .append(", Relationship: ").append(c.getRelationship())
                             .append(", Personality: ").append(c.getPersonality() != null ? String.join(", ", c.getPersonality()) : "")
@@ -138,7 +174,14 @@ public class CharacterBibleHandler implements StepHandler {
                 }
             }
         }
-        sb.append("\nEstablish locked clothing (modest, long sleeves, bright everyday colors), facial features, and style notes.");
+        for (StorybookCharacter c : charList == null ? List.<StorybookCharacter>of() : charList) {
+            if (c.getClothing() != null && !c.getClothing().isBlank()) {
+                sb.append("\nFixed outfit chosen by the parent for ").append(c.getKind() == CharacterKind.COMPANION ? "the companion" : c.getKind() == CharacterKind.SUPPORTING ? "the character " + nameOf(c) : "the child")
+                        .append(" (use it exactly, do not change it and do not invent another): ").append(c.getClothing().strip()).append('\n');
+            }
+        }
+        sb.append("\nEstablish locked clothing, facial features, and style notes. Where a fixed outfit is given above, keep it exactly; "
+                + "only for characters without one, choose modest, long-sleeved, bright everyday clothes.");
         return sb.toString();
     }
 }

@@ -15,29 +15,27 @@ public record StoryPlanResponse(
         @JsonPropertyDescription("English description of the cover illustration; calm empty TOP third for the title") String coverSceneEn,
         @JsonAlias({"story_pages", "storyPages", "page_plans", "pagePlans"})
         List<PagePlan> pages
-) {
+) implements com.doova.ktab.features.storybook.llm.ValidatedLlmResponse {
+    @Override
+    public List<String> problems() {
+        return pages == null || pages.isEmpty() ? List.of("the story plan has no pages") : List.of();
+    }
+
+    public StoryPlanResponse withTitle(String newTitle) {
+        return new StoryPlanResponse(newTitle, coverSceneEn, pages);
+    }
+
     public StoryPlanResponse withPage(PagePlan replacement) {
         return new StoryPlanResponse(titleAr, coverSceneEn, pages.stream()
                 .map(p -> p.pageNumber() == replacement.pageNumber() ? replacement : p)
                 .toList());
     }
 
-    public StoryPlanResponse normalized(String fallbackTitle, String fallbackCoverScene, int expectedPageCount) {
+    /** Fills only a missing title, cover scene, scene or text zone. Pages are never added, dropped or renumbered: a wrong count or numbering is the writer's to reject. */
+    public StoryPlanResponse normalized(String fallbackTitle, String fallbackCoverScene) {
         String effTitle = (titleAr != null && !titleAr.isBlank()) ? titleAr : fallbackTitle;
-        String effCover = (coverSceneEn != null && !coverSceneEn.isBlank()) ? coverSceneEn : fallbackCoverScene;
-        List<PagePlan> current = (pages == null) ? new java.util.ArrayList<>() : new java.util.ArrayList<>(pages);
-        List<PagePlan> effPages = new java.util.ArrayList<>();
-        for (int i = 0; i < expectedPageCount; i++) {
-            if (i < current.size()) {
-                effPages.add(current.get(i).normalized(i + 1));
-            } else {
-                effPages.add(new PagePlan(i + 1,
-                        "وفي ختام المغامرة، عاد سامي وصديقه بسبوس مسرورين بالنجاح الكبير بعد يوم رائع.",
-                        "Illustration showing CHILD and COMPANION smiling happily together in the school garden",
-                        List.of(new CharacterInScene("CHILD", "happy"), new CharacterInScene("COMPANION", "happy")),
-                        TextZone.BOTTOM));
-            }
-        }
+        String effCover = (coverSceneEn != null && !coverSceneEn.isBlank()) ? SceneText.withoutOutfit(coverSceneEn) : fallbackCoverScene;
+        List<PagePlan> effPages = pages == null ? null : pages.stream().map(p -> p.normalized(p.pageNumber())).toList();
         return new StoryPlanResponse(effTitle, effCover, effPages);
     }
 }

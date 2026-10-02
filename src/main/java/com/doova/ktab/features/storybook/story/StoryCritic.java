@@ -46,7 +46,9 @@ public class StoryCritic {
         }
         for (int n = 0; n <= enforced.pages().size(); n++) {
             PageVerdict v = verdicts.get(n);
-            if (v != null && !v.pass()) {
+            if (v == null && n > 0) {
+                problems.computeIfAbsent(n, k -> new ArrayList<>()).add("The editor returned no verdict for this page");
+            } else if (v != null && !v.pass()) {
                 List<String> list = problems.computeIfAbsent(n, k -> new ArrayList<>());
                 list.addAll(v.problems() == null || v.problems().isEmpty()
                         ? List.of("The editor flagged an issue on this page") : v.problems());

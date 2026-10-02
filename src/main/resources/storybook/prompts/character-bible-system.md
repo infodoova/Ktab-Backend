@@ -8,4 +8,12 @@ Given the child's identity (name, age, gender, appearance, hair, eye color, skin
 2. Define their personality traits, emotional range, and relationship dynamics.
 3. Define artistic style notes (art style consistency, soft lighting, vibrant children's illustration palette, clear silhouettes).
 
-Return your response strictly as valid JSON conforming to the requested schema.
+Respond with exactly one JSON object using these exact keys:
+{
+  "summary": "how the characters relate",
+  "visualStyleNotes": "one paragraph of art-style and consistency notes",
+  "characters": [
+    {"name": "...", "role": "PROTAGONIST | COMPANION | PARENT | FRIEND | GUIDE", "visualLock": "locked face, hair, eyes, skin, markers", "clothing": "locked signature outfit", "personality": "traits and demeanor"}
+  ]
+}
+Every value is a plain string (not an object). Include every character, including any supporting character the story needs.

@@ -4,6 +4,7 @@ import com.doova.ktab.features.storybook.cost.AiCallLedger;
 import com.doova.ktab.features.storybook.enums.JobStep;
 import com.doova.ktab.features.storybook.enums.LlmPurpose;
 import com.doova.ktab.features.storybook.llm.LlmCall;
+import com.doova.ktab.features.storybook.llm.LlmCallFailedException;
 import com.doova.ktab.features.storybook.llm.LlmGateway;
 import com.doova.ktab.features.storybook.llm.LlmRequest;
 import com.doova.ktab.features.storybook.model.Storybook;
@@ -43,7 +44,7 @@ public class StoryBlueprintHandler implements StepHandler {
     public StepOutcome handle(StorybookJob job) {
         Long bookId = job.getStorybookId();
         Storybook book = books.findById(bookId).orElseThrow();
-        if (book.getStoryBlueprint() != null && !book.getStoryBlueprint().isBlank()) {
+        if (hasUsableBlueprint(book.getStoryBlueprint())) {
             enqueuer.enqueue(bookId, JobStep.STORY_PLAN, -1, job.getGeneration());
             return StepOutcome.success();
         }
@@ -58,6 +59,11 @@ public class StoryBlueprintHandler implements StepHandler {
         ledger.recordLlm(bookId, job.getId(), LlmPurpose.STORY_BLUEPRINT, call);
 
         StoryBlueprintResponse blueprint = call.value();
+        // A blueprint the writer cannot follow is worse than none: the story would ignore the user's idea. Retry instead.
+        if (blueprint == null || blueprint.beats() == null || blueprint.beats().size() != book.getPageCount()) {
+            int got = blueprint == null || blueprint.beats() == null ? 0 : blueprint.beats().size();
+            throw new LlmCallFailedException("Story blueprint has " + got + " beats, expected " + book.getPageCount(), true, null);
+        }
         try {
             book.setStoryBlueprint(objectMapper.writeValueAsString(blueprint));
         } catch (JsonProcessingException e) {
@@ -68,6 +74,19 @@ public class StoryBlueprintHandler implements StepHandler {
         books.save(book);
         enqueuer.enqueue(bookId, JobStep.STORY_PLAN, -1, job.getGeneration());
         return StepOutcome.success();
+    }
+
+    /** A stored blueprint only counts if it holds beats; an earlier run could store an unreadable, all-null one. */
+    private boolean hasUsableBlueprint(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return false;
+        }
+        try {
+            StoryBlueprintResponse parsed = objectMapper.readValue(stored, StoryBlueprintResponse.class);
+            return parsed.beats() != null && !parsed.beats().isEmpty();
+        } catch (JsonProcessingException e) {
+            return false;
+        }
     }
 
     private static String buildUserMessage(Storybook book) {

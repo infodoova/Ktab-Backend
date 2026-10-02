@@ -41,11 +41,29 @@ public class IllustrationPersistence {
                 book.getInputs().gender(), book.getInputs().ageBand(), book.getInputs().appearance(),
                 book.getInputs().companion(), book.getStyle(), child.getSheetVersion(), child.getSheetKey(),
                 child.getPhotoKey(), child.getPhotoConsentAt() != null,
-                companion.map(c -> c.getSheetKey() != null).orElse(false));
+                companion.map(c -> c.getSheetKey() != null).orElse(false), child.getClothing(), supportingSheets(bookId));
+    }
+
+    private java.util.List<SheetContext.SupportingSheet> supportingSheets(Long bookId) {
+        java.util.List<StorybookCharacter> rows = characters.findByStorybook_IdAndKindOrderByIdAsc(bookId, CharacterKind.SUPPORTING);
+        java.util.List<com.doova.ktab.features.storybook.story.SupportingCast> cast = com.doova.ktab.features.storybook.story.SupportingCast.of(rows);
+        java.util.List<SheetContext.SupportingSheet> out = new java.util.ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            out.add(new SheetContext.SupportingSheet(rows.get(i).getCharacterId(), cast.get(i).ref(), cast.get(i).describeEn(),
+                    rows.get(i).getClothing(), rows.get(i).getSheetKey()));
+        }
+        return out;
     }
 
     @Transactional
     public void saveSheets(Long bookId, int version, String childKey, String companionKey, boolean photoUsed) {
+        saveSheets(bookId, version, childKey, companionKey, photoUsed, java.util.Map.of());
+    }
+
+    /** {@code supportingKeys} maps a supporting character's id to the sheet just drawn for it. */
+    @Transactional
+    public void saveSheets(Long bookId, int version, String childKey, String companionKey, boolean photoUsed,
+                           java.util.Map<String, String> supportingKeys) {
         StorybookCharacter child = characters.findByStorybook_IdAndKind(bookId, CharacterKind.CHILD).orElseThrow();
         child.setSheetKey(childKey);
         child.setMasterSheetKey(childKey);
@@ -58,6 +76,17 @@ public class IllustrationPersistence {
                 c.setSheetVersion(1);
                 c.setSheetStatus(CharacterSheetStatus.GENERATED);
             });
+        }
+        if (supportingKeys != null && !supportingKeys.isEmpty()) {
+            for (StorybookCharacter c : characters.findByStorybook_IdAndKindOrderByIdAsc(bookId, CharacterKind.SUPPORTING)) {
+                String key = supportingKeys.get(c.getCharacterId());
+                if (key != null) {
+                    c.setSheetKey(key);
+                    c.setMasterSheetKey(key);
+                    c.setSheetVersion(1);
+                    c.setSheetStatus(CharacterSheetStatus.GENERATED);
+                }
+            }
         }
         if (photoUsed) {
             enqueuer.enqueue(bookId, JobStep.PURGE_PHOTO, -1, version);
@@ -90,10 +119,22 @@ public class IllustrationPersistence {
                 .map(StorybookCharacter::getSheetKey).orElse(null);
         String companionSheet = characters.findByStorybook_IdAndKind(bookId, CharacterKind.COMPANION)
                 .map(StorybookCharacter::getSheetKey).orElse(null);
+        String anchorKey = null;
+        if (page.getKind() != com.doova.ktab.features.storybook.enums.PageKind.COVER) {
+            anchorKey = pages.findByStorybook_IdAndPageIndex(bookId, 0)
+                    .map(com.doova.ktab.features.storybook.model.StorybookPage::getCurrentImage)
+                    .map(com.doova.ktab.features.storybook.model.StorybookPageImage::getImageKey).orElse(null);
+        }
+        String clothing = characters.findByStorybook_IdAndKind(bookId, CharacterKind.CHILD).map(StorybookCharacter::getClothing).orElse(null);
+        var companion = book.getInputs().companion();
         return new PageContext(bookId, book.getStatus(), page.getId(), page.getPageIndex(), page.getKind(),
                 page.getSceneEn(), page.getTextZone(), page.getCharacters(), page.getGeneration(),
                 page.getRoundStartGeneration(), images.findByPage_IdAndGeneration(page.getId(), generation).isPresent(),
-                childSheet, companionSheet, book.getStyle(), book.getInputs().appearance().hijab());
+                childSheet, companionSheet, book.getStyle(), book.getInputs().appearance().hijab(),
+                anchorKey, book.getInputs().appearance().glasses(), book.getInputs().appearance().describeEn(), clothing,
+                companion == null ? null : companion.describeEn(), StyleBible.notesOf(book.getStyleBible()),
+                supportingSheets(bookId).stream()
+                        .map(x -> new PageContext.SupportingLook(x.ref(), x.describeEn(), x.clothing(), x.sheetKey())).toList());
     }
 
     @Transactional
@@ -159,7 +200,20 @@ public class IllustrationPersistence {
             page.setCurrentImage(image);
             com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("flagged");
         }
+        if (page.getKind() == com.doova.ktab.features.storybook.enums.PageKind.COVER
+                && image.getStatus() != com.doova.ktab.features.storybook.enums.PageImageStatus.QA_FAILED) {
+            releaseStoryPages(bookId); // the cover is settled (passed, or flagged for a human): it now anchors every other page
+        }
         advance(book);
+    }
+
+    /** Idempotent: a job that already exists for a page and generation is not created twice. */
+    private void releaseStoryPages(Long bookId) {
+        for (com.doova.ktab.features.storybook.model.StorybookPage p : pages.findByStorybook_IdOrderByPageIndexAsc(bookId)) {
+            if (p.getKind() == com.doova.ktab.features.storybook.enums.PageKind.STORY) {
+                enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, p.getPageIndex(), Math.max(1, p.getGeneration()));
+            }
+        }
     }
 
     @Transactional
