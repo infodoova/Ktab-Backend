@@ -9,6 +9,13 @@ import com.doova.ktab.features.talktobook.service.BookAgentRecordCacheService;
 import com.doova.ktab.model.book.Book;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,38 +31,67 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BookAgentRecordCacheServiceImpl implements BookAgentRecordCacheService {
 
     // Bump alongside code changes to prompts, retrieval or citation rules.
-    private static final String RESPONSE_RULES_VERSION = "4";
+    private static final String RESPONSE_RULES_VERSION = "5";
 
     private final BookAgentRecordRepository recordRepository;
     private final TalkToBookProperties properties;
     private final ApplicationEventPublisher eventPublisher;
+    private final OpenAiChatModel chatModel;
+    private final ObjectMapper objectMapper;
+
+    public BookAgentRecordCacheServiceImpl(
+            BookAgentRecordRepository recordRepository,
+            TalkToBookProperties properties,
+            ApplicationEventPublisher eventPublisher,
+            @Qualifier("talkToBookChatModel") OpenAiChatModel chatModel,
+            ObjectMapper objectMapper) {
+        this.recordRepository = recordRepository;
+        this.properties = properties;
+        this.eventPublisher = eventPublisher;
+        this.chatModel = chatModel;
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     @Transactional
     public Optional<BookAgentRecord> findSimilar(Long bookId, String questionHash, List<Float> questionEmbedding, String revision) {
+        return findSimilar(bookId, questionHash, null, questionEmbedding, revision);
+    }
+
+    @Override
+    @Transactional
+    public Optional<BookAgentRecord> findSimilar(Long bookId, String questionHash, String rawQuestion, List<Float> questionEmbedding, String revision) {
         // Tier 1: Instant O(1) Exact Hash Lookup
-        Optional<BookAgentRecord> exactMatch = recordRepository.findByBookIdAndQuestionHash(bookId, questionHash);
-        if (exactMatch.isPresent() && isFresh(exactMatch.get(), revision)) {
-            BookAgentRecord record = exactMatch.get();
-            record.incrementCountUsed();
-            recordRepository.save(record);
-            log.info("TalkToBook Cache Hit [Exact Match] for book {}. Total usage: {}", bookId, record.getCountUsed());
-            return Optional.of(record);
+        if (questionHash != null && !questionHash.isBlank()) {
+            Optional<BookAgentRecord> exactMatch = recordRepository.findByBookIdAndQuestionHash(bookId, questionHash);
+            if (exactMatch.isPresent() && isFresh(exactMatch.get(), revision)) {
+                BookAgentRecord record = exactMatch.get();
+                record.incrementCountUsed();
+                recordRepository.save(record);
+                log.info("TalkToBook Cache Hit [Exact Match] for book {}. Total usage: {}", bookId, record.getCountUsed());
+                return Optional.of(record);
+            }
+        }
+
+        // Fetch candidates for this book
+        List<BookAgentRecord> candidates = recordRepository.findByBookId(bookId).stream()
+                .filter(c -> isFresh(c, revision))
+                .toList();
+
+        if (candidates.isEmpty()) {
+            return Optional.empty();
         }
 
         // Tier 2: In-Memory Cosine Similarity across book records (<1ms for <= 500 records)
         if (questionEmbedding != null && !questionEmbedding.isEmpty()) {
-            List<BookAgentRecord> candidates = recordRepository.findByBookId(bookId);
-
             BookAgentRecord bestMatch = null;
             double highestSimilarity = 0.0;
 
             for (BookAgentRecord candidate : candidates) {
-                if (isFresh(candidate, revision) && candidate.getQuestionEmbedding() != null && !candidate.getQuestionEmbedding().isEmpty()) {
+                if (candidate.getQuestionEmbedding() != null && !candidate.getQuestionEmbedding().isEmpty()) {
                     double sim = calculateCosineSimilarity(questionEmbedding, candidate.getQuestionEmbedding());
                     if (sim >= properties.getSimilarityThreshold() && sim > highestSimilarity) {
                         highestSimilarity = sim;
@@ -73,7 +109,73 @@ public class BookAgentRecordCacheServiceImpl implements BookAgentRecordCacheServ
             }
         }
 
+        // Tier 3: AI Semantic Intent Search (handles abbreviations like sum=summarize, typos, language variations)
+        if (rawQuestion != null && !rawQuestion.isBlank() && chatModel != null) {
+            BookAgentRecord aiMatch = findAiIntentMatch(rawQuestion, candidates);
+            if (aiMatch != null) {
+                aiMatch.incrementCountUsed();
+                recordRepository.save(aiMatch);
+                log.info("TalkToBook Cache Hit [AI Intent Match: '{}' -> '{}'] for book {}. Total usage: {}",
+                        rawQuestion, aiMatch.getQuestion(), bookId, aiMatch.getCountUsed());
+                return Optional.of(aiMatch);
+            }
+        }
+
         return Optional.empty();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record AiMatchResponse(Integer matchIndex) {}
+
+    private BookAgentRecord findAiIntentMatch(String rawQuestion, List<BookAgentRecord> candidates) {
+        if (chatModel == null || rawQuestion == null || rawQuestion.isBlank() || candidates.isEmpty()) {
+            return null;
+        }
+
+        // Limit candidate window to keep prompt small (<150 tokens) and response instant (<300ms)
+        List<BookAgentRecord> topCandidates = candidates.stream().limit(15).toList();
+
+        StringBuilder candidatesPrompt = new StringBuilder();
+        for (int i = 0; i < topCandidates.size(); i++) {
+            candidatesPrompt.append("[").append(i + 1).append("] \"")
+                    .append(topCandidates.get(i).getQuestion().replace("\"", "\\\""))
+                    .append("\"\n");
+        }
+
+        String prompt = String.format("""
+                User question: "%s"
+                Candidate cached questions:
+                %s
+                Which candidate question has the exact same intent or asks for the same content (accounting for abbreviations like sum=summarize, typos, or phrasing)?
+                Respond ONLY with JSON: {"matchIndex": <1-based index or null>}
+                """, rawQuestion.replace("\"", "\\\""), candidatesPrompt);
+
+        try {
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                    .temperature(0.0)
+                    .maxCompletionTokens(20)
+                    .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build())
+                    .build();
+
+            var response = chatModel.call(new Prompt(prompt, options));
+            if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+                return null;
+            }
+
+            String content = response.getResult().getOutput().getText();
+            if (content == null || content.isBlank()) {
+                return null;
+            }
+
+            AiMatchResponse match = objectMapper.readValue(content.trim(), AiMatchResponse.class);
+            if (match != null && match.matchIndex() != null && match.matchIndex() >= 1 && match.matchIndex() <= topCandidates.size()) {
+                return topCandidates.get(match.matchIndex() - 1);
+            }
+        } catch (Exception e) {
+            log.warn("AI intent cache matching failed gracefully: {}", e.getMessage());
+        }
+
+        return null;
     }
 
     @Override

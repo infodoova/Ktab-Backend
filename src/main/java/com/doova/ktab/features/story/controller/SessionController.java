@@ -12,6 +12,7 @@ import com.doova.ktab.features.story.model.ReadingSession;
 import com.doova.ktab.features.story.model.Turn;
 import com.doova.ktab.features.story.service.StorySessionService;
 import com.doova.ktab.features.story.util.JsonUtil;
+import com.doova.ktab.features.story.util.PromptXmlParser;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.enums.book.UrlStrategy;
 import com.doova.ktab.model.attachment.Attachment;
@@ -64,7 +65,7 @@ public class SessionController {
     @PostMapping("/{sessionId}/choose")
     @PreAuthorize("hasAnyAuthority('READER')")
     public ResponseEntity<ApiResponse<SessionResponse>> choose(@PathVariable Long sessionId, @RequestBody @Valid ChooseRequest request) {
-        List<Turn> turns = storySessionService.chooseAndGenerateNext(sessionId, request.choiceId());
+        List<Turn> turns = storySessionService.chooseAndGenerateNext(sessionId, request.choiceId(), request.turnIndex());
         return buildSessionResponse(turns, ApiMessageKey.SESSION_CHOOSE_SUCCESS.getMessage(messageSource), HttpStatus.OK);
     }
 
@@ -75,10 +76,11 @@ public class SessionController {
 
         ReadingSession session = turns.getFirst().getSession();
         int storyScenes = session.getStory().getSceneCount();
+        String storyTitle = session.getStory().getTitle();
 
         List<TurnResponse> turnResponses = turns.stream().map(this::mapToResponse).toList();
 
-        SessionResponse response = new SessionResponse(session.getId(), storyScenes, turnResponses);
+        SessionResponse response = new SessionResponse(session.getId(), storyTitle, storyScenes, turnResponses);
         return ResponseUtils.success(response, message, status);
     }
 
@@ -98,14 +100,16 @@ public class SessionController {
             imageUrl = fileStorageService.getFileUrl(imageAttachment.get().getStoragePath(), UrlStrategy.SIGNED);
         }
 
+        String cleanText = PromptXmlParser.cleanNarrativeScript(turn.getSceneText());
+
         if (!hasAnyChoice) {
             // Final scene: no choices
-            return new TurnResponse(turn.getTurnIndex(), turn.getSceneText(), imageUrl, turn.getChosenChoiceId(), null, null, null, null);
+            return new TurnResponse(turn.getTurnIndex(), cleanText, imageUrl, turn.getChosenChoiceId(), null, null, null, null);
         }
 
         return new TurnResponse(
                 turn.getTurnIndex(),
-                turn.getSceneText(),
+                cleanText,
                 imageUrl,
                 turn.getChosenChoiceId(),
                 new ChoiceResponse("A", choices.get("A")),

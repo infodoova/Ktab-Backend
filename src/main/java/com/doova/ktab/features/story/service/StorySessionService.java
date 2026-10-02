@@ -9,5 +9,9 @@ public interface StorySessionService {
 
     List<Turn> startSession(Long storyId, User reader);
 
-    List<Turn> chooseAndGenerateNext(Long sessionId, String choiceRaw);
+    List<Turn> chooseAndGenerateNext(Long sessionId, String choiceRaw, Integer turnIndex);
+
+    default List<Turn> chooseAndGenerateNext(Long sessionId, String choiceRaw) {
+        return chooseAndGenerateNext(sessionId, choiceRaw, null);
+    }
 }

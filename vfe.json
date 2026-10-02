@@ -1,0 +1,221 @@
+{
+  "protagonist": {
+    "name_ar": "آدم",
+    "identity_ar": "صحفي سابق يعاني من أرق مزمن، يسافر لزيارة عائلته بعد فترة انقطاع طويل.",
+    "want_ar": "العثور على المرأة التي اختفت وإثبات صدق حواسه للآخرين ولنفسه.",
+    "need_ar": "مواجهة صدمة قديمة جعلته يشك في ذاكرته، واستعادة الثقة في حقيقته الخاصة.",
+    "flaw_ar": "الارتباك تحت الضغط والميل لجلد الذات، مما يجعله فريسة سهلة للتلاعب النفسي.",
+    "visual_tokens_en": "Middle-aged man, tired brown eyes, dark stubble, charcoal wool overcoat, disheveled hair, 1990s style, distressed expression."
+  },
+  "antagonist_force": {
+    "name_ar": "المفتش كمال",
+    "nature_ar": "رئيس أمن القطار، رجل ذو سلطة هادئة ومريبة، يمثل القوة التي تحاول طمس الحقيقة.",
+    "goal_ar": "إقناع آدم بأنه يتوهم وجود المرأة ليتمكن من إتمام عملية نقل سرية دون ضجيج.",
+    "visual_tokens_en": "Tall man, sharp grey railway uniform, thin mustache, cold analytical eyes, silver pocket watch, rigid posture."
+  },
+  "supporting_cast": [
+    {
+      "id": "c1",
+      "name_ar": "ليلى",
+      "function_ar": "الراكبة المفقودة؛ المحفز الرئيسي للغموض.",
+      "secret_ar": "تحمل وثائق تدين شركة النقل، وهي هاربة من جهة مجهولة.",
+      "visual_tokens_en": "Young woman, emerald green eyes, bright red silk scarf, vintage floral dress, pale skin, clutching a small leather bag."
+    },
+    {
+      "id": "c2",
+      "name_ar": "العم إدريس",
+      "function_ar": "راكب عجوز في المقصورة المجاورة، يمثل الشاهد المتردد.",
+      "secret_ar": "رأى ليلى تُسحب من مقصورتها لكنه يخشى على حياته بسبب ماضيه مع الشرطة.",
+      "visual_tokens_en": "Elderly man, thick spectacles, tweed flat cap, shaking hands, smelling of old tobacco, wearing a worn beige cardigan."
+    },
+    {
+      "id": "c3",
+      "name_ar": "سمير",
+      "function_ar": "نادل عربة الطعام، يمثل التواطؤ القسري.",
+      "secret_ar": "تلقى رشوة من المفتش كمال لينكر أنه قدم الشاي لشخصين في مقصورة آدم.",
+      "visual_tokens_en": "Young man, nervous demeanor, white server apron with a coffee stain, slicked-back black hair, avoiding eye contact."
+    }
+  ],
+  "key_objects": [
+    {
+      "id": "o1",
+      "name_ar": "كاميرا بولارويد",
+      "significance_ar": "الأداة الوحيدة التي قد تملك دليلاً مادياً لا يمكن إنكاره.",
+      "visual_tokens_en": "Vintage 1990s Polaroid camera, black plastic body, rainbow stripe, hanging by a thin neck strap."
+    },
+    {
+      "id": "o2",
+      "name_ar": "ولاعة فضية",
+      "significance_ar": "تحمل نقشاً لاسم ليلى، سقطت منها أثناء الاختفاء.",
+      "visual_tokens_en": "Polished silver lighter, ornate floral engraving, faint smell of kerosene, scratched surface."
+    },
+    {
+      "id": "o3",
+      "name_ar": "وصفة طبية",
+      "significance_ar": "دليل يستخدمه المفتش ضد آدم لإثبات عدم استقراره العقلي.",
+      "visual_tokens_en": "Crumpled paper prescription, handwritten blue ink, dated recently, mentioning sedative medication."
+    }
+  ],
+  "locations": [
+    {
+      "id": "l1",
+      "name_ar": "المقصورة رقم 7",
+      "visual_tokens_en": "Narrow train compartment, dark wood paneling, velvet green seats, rain-streaked window, dim yellow ceiling light."
+    },
+    {
+      "id": "l2",
+      "name_ar": "عربة الطعام",
+      "visual_tokens_en": "Long dining car, white tablecloths, flickering lamps, empty wine glasses, brass fittings, dark shadows in corners."
+    },
+    {
+      "id": "l3",
+      "name_ar": "عربة الأمتعة المظلمة",
+      "visual_tokens_en": "Industrial cargo area, stacked wooden crates, heavy iron chains, cold metallic atmosphere, single swinging lightbulb."
+    }
+  ],
+  "ticking_clock_ar": "وصول القطار إلى محطة \"أمل\" النهائية عند الفجر؛ حيث سيختفي الأثر تماماً.",
+  "setups": [
+    {
+      "id": "s1",
+      "setup_ar": "آدم يلتقط صورة عفوية للمقصورة وتظهر فيها ليلى جزئياً.",
+      "plant_scene": 1,
+      "payoff_scene": 6
+    },
+    {
+      "id": "s2",
+      "setup_ar": "ليلى تترك ولاعتها الفضية على الطاولة قبل ذهابها للحمام.",
+      "plant_scene": 1,
+      "payoff_scene": 3
+    },
+    {
+      "id": "s3",
+      "setup_ar": "المفتش كمال يلاحظ الوصفة الطبية في جيب آدم.",
+      "plant_scene": 2,
+      "payoff_scene": 7
+    }
+  ],
+  "scene_plan": [
+    {
+      "scene": 1,
+      "beat": "HOOK",
+      "tension": 3,
+      "location_id": "l1",
+      "must_happen_ar": "آدم يلتقي بليلى في المقصورة؛ يدور بينهما حديث غامض حول الهروب والبدايات الجديدة.",
+      "what_changes_ar": "يشعر آدم باتصال إنساني نادر يكسر عزلته النفسية.",
+      "dramatic_question_ar": "من هي هذه المرأة ولماذا تبدو خائفة؟"
+    },
+    {
+      "scene": 2,
+      "beat": "INCITING",
+      "tension": 4,
+      "location_id": "l1",
+      "must_happen_ar": "يستيقظ آدم من غفوة ليجد المقصورة خالية؛ المفتش يخبره أنه كان وحيداً منذ البداية.",
+      "what_changes_ar": "تتحول الرحلة من سفر عادي إلى لغز يهدد سلامة آدم العقلية.",
+      "dramatic_question_ar": "هل تلاشت ليلى حقاً أم أن آدم يفقد عقله؟"
+    },
+    {
+      "scene": 3,
+      "beat": "RISING",
+      "tension": 4,
+      "location_id": "l1",
+      "must_happen_ar": "آدم يعثر على الولاعة الفضية تحت المقعد، مما يؤكد له أن ليلى كانت موجودة.",
+      "what_changes_ar": "ينتقل آدم من الشك في نفسه إلى اليقين بوجود مؤامرة.",
+      "dramatic_question_ar": "أين يمكن أن تكون ليلى قد ذهبت في قطار يتحرك؟"
+    },
+    {
+      "scene": 4,
+      "beat": "RISING",
+      "tension": 5,
+      "location_id": "l2",
+      "must_happen_ar": "مواجهة مع النادل سمير الذي ينكر رؤية ليلى، لكن ارتباكه يفضح كذبه.",
+      "what_changes_ar": "يدرك آدم أن طاقم القطار متورط في إخفاء الحقيقة.",
+      "dramatic_question_ar": "من الذي أجبر النادل على الكذب؟"
+    },
+    {
+      "scene": 5,
+      "beat": "MIDPOINT",
+      "tension": 6,
+      "location_id": "l2",
+      "must_happen_ar": "القطار يتوقف فجأة في محطة مهجورة؛ آدم يرى وشاح ليلى الأحمر على الرصيف بالخارج.",
+      "what_changes_ar": "يتضح أن هناك محاولة لتهريب ليلى أو التخلص منها خارج القطار.",
+      "dramatic_question_ar": "هل سيهبط آدم من القطار ويخاطر بالضياع في الجبال؟"
+    },
+    {
+      "scene": 6,
+      "beat": "TIGHTENING",
+      "tension": 7,
+      "location_id": "l1",
+      "must_happen_ar": "آدم يحمض صورة البولارويد؛ تظهر يد ليلى ووشاحها بوضوح في زاوية الكادر.",
+      "what_changes_ar": "يمتلك آدم دليلاً مادياً قاطعاً لا يمكن للمفتش إنكاره.",
+      "dramatic_question_ar": "كيف سيستخدم آدم هذه الصورة دون أن يتم الاستيلاء عليها؟"
+    },
+    {
+      "scene": 7,
+      "beat": "TIGHTENING",
+      "tension": 7,
+      "location_id": "l2",
+      "must_happen_ar": "المفتش كمال يواجه آدم بالوصفة الطبية ويحاول عزله في مقصورته بحجة الانهيار العصبي.",
+      "what_changes_ar": "يتحول آدم من باحث عن الحقيقة إلى سجين محتمل.",
+      "dramatic_question_ar": "هل سينجح المفتش في إقناع الركاب الآخرين بجنون آدم؟"
+    },
+    {
+      "scene": 8,
+      "beat": "CRISIS",
+      "tension": 8,
+      "location_id": "l1",
+      "must_happen_ar": "العم إدريس يهمس لآدم بمكان ليلى (عربة الأمتعة) قبل أن يتم إسكاته من قبل الأمن.",
+      "what_changes_ar": "يحصل آدم على الموقع الدقيق للضحية، لكنه الآن وحيد تماماً ضد الأمن.",
+      "dramatic_question_ar": "هل يملك آدم الشجاعة لاقتحام عربة الأمتعة؟"
+    },
+    {
+      "scene": 9,
+      "beat": "CLIMAX",
+      "tension": 10,
+      "location_id": "l3",
+      "must_happen_ar": "مواجهة جسدية ونفسية في عربة الأمتعة بين آدم والمفتش؛ آدم يجد ليلى مقيدة.",
+      "what_changes_ar": "تتكشف الحقيقة كاملة: ليلى شاهدة على جريمة فساد كبرى والقطار وسيلة لنقلها سراً.",
+      "dramatic_question_ar": "هل سيتمكن آدم من تحرير ليلى وإيقاف القطار؟"
+    },
+    {
+      "scene": 10,
+      "beat": "RESOLUTION",
+      "tension": 5,
+      "location_id": "l3",
+      "must_happen_ar": "يصل القطار للمحطة؛ تتحدد النتيجة بناءً على اختيارات آدم وقوة أدلته.",
+      "what_changes_ar": "يتم الكشف عن مصير ليلى ومستقبل آدم المهني والنفسي.",
+      "dramatic_question_ar": "هل انتصرت الحقيقة أم طواها النسيان؟"
+    }
+  ],
+  "endings": [
+    {
+      "id": "e1",
+      "type": "TRIUMPH_AT_COST",
+      "condition": "mental_clarity >= 7 AND evidence_found == true",
+      "summary_ar": "ينجح آدم في إنقاذ ليلى وتسليم المفتش للشرطة في المحطة النهائية، لكنه يخرج من التجربة محطماً نفسياً وغير قادر على الوثوق بأحد مجدداً.",
+      "final_image_en": "Adam and Leila standing on a foggy station platform, police sirens flashing blue and red, Adam looking at his trembling hands."
+    },
+    {
+      "id": "e2",
+      "type": "BITTERSWEET",
+      "condition": "mental_clarity < 7 AND evidence_found == true",
+      "summary_ar": "تختفي ليلى في الزحام عند وصول القطار؛ يملك آدم الدليل لكن لا أحد يصدقه، ينجو بنفسه لكنه يظل مسكوناً بذكراها.",
+      "final_image_en": "Adam sitting alone on a station bench, holding the Polaroid photo, as a crowd of faceless commuters blurs past him."
+    },
+    {
+      "id": "e3",
+      "type": "TRAGIC",
+      "condition": "mental_clarity < 5 OR climax_risk == 'FAILED'",
+      "summary_ar": "يتم إيداع آدم في مستشفى للأمراض العقلية بناءً على شهادة المفتش والركاب، بينما تُحذف ليلى من سجلات الحياة تماماً.",
+      "final_image_en": "Adam looking out of a barred train window, his reflection merging with the dark rain, a white hospital wristband on his arm."
+    }
+  ],
+  "visual_bible": {
+    "medium": "Cinematic 35mm film photography, fine grain, soft focus backgrounds.",
+    "palette": "Deep navy blues, charcoal greys, sickly mustard yellows, and a single recurring pop of crimson red.",
+    "lighting_rules": "Low-key lighting, heavy use of chiaroscuro, light filtered through rain-drenched glass, flickering fluorescent bulbs.",
+    "lens_rules": "Wide-angle for isolation in large cars, tight claustrophobic close-ups during psychological distress.",
+    "recurring_motifs": "Rain droplets on glass, steam rising from metal, ticking clocks, reflections in dark windows.",
+    "opening_image_en": "A steam-shrouded locomotive at a dark mountain station, yellow lights glowing through thick fog and heavy rain.",
+    "global_negative": "Bright sunlight, modern technology, cell phones, vibrant happy colors, neon lights, ghosts, monsters."
+  }
+}

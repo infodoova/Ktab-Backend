@@ -6,5 +6,10 @@ import jakarta.validation.constraints.Pattern;
 public record ChooseRequest(
         @NotNull(message = "{validation.session.choice.required}")
         @Pattern(regexp = "A|B|C|D", message = "{validation.session.choice.pattern}")
-        String choiceId
-) {}
+        String choiceId,
+        Integer turnIndex
+) {
+    public ChooseRequest(String choiceId) {
+        this(choiceId, null);
+    }
+}

@@ -23,6 +23,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -69,6 +70,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
     private final BookWebSearchService webSearchService;
     private final BookIdentityVerifierService identityVerifier;
     private final OpenAiChatModel chatModel;
+    private final EmbeddingModel embeddingModel;
     private final ObjectMapper objectMapper;
 
     public TalkToBookServiceImpl(
@@ -79,6 +81,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
             BookWebSearchService webSearchService,
             BookIdentityVerifierService identityVerifier,
             @Qualifier("talkToBookChatModel") OpenAiChatModel chatModel,
+            @Qualifier("talkToBookEmbeddingModel") EmbeddingModel embeddingModel,
             ObjectMapper objectMapper) {
         this.bookRepository = bookRepository;
         this.cacheService = cacheService;
@@ -87,6 +90,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         this.webSearchService = webSearchService;
         this.identityVerifier = identityVerifier;
         this.chatModel = chatModel;
+        this.embeddingModel = embeddingModel;
         this.objectMapper = objectMapper;
     }
 
@@ -102,12 +106,31 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         // Capture before retrieval so concurrent edits cannot mark an old answer as current.
         String cacheRevision = cacheService.computeRevision(book);
 
-        // Step 1: Exact Hash Cache Lookup (fresh records only)
+        // Step 1: Exact Hash Cache Lookup (Tier 1)
         Optional<BookAgentRecord> cachedRecord = cacheService.findSimilar(bookId, questionHash, null, cacheRevision);
         if (cachedRecord.isPresent() && hasValidCitations(new LlmAnswerPayload(
                 sanitizeAnswer(cachedRecord.get().getAnswer()), cachedRecord.get().getCitations()), null)) {
             BookAgentRecord record = cachedRecord.get();
             log.info("Serving answer from cache for book {} (hitCount: {})", bookId, record.getCountUsed());
+            List<BookCitation> cachedCitations = record.getCitations() != null ? record.getCitations() : List.of();
+            String cleanAnswer = sanitizeAnswer(record.getAnswer());
+            return new TalkToBookResponse(
+                    rawQuestion,
+                    cleanAnswer,
+                    cachedCitations,
+                    true,
+                    "CACHED",
+                    record.getCountUsed()
+            );
+        }
+
+        // Step 1b: Semantic Vector & AI Intent Cache Lookup (Tier 2 & Tier 3)
+        List<Float> questionEmbedding = generateQuestionEmbeddingSafely(rawQuestion);
+        Optional<BookAgentRecord> semanticRecord = cacheService.findSimilar(bookId, null, rawQuestion, questionEmbedding, cacheRevision);
+        if (semanticRecord.isPresent() && hasValidCitations(new LlmAnswerPayload(
+                sanitizeAnswer(semanticRecord.get().getAnswer()), semanticRecord.get().getCitations()), null)) {
+            BookAgentRecord record = semanticRecord.get();
+            log.info("Serving answer from semantic cache for book {} (hitCount: {})", bookId, record.getCountUsed());
             List<BookCitation> cachedCitations = record.getCitations() != null ? record.getCitations() : List.of();
             String cleanAnswer = sanitizeAnswer(record.getAnswer());
             return new TalkToBookResponse(
@@ -135,15 +158,16 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         }
 
         // Step 3: Dual Retrieval Routing (Pinpoint RAG vs Verified Web Augmentation)
-        StringBuilder contextBuilder = new StringBuilder();
+        StringBuilder backgroundOverview = new StringBuilder();
         if (book.getDescription() != null && !book.getDescription().isBlank()) {
-            contextBuilder.append("=== نبذة عن الكتاب ===\n")
+            backgroundOverview.append("=== نبذة تعريفية عامة عن الكتاب (للفهم والاستيعاب العام فقط - يُمنع الاقتباس منها في المراجع) ===\n")
                     .append(book.getDescription().trim())
                     .append("\n\n");
         }
 
         List<Integer> internalCitedPages = new ArrayList<>();
         String source;
+        String citablePagesText;
 
         if (decision.intent() == QueryIntent.MACRO_SUMMARY) {
             log.debug("Routing to macro retrieval for book {}", bookId);
@@ -151,29 +175,34 @@ public class TalkToBookServiceImpl implements TalkToBookService {
 
             if (webSnippet.isPresent() && identityVerifier.verifyBookIdentity(book, webSnippet.get())) {
                 RetrievedContext internalMacro = knowledgeRetriever.retrieveMacroContext(bookId);
-                contextBuilder.append("=== نبذة موثقة من مصادر معتمدة عن الكتاب ===\n")
+                backgroundOverview.append("=== نبذة موثقة من مصادر معتمدة عن الكتاب (للفهم العام فقط - يُمنع الاقتباس منها في المراجع) ===\n")
                         .append(webSnippet.get())
-                        .append("\n\n=== هيكل ومحتوى صفحات الكتاب ===\n")
-                        .append(internalMacro.contextText());
+                        .append("\n\n");
+                citablePagesText = internalMacro.contextText();
                 internalCitedPages.addAll(internalMacro.citedPages());
                 source = "WEB_AUGMENTED";
             } else {
                 RetrievedContext internalMacro = knowledgeRetriever.retrieveMacroContext(bookId);
-                contextBuilder.append("=== هيكل ومحتوى صفحات الكتاب ===\n")
-                        .append(internalMacro.contextText());
+                citablePagesText = internalMacro.contextText();
                 internalCitedPages.addAll(internalMacro.citedPages());
                 source = "INTERNAL_RAG";
             }
         } else {
             log.debug("Routing to pinpoint internal RAG for book {}", bookId);
             RetrievedContext pinpointContext = knowledgeRetriever.retrievePinpointContext(bookId, rawQuestion);
-            contextBuilder.append("=== مقتطفات من صفحات الكتاب ذات الصلة ===\n")
-                    .append(pinpointContext.contextText());
+            citablePagesText = pinpointContext.contextText();
             internalCitedPages.addAll(pinpointContext.citedPages());
             source = "INTERNAL_RAG";
         }
 
-        String contextText = contextBuilder.toString().trim();
+        StringBuilder fullContextBuilder = new StringBuilder();
+        if (!backgroundOverview.isEmpty()) {
+            fullContextBuilder.append(backgroundOverview);
+        }
+        fullContextBuilder.append("=== نصوص ومقتطفات معتمدة من صفحات الكتاب (جميع الاستشهادات [n] والمقتطفات يجب أن تُقتبس حصراً وحرفياً من هذا القسم) ===\n")
+                .append(citablePagesText);
+
+        String contextText = fullContextBuilder.toString().trim();
 
         // Step 4: ChatGPT Prompt Synthesis with Citations
         String authorName = book.getCustomAuthorName() != null ? book.getCustomAuthorName() :
@@ -184,21 +213,24 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                 مهمتك الإجابة عن أسئلة القارئ، وتلخيص الأفكار، وشرح المحتوى بأسلوب عربي فصيح، بليغ، ودقيق وموثق.
 
                 القواعد والضوابط الإلزامية:
-                1. عمق الإجابة وشموليتها: قدم إجابة مفصلة، ذكية، وثرية تعكس محتوى الكتاب بوضوح. عند طلب تلخيص الكتاب أو فصوله أو شرح موضوعه، قدم تلخيصاً وافياً وشاملاً يستند إلى نبذة الكتاب الرسمية، هيكل الفصول، والصفحات المتوفرة دون اعتذار أو اختصار مخل.
+                1. عمق الإجابة وشموليتها: قدم إجابة مفصلة، ذكية، وثرية تعكس محتوى الكتاب بوضوح. عند طلب تلخيص الكتاب أو فصوله أو شرح موضوعه، قدم تلخيصاً وافياً وشاملاً يستند إلى نبذة الكتاب ومعلومات فصوله وصفحاته المتوفرة دون اعتذار أو اختصار مخل.
                 2. اللغة العربية الفصحى حصراً: الإجابة بأكملها يجب أن تكون باللغة العربية الفصحى الراقية. لا تستخدم اللغة الإنجليزية أو مصطلحات أجنبية إطلاقاً في الإجابة أو في نصوص الإسناد والمراجع.
                 3. الذكاء وتوظيف السياق المتاح: استثمر عنوان الكتاب ونبذته ومحتوياته بذكاء لتقديم أفضل إجابة ممكنة تسعد القارئ وتفيده، ولا تعتذر بعدم توفر المعلومة إلا في حال كان السؤال عن تفصيلة غائبة تماماً ولا يمكن استنتاجها من السياق.
                 4. حماية خصوصية وبيانات الكتاب: يُمنع منعاً باتاً تفريغ أو استخراج نص الكتاب كاملاً أو نسخ فصول وصفحات كاملة حرفياً؛ إذا طُلب منك نص الكتاب كاملاً، ارفض بأدب موضحاً أن ذلك محفوظ بحقوق الملكية الفكرية وشجعه على قراءة الكتاب عبر قارئ المنصة.
                 5. نطاق الكتاب: ركز إجابتك حصراً ضمن نطاق هذا الكتاب وسياقه ومؤلفه وموضوعاته.
 
                 ### CITATION & EVIDENCE GUIDELINES:
-                1. Every answer that uses facts or ideas supported by the provided context MUST include supporting citations using numbered brackets: [1], [2], etc. This includes summaries, explanations, comparisons, and direct factual answers.
+                1. Citations [n] are strictly for reader text navigation to exact passages inside the book:
+                   - Every citation [n] and its snippet in the citations array MUST be quoted EXCLUSIVELY and VERBATIM from the actual book pages section ("=== نصوص ومقتطفات معتمدة من صفحات الكتاب ===").
+                   - NEVER cite or extract snippets from the book description ("نبذة تعريفية"), web search overview, or metadata.
+                   - Opening introductory sentences or general summaries do NOT require citation tags [n] unless they assert a specific claim backed by a verbatim quote from the book pages.
                    - Select quotations specifically relevant to the CURRENT question and the claims in this answer. Do not reuse a fixed set of quotations across unrelated questions.
                    - Where a relevant quotation naturally supports an explanation, integrate its reference into that explanation.
                    - Include only citations actually referenced in the answer; each reference must directly support the preceding claim.
-                   - Do not force unrelated quotations into an answer or invent supporting text. Limit the answer to claims supported by available quotations. Summaries MUST include a non-empty citations array.
+                   - Do not force unrelated quotations into an answer or invent supporting text. Limit the answer to claims supported by available quotations.
                 2. DO NOT write page labels, page numbers, or references like "[صفحة 15]" anywhere in the response text or citations. Use strictly numeric reference tags: [1], [2].
-                3. For every reference tag [n] used in your answer, you MUST provide the exact verbatim quotation from the source context in your citations metadata:
-                   - The snippet MUST be an EXACT substring (8 to 25 consecutive words) as it appears in the source text.
+                3. For every reference tag [n] used in your answer, you MUST provide the exact verbatim quotation from the book pages section in your citations metadata:
+                   - The snippet MUST be an EXACT substring (8 to 25 consecutive words) as it appears in the book pages text.
                    - Do NOT edit, truncate, or paraphrase the snippet text.
                 4. Output your response strictly in the required JSON format:
                 {
@@ -206,7 +238,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                   "citations": [
                     {
                       "id": 1,
-                      "snippet": "<exact verbatim quote from source context>"
+                      "snippet": "<exact verbatim quote from book pages text>"
                     }
                   ]
                 }
@@ -222,24 +254,27 @@ public class TalkToBookServiceImpl implements TalkToBookService {
 
         Prompt prompt = new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(userPrompt)));
         LlmAnswerPayload parsedPayload = generateAnswer(prompt);
-        if (!hasValidCitations(parsedPayload, contextText)) {
+        if (!hasValidCitations(parsedPayload, citablePagesText)) {
             log.warn("Invalid citation metadata for book {}; retrying generation once", bookId);
             Prompt retryPrompt = new Prompt(List.of(new SystemMessage(systemPrompt),
                     new UserMessage(userPrompt + "\nYour previous response failed citation validation. "
                             + "Return valid JSON with a non-empty answer and citations array. Every [n] must match "
                             + "exactly one positive citation id, every citation must be referenced, and every snippet "
-                            + "must be copied verbatim from the supplied context. Do not invent evidence. "
-                            + "Keep the answer concise: at most three short paragraphs and three citations, "
+                            + "must be copied verbatim from the actual book pages section (do not quote from the overview/description). "
+                            + "Do not invent evidence. Keep the answer concise: at most three short paragraphs and three citations, "
                             + "so the complete JSON fits within the output budget.")));
             parsedPayload = generateAnswer(retryPrompt);
         }
-        if (!hasValidCitations(parsedPayload, contextText)) {
+        if (!hasValidCitations(parsedPayload, citablePagesText)) {
             throw new InvalidBookCitationsException();
         }
         String cleanAnswer = sanitizeAnswer(parsedPayload.answer());
 
-        // Step 5: Save newly answered question to cache (countUsed = 1)
-        BookAgentRecord savedRecord = cacheService.saveRecord(book, rawQuestion, questionHash, null, cleanAnswer, parsedPayload.citations(), internalCitedPages, "WEB_AUGMENTED".equals(source), cacheRevision);
+        // Step 5: Save newly answered question to cache (with questionEmbedding)
+        if (questionEmbedding == null || questionEmbedding.isEmpty()) {
+            questionEmbedding = generateQuestionEmbeddingSafely(rawQuestion);
+        }
+        BookAgentRecord savedRecord = cacheService.saveRecord(book, rawQuestion, questionHash, questionEmbedding, cleanAnswer, parsedPayload.citations(), internalCitedPages, "WEB_AUGMENTED".equals(source), cacheRevision);
 
         return new TalkToBookResponse(
                 rawQuestion,
@@ -261,6 +296,26 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         }
         return answer.replaceAll("\\s*\\[(?:صفحة|الصفحة|ص|page)\\s*:?\\s*\\d+(?:\\s*[-–]\\s*\\d+)?\\]", "")
                 .trim();
+    }
+
+    private List<Float> generateQuestionEmbeddingSafely(String text) {
+        if (text == null || text.isBlank() || embeddingModel == null) {
+            return null;
+        }
+        try {
+            float[] vector = embeddingModel.embed(text);
+            if (vector == null || vector.length == 0) {
+                return null;
+            }
+            List<Float> result = new ArrayList<>(vector.length);
+            for (float f : vector) {
+                result.add(f);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Failed to generate question embedding for semantic cache lookup: {}", e.getMessage());
+            return null;
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

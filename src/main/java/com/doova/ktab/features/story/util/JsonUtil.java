@@ -3,6 +3,7 @@ package com.doova.ktab.features.story.util;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,7 +18,10 @@ public final class JsonUtil {
             // TOLERANCE: Allow unescaped control characters (like literal newlines)
             .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS)
             // ROBUSTNESS: Don't fail if the AI adds a new field we didn't expect
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).build().findAndRegisterModules(); // Method is called HERE on the ObjectMapper instance
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+            .build()
+            .findAndRegisterModules();
 
     private JsonUtil() {
     }

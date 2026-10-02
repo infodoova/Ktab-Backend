@@ -121,7 +121,11 @@ public class QuestionGuardrailServiceImpl implements QuestionGuardrailService {
                 """, question);
 
         try {
-            Prompt prompt = new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(userPrompt)));
+            org.springframework.ai.openai.OpenAiChatOptions guardrailOptions = org.springframework.ai.openai.OpenAiChatOptions.builder()
+                    .reasoningEffort("none")
+                    .serviceTier("fast")
+                    .build();
+            Prompt prompt = new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(userPrompt)), guardrailOptions);
             var response = chatModel.call(prompt);
             String rawJson = response.getResult().getOutput().getText().trim();
 

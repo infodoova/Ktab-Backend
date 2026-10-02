@@ -22,6 +22,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
 
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +60,9 @@ class TalkToBookServiceTest {
     @Mock
     private OpenAiChatModel chatModel;
 
+    @Mock
+    private EmbeddingModel embeddingModel;
+
     private TalkToBookServiceImpl talkToBookService;
     private ObjectMapper objectMapper;
     private Book testBook;
@@ -74,6 +78,7 @@ class TalkToBookServiceTest {
                 webSearchService,
                 identityVerifier,
                 chatModel,
+                embeddingModel,
                 objectMapper
         );
 
@@ -131,6 +136,37 @@ class TalkToBookServiceTest {
 
         assertThat(response.answer()).isEqualTo("سانتياغو راعي أندلسي يبحث عن أسطورته الشخصية [1].");
         assertThat(response.citedPages()).isNull();
+    }
+
+    @Test
+    @DisplayName("askQuestion_exactMatchMissSemanticMatchHit_returnsCachedAnswer")
+    void askQuestion_exactMatchMissSemanticMatchHit_returnsCachedAnswer() {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(cacheService.computeHash("summarize tigtr th bok")).thenReturn("hashTypo");
+        when(cacheService.findSimilar(1L, "hashTypo", null, "revision")).thenReturn(Optional.empty());
+
+        float[] mockVector = new float[]{0.1f, 0.2f, 0.3f};
+        when(embeddingModel.embed("summarize tigtr th bok")).thenReturn(mockVector);
+
+        BookAgentRecord semanticRecord = new BookAgentRecord();
+        semanticRecord.setAnswer("This is the book summary [1].");
+        semanticRecord.setCitations(List.of(new BookCitation(1, "The book summary passage")));
+        semanticRecord.setCountUsed(4);
+
+        when(cacheService.findSimilar(1L, null, "summarize tigtr th bok", List.of(0.1f, 0.2f, 0.3f), "revision"))
+                .thenReturn(Optional.of(semanticRecord));
+
+        TalkToBookRequest request = new TalkToBookRequest("summarize tigtr th bok");
+        TalkToBookResponse response = talkToBookService.askQuestion(1L, request, 100L);
+
+        assertThat(response.cached()).isTrue();
+        assertThat(response.source()).isEqualTo("CACHED");
+        assertThat(response.answer()).isEqualTo("This is the book summary [1].");
+        assertThat(response.citations()).hasSize(1);
+        assertThat(response.hitCount()).isEqualTo(4);
+
+        verifyNoInteractions(guardrailService);
+        verifyNoInteractions(chatModel);
     }
 
     @Test
@@ -201,7 +237,7 @@ class TalkToBookServiceTest {
         verify(chatModel).call(promptCaptor.capture());
         String promptText = promptCaptor.getValue().getContents();
         assertThat(promptText)
-                .contains("MUST include supporting citations")
+                .contains("Citations [n] are strictly for reader text navigation")
                 .contains("CURRENT question")
                 .contains("only citations actually referenced in the answer")
                 .contains("Do not force unrelated quotations");
@@ -230,7 +266,7 @@ class TalkToBookServiceTest {
     }
 
     @Test
-    @DisplayName("askQuestion_macroIntentVerifiedWeb_returnsWebAugmentedAnswer")
+    @DisplayName("askQuestion_macroIntentVerifiedWeb_returnsWebAugmentedAnswerWithBookCitations")
     void askQuestion_macroIntentVerifiedWeb_returnsWebAugmentedAnswer() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(cacheService.computeHash(any())).thenReturn("hashMacro");
@@ -246,11 +282,11 @@ class TalkToBookServiceTest {
         String llmJsonOutput = """
                 ```json
                 {
-                  "answer": "The Prophet is a collection of 26 poetic fables [1].",
+                  "answer": "The Prophet covers deep life topics [1].",
                   "citations": [
                     {
                       "id": 1,
-                      "snippet": "The Prophet contains 26 poetic essays"
+                      "snippet": "TOC: On Love, On Marriage"
                     }
                   ]
                 }
@@ -270,11 +306,61 @@ class TalkToBookServiceTest {
         TalkToBookResponse response = talkToBookService.askQuestion(1L, request, 100L);
 
         assertThat(response.source()).isEqualTo("WEB_AUGMENTED");
-        assertThat(response.answer()).isEqualTo("The Prophet is a collection of 26 poetic fables [1].");
+        assertThat(response.answer()).isEqualTo("The Prophet covers deep life topics [1].");
         assertThat(response.citations()).hasSize(1);
-        assertThat(response.citations().get(0).snippet()).isEqualTo("The Prophet contains 26 poetic essays");
+        assertThat(response.citations().get(0).snippet()).isEqualTo("TOC: On Love, On Marriage");
         assertThat(response.citedPages()).isNull();
         verify(cacheService).saveRecord(eq(testBook), eq("Summarize this book"), eq("hashMacro"), isNull(), any(), any(), any(), eq(true), eq("revision"));
+    }
+
+    @Test
+    @DisplayName("askQuestion_citationFromBookDescription_rejectedAndRetried")
+    void askQuestion_citationFromBookDescription_rejectedAndRetried() {
+        testBook.setDescription("Official book catalog description blurb.");
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(cacheService.computeHash(any())).thenReturn("hashDescTest");
+        when(cacheService.findSimilar(1L, "hashDescTest", null, "revision")).thenReturn(Optional.empty());
+
+        when(guardrailService.evaluate(eq(testBook), any()))
+                .thenReturn(GuardrailDecision.allow(QueryIntent.PINPOINT));
+
+        when(knowledgeRetriever.retrievePinpointContext(eq(1L), any()))
+                .thenReturn(new RetrievedContext("Actual book text passage from page five.", List.of(5)));
+
+        // First attempt mistakenly quotes the book description; retry correctly quotes book text
+        String invalidLlmOutput = """
+                {
+                  "answer": "Summary using description [1].",
+                  "citations": [
+                    {
+                      "id": 1,
+                      "snippet": "Official book catalog description blurb."
+                    }
+                  ]
+                }
+                """;
+        String validLlmOutput = """
+                {
+                  "answer": "Summary using book pages [1].",
+                  "citations": [
+                    {
+                      "id": 1,
+                      "snippet": "Actual book text passage from page five."
+                    }
+                  ]
+                }
+                """;
+
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(chatResponse(invalidLlmOutput), chatResponse(validLlmOutput));
+
+        TalkToBookRequest request = new TalkToBookRequest("What is on page 5?");
+        TalkToBookResponse response = talkToBookService.askQuestion(1L, request, 100L);
+
+        assertThat(response.answer()).isEqualTo("Summary using book pages [1].");
+        assertThat(response.citations()).hasSize(1);
+        assertThat(response.citations().get(0).snippet()).isEqualTo("Actual book text passage from page five.");
+        verify(chatModel, times(2)).call(any(Prompt.class));
     }
 
     @Test
