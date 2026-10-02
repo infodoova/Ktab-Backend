@@ -102,6 +102,7 @@ public class StorybookProperties {
                 "gemini-3.1-flash-image", new BigDecimal("0.067"),
                 "gemini-3.1-flash-image-preview", new BigDecimal("0.067"),
                 "gemini-3-pro-image", new BigDecimal("0.134"),
+                "gemini-3.1-flash-lite-image", new BigDecimal("0.050"),
                 "gemini-3-pro-image-preview", new BigDecimal("0.134")));
     }
 

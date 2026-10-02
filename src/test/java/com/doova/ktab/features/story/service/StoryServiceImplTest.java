@@ -50,6 +50,9 @@ class StoryServiceImplTest {
     @Mock
     private ImageValidator imageValidator;
 
+    @Mock
+    private com.doova.ktab.features.story.service.StoryArchitectService storyArchitectService;
+
     @InjectMocks
     private StoryServiceImpl storyService;
 

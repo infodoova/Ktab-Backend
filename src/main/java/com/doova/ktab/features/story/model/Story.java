@@ -48,6 +48,9 @@ public class Story extends BaseEntity {
     @Column(name = "col_visual_style_notes", columnDefinition = "text")
     private String visualStyleNotes;
 
+    @Column(name = "col_story_bible", columnDefinition = "text")
+    private String storyBible;
+
     @NotNull(message = "{validation.story.author.required}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "col_author_id", nullable = false, foreignKey = @ForeignKey(name = "fk_story_author"))

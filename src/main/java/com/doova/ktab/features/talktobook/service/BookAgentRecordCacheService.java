@@ -18,7 +18,11 @@ public interface BookAgentRecordCacheService {
      * @param questionEmbedding Optional vector embedding for semantic comparison
      * @return Optional containing the cached record if found
      */
-    Optional<BookAgentRecord> findSimilar(Long bookId, String questionHash, List<Float> questionEmbedding, String revision);
+    Optional<BookAgentRecord> findSimilar(Long bookId, String questionHash, String rawQuestion, List<Float> questionEmbedding, String revision);
+
+    default Optional<BookAgentRecord> findSimilar(Long bookId, String questionHash, List<Float> questionEmbedding, String revision) {
+        return findSimilar(bookId, questionHash, null, questionEmbedding, revision);
+    }
 
     /**
      * Inserts or refreshes an answered question with citations and triggers asynchronous storage check.

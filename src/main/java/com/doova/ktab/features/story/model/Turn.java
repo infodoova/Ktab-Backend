@@ -30,6 +30,7 @@ public class Turn extends BaseEntity {
     // FK → ReadingSession
     // -------------------------------
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "col_session_id",
@@ -50,6 +51,15 @@ public class Turn extends BaseEntity {
 
     @Column(name = "col_chosen_choice_id")
     private String chosenChoiceId;
+
+    @Column(name = "col_storyboard", columnDefinition = "TEXT")
+    private String storyboard;
+
+    @Column(name = "col_image_brief", columnDefinition = "TEXT")
+    private String imageBrief;
+
+    @Column(name = "col_choices_meta_json", columnDefinition = "TEXT")
+    private String choicesMetaJson;
 
     @Column(name = "col_is_summarized", nullable = false)
     private boolean summarized = false;
