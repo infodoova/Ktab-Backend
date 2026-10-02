@@ -12,5 +12,7 @@ public enum IngestionRoute {
     /** ElevenLabs Studio parses the PDF; Ktab adopts its chapter structure verbatim. */
     STUDIO,
     /** Ktab's own Gemini-based OCR pipeline (v2) renders and reads every page. */
-    OCR
+    OCR,
+    /** Ktab's own text-layer extraction (features.extraction): DIGITAL books while Studio is off, and every book while OCR is off. */
+    NATIVE
 }

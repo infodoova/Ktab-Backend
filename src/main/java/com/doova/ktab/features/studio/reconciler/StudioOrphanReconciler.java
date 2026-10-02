@@ -42,6 +42,9 @@ public class StudioOrphanReconciler {
 
     @Scheduled(cron = "${ktab.studio.orphan-reconciler.cron:0 0 * * * *}")
     public void reconcileOrphans() {
+        if (!props.isEnabled()) {
+            return; // Studio is switched off: make no Studio calls at all
+        }
         if (props.getAudiobook().isDryRun()) {
             log.info("studio.reconciler.dryRun — skipping orphan reclamation");
             return;
