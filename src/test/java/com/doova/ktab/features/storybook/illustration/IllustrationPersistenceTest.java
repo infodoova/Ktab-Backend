@@ -128,4 +128,37 @@ class IllustrationPersistenceTest {
         assertThat(page.getCurrentImage()).isEqualTo(image);
         verify(stateMachine).transition(book, StorybookStatus.QA);
     }
+
+    @Test
+    void aFlaggedCoverStillReleasesTheStoryPagesSoNothingDeadlocks() {
+        Storybook book = new Storybook();
+        book.setId(10L);
+        book.setStatus(StorybookStatus.ILLUSTRATING);
+        when(books.findByIdForUpdate(10L)).thenReturn(Optional.of(book));
+
+        StorybookPage cover = new StorybookPage();
+        cover.setId(100L);
+        cover.setPageIndex(0);
+        cover.setKind(com.doova.ktab.features.storybook.enums.PageKind.COVER);
+        cover.setGeneration(4);
+        cover.setRoundStartGeneration(1);
+        StorybookPage story = new StorybookPage();
+        story.setId(101L);
+        story.setPageIndex(1);
+        story.setKind(com.doova.ktab.features.storybook.enums.PageKind.STORY);
+        story.setGeneration(1);
+        when(pages.findById(100L)).thenReturn(Optional.of(cover));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(cover, story));
+
+        StorybookPageImage image = new StorybookPageImage();
+        image.setId(200L);
+        image.setStatus(PageImageStatus.GENERATED);
+        when(images.findById(200L)).thenReturn(Optional.of(image));
+        when(images.findByPage_IdAndGeneration(100L, 4)).thenReturn(Optional.of(image));
+
+        persistence.recordQa(10L, 100L, 200L, 4, new VisualQaResponse(false, false, true, true, List.of("hair")));
+
+        assertThat(image.getStatus()).isEqualTo(PageImageStatus.FLAGGED);
+        verify(enqueuer).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 1, 1);
+    }
 }

@@ -54,7 +54,7 @@ class StoryBlueprintHandlerTest {
     void skipsIfBlueprintAlreadyExists() {
         Storybook book = new Storybook();
         book.setId(101L);
-        book.setStoryBlueprint("{\"beats\": []}");
+        book.setStoryBlueprint("{\"beats\":[{\"pageNumber\":1,\"beat\":\"x\"}]}");
         when(books.findById(101L)).thenReturn(Optional.of(book));
 
         StepOutcome outcome = handler.handle(job());
@@ -79,7 +79,7 @@ class StoryBlueprintHandlerTest {
         StoryBlueprintResponse response = new StoryBlueprintResponse(
                 "رحلة الأصدقاء",
                 "مغامرة شيقة",
-                List.of(new BlueprintPageBeat(1, "سامي يستيقظ مبكرا", "happy", "غرفة النوم", List.of("سامي")))
+                beats(18)
         );
         llm.enqueue(response);
 
@@ -90,6 +90,54 @@ class StoryBlueprintHandlerTest {
 
         verify(ledger).recordLlm(eq(101L), eq(11L), eq(LlmPurpose.STORY_BLUEPRINT), any());
         verify(books).save(book);
+        verify(enqueuer).enqueue(101L, JobStep.STORY_PLAN, -1, 0);
+    }
+
+    private static List<BlueprintPageBeat> beats(int n) {
+        return java.util.stream.IntStream.rangeClosed(1, n)
+                .mapToObj(i -> new BlueprintPageBeat(i, "beat " + i, "happy", "room", List.of("سامي"))).toList();
+    }
+
+    private Storybook draft(String storedBlueprint) {
+        Storybook book = new Storybook();
+        book.setId(101L);
+        book.setInputs(StoryFixtures.INPUTS);
+        book.setPageCount(18);
+        book.setStoryBlueprint(storedBlueprint);
+        when(books.findById(101L)).thenReturn(Optional.of(book));
+        return book;
+    }
+
+    @Test
+    void anUnreadableBlueprintIsNotStoredAndTheStepIsRetried() {
+        Storybook book = draft(null);
+        llm.enqueue(new StoryBlueprintResponse(null, null, null));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(job()))
+                .isInstanceOfSatisfying(com.doova.ktab.features.storybook.llm.LlmCallFailedException.class,
+                        e -> assertThat(e.retryable()).isTrue());
+        assertThat(book.getStoryBlueprint()).isNull();
+        verify(enqueuer, never()).enqueue(any(), any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void aBlueprintWithTheWrongNumberOfBeatsIsRetried() {
+        draft(null);
+        llm.enqueue(new StoryBlueprintResponse("t", "p", beats(17)));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> handler.handle(job()))
+                .isInstanceOf(com.doova.ktab.features.storybook.llm.LlmCallFailedException.class);
+        verify(books, never()).save(any());
+    }
+
+    @Test
+    void aStoredEmptyBlueprintIsReplacedNotTrusted() {
+        Storybook book = draft("{\"beats\": null, \"premise\": null, \"titleConcept\": null}");
+        llm.enqueue(new StoryBlueprintResponse("t", "p", beats(18)));
+
+        handler.handle(job());
+
+        assertThat(book.getStoryBlueprint()).contains("beat 18");
         verify(enqueuer).enqueue(101L, JobStep.STORY_PLAN, -1, 0);
     }
 }

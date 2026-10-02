@@ -86,6 +86,40 @@ class StorybookServiceTest {
     }
 
     @Test
+    void aStoryWithNoBlueprintKeyIsBuiltFromTheInputsAlone() {
+        CreateStorybookRequest scratch = new CreateStorybookRequest(5L, null, List.of(Interest.SPACE), null,
+                StorySetting.DUBAI, ArtStyle.SOFT_WATERCOLOR, 18, LanguageVariety.MSA, TashkeelLevel.PARTIAL, null,
+                "SCIENCE", "ADVENTUROUS", "الفضول يصنع المعجزات", "رحلة إلى القمر", List.of(), "PORTRAIT", null);
+
+        service.create(owner, scratch);
+
+        ArgumentCaptor<com.doova.ktab.features.storybook.model.StoryInputs> inputs =
+                ArgumentCaptor.forClass(com.doova.ktab.features.storybook.model.StoryInputs.class);
+        verify(writer).insertDraft(eq(owner), eq(child), inputs.capture(), any());
+        assertThat(inputs.getValue().blueprint().key()).isEqualTo("custom");
+        assertThat(inputs.getValue().blueprint().beats()).isEmpty();
+        assertThat(inputs.getValue().setting()).isEqualTo(StorySetting.DUBAI);
+    }
+
+    @Test
+    void aBlankBlueprintKeyIsTheSameAsNone() {
+        CreateStorybookRequest scratch = new CreateStorybookRequest(5L, "  ", List.of(), null, null,
+                ArtStyle.SOFT_WATERCOLOR, 20, LanguageVariety.EGYPTIAN, TashkeelLevel.NONE, null);
+
+        service.create(owner, scratch);
+
+        verify(writer).insertDraft(eq(owner), eq(child), any(), any());
+    }
+
+    @Test
+    void anUnknownBlueprintKeyIsStillRejected() {
+        CreateStorybookRequest bad = new CreateStorybookRequest(5L, "no-such-blueprint", List.of(), null, null,
+                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.MSA, TashkeelLevel.FULL, null);
+
+        assertThatThrownBy(() -> service.create(owner, bad)).hasMessage("STORYBOOK_BLUEPRINT_NOT_ALLOWED");
+    }
+
+    @Test
     void rejectsElevenPages() {
         assertThatThrownBy(() -> service.create(owner, request(11, LanguageVariety.MSA, TashkeelLevel.FULL,
                 List.of(), null, null))).isInstanceOf(BadRequestException.class).hasMessage("STORYBOOK_INVALID_PAGE_COUNT");

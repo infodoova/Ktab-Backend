@@ -89,4 +89,30 @@ class LanguageCriticHandlerTest {
         verify(persistence).acceptStory(eq(42L), accepted.capture());
         assertThat(accepted.getValue().pages().get(2).textAr()).isEqualTo("ذَهَبَ سامي إِلَى الحَدِيقَةِ.");
     }
+
+    @Test
+    void complaintsTheRewritesCouldNotClearAreKeptOnThePages() {
+        stored(StoryFixtures.plan(10, GOOD));
+        PagePlan rewrite = new PagePlan(3, GOOD, "scene", List.of(), com.doova.ktab.features.storybook.enums.TextZone.BOTTOM);
+        llm.enqueue(verdicts(3)); llm.enqueue(rewrite);   // round 1
+        llm.enqueue(verdicts(3)); llm.enqueue(rewrite);   // round 2
+        llm.enqueue(verdicts(3));                         // still flagged
+
+        handler.handle(job(0));
+
+        verify(persistence).recordUnresolvedProblems(eq(42L), eq("language"), argThat(m -> m.containsKey(3)), argThat(r -> r.contains(3)));
+        verify(persistence).acceptStory(eq(42L), any());
+    }
+
+    @Test
+    void aCleanReviewAfterRewritesClearsTheOldComplaintsOnThoseCleanedPages() {
+        stored(StoryFixtures.plan(10, GOOD));
+        llm.enqueue(verdicts(3));
+        llm.enqueue(new PagePlan(3, GOOD, "scene", List.of(), com.doova.ktab.features.storybook.enums.TextZone.BOTTOM));
+        llm.enqueue(verdicts(-1));
+
+        handler.handle(job(0));
+
+        verify(persistence).recordUnresolvedProblems(eq(42L), eq("language"), argThat(java.util.Map::isEmpty), argThat(r -> r.contains(3)));
+    }
 }

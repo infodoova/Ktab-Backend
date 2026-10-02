@@ -55,7 +55,7 @@ class LookServiceIT extends StorybookJpaIT {
     }
 
     @Test
-    void approvingStartsIllustrationForTheCoverAndEveryPage() {
+    void approvingStartsIllustrationWithTheCoverOnly() {
         Storybook book = characterReadyBook();
 
         looks.approve(owner, book.getId());
@@ -66,7 +66,7 @@ class LookServiceIT extends StorybookJpaIT {
         assertThat(jobs.findByStorybookIdOrderByIdAsc(book.getId()))
                 .filteredOn(j -> j.getStep() == JobStep.ILLUSTRATE_PAGE)
                 .extracting(j -> (int) j.getPageIndex())
-                .containsExactlyInAnyOrder(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+                .containsExactly(0);
     }
 
     @Test

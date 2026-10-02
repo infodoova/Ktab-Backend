@@ -57,4 +57,20 @@ class StoryPromptBuilderTest {
 
         assertThat(msg).contains("Page 3").contains("verb ذهبَ should be feminine").contains("ذهبَ سامي");
     }
+
+    @Test
+    void theWritersRequestCarriesTheUsersOwnBriefNotOnlyTheBlueprint() {
+        StoryRequest r = StoryFixtures.request(LanguageVariety.MSA, ChildGender.BOY, 10);
+        String brief = StoryPromptBuilder.brief("DISCOVERY", "WARM", "الصبر يفتح الأبواب", "خريطة نجوم قديمة", java.util.List.of("العنف"));
+
+        String msg = StoryPromptBuilder.planUserMessage(r, "", null, "{\"beats\":[]}", brief);
+
+        assertThat(msg).contains("خريطة نجوم قديمة").contains("الصبر يفتح الأبواب").contains("DISCOVERY")
+                .contains("WARM").contains("العنف");
+    }
+
+    @Test
+    void anEmptyBriefAddsNothing() {
+        assertThat(StoryPromptBuilder.brief(null, " ", null, null, java.util.List.of())).isBlank();
+    }
 }

@@ -76,4 +76,19 @@ class PageQaHandlerTest {
         handler.handle(job());
         assertThat(llm.requests()).isEmpty();
     }
+
+    @Test
+    void theCheckerIsNotAskedToJudgeAnOutfitTheSceneNamesInTheWrongColour() throws Exception {
+        QaContext dirty = new QaContext(9L, StorybookStatus.ILLUSTRATING, 100L, 500L, PageImageStatus.GENERATED, "img",
+                "The CHILD reads. CHILD wears her lavender hijab; the lower third is a rug.",
+                List.of(new CharacterInScene("CHILD", "calm")), "child-sheet", null, ArtStyle.SOFT_WATERCOLOR);
+        when(persistence.qaContext(9L, 2, 1)).thenReturn(dirty);
+        when(store.get("img")).thenReturn(png());
+        when(store.get("child-sheet")).thenReturn(png());
+        llm.enqueue(new VisualQaResponse(true, false, true, true, List.of()));
+
+        handler.handle(job());
+
+        assertThat(llm.requests().get(0).user()).doesNotContain("lavender").contains("The CHILD reads");
+    }
 }

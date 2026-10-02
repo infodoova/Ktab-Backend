@@ -10,6 +10,7 @@ import com.doova.ktab.features.storybook.model.StorybookJob;
 import com.doova.ktab.features.storybook.orchestrator.StepOutcome;
 import com.doova.ktab.features.storybook.prompt.PromptLibrary;
 import com.doova.ktab.features.storybook.story.StoryWriter;
+import com.doova.ktab.features.storybook.story.SupportingCast;
 import com.doova.ktab.features.storybook.support.FakeLlmGateway;
 import com.doova.ktab.features.storybook.support.StoryFixtures;
 import org.junit.jupiter.api.Test;
@@ -68,5 +69,19 @@ class StoryPlanHandlerTest {
         assertThat(handler.handle(job(0)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
         assertThat(llm.requests()).isEmpty();
         verifyNoInteractions(ledger);
+    }
+
+    @Test
+    void theWriterIsToldWhoTheSupportingCharactersAre() {
+        SupportingCast grandpa = new SupportingCast("SUPPORT_1", "grandpa", "الجد", "grandfather", "Elder",
+                "a brown jalabiya", "the grandfather, about 68 years old, a man");
+        StoryContext base = new StoryContext(42L, StorybookStatus.DRAFT,
+                StoryFixtures.request(LanguageVariety.MSA, ChildGender.BOY, 10), null);
+        when(persistence.load(42L)).thenReturn(base.withSupporting(java.util.List.of(grandpa)));
+        llm.enqueue(StoryFixtures.plan(10, "ذَهَبَ سامي."));
+
+        handler.handle(job(0));
+
+        assertThat(llm.requests().get(0).user()).contains("SUPPORT_1").contains("الجد").contains("grandfather");
     }
 }

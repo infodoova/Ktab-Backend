@@ -55,4 +55,47 @@ class OpenAiLlmGatewayTest {
         String raw = "{\"quote\": \"قال سامي: \\\"أهلاً!\\\"\"}";
         assertThat(OpenAiLlmGateway.extractJson(raw)).isEqualTo(raw);
     }
+
+    @Test
+    void aSinglePageRewriteWrappedInAPagesArrayIsUnwrapped() throws Exception {
+        String raw = "{\"pages\":[{\"scene\":\"A boy on the grass\",\"text\":\"جلس سامي على العشب.\"}]}";
+
+        String json = OpenAiLlmGateway.unwrapSingleItem(raw, com.doova.ktab.features.storybook.story.PagePlan.class);
+
+        com.doova.ktab.features.storybook.story.PagePlan page = new ObjectMapper()
+                .readValue(json, com.doova.ktab.features.storybook.story.PagePlan.class);
+        assertThat(page.textAr()).isEqualTo("جلس سامي على العشب.");
+        assertThat(page.sceneEn()).isEqualTo("A boy on the grass");
+    }
+
+    @Test
+    void aWholePlanKeepsItsPagesArray() {
+        String raw = "{\"titleAr\":\"t\",\"pages\":[{\"pageNumber\":1}]}";
+
+        assertThat(OpenAiLlmGateway.unwrapSingleItem(raw, com.doova.ktab.features.storybook.story.StoryPlanResponse.class)).isEqualTo(raw);
+    }
+
+    @Test
+    void aPlainPageIsLeftAlone() {
+        String raw = "{\"pageNumber\":1,\"textAr\":\"نص\"}";
+
+        assertThat(OpenAiLlmGateway.unwrapSingleItem(raw, com.doova.ktab.features.storybook.story.PagePlan.class)).isEqualTo(raw);
+    }
+
+    @Test
+    void anAccountThatIsOutOfCreditsIsNotRetried() {
+        Exception outOfCredits = new RuntimeException("429 - {\"error\":{\"message\":\"You have no credits remaining.\","
+                + "\"type\":\"insufficient_quota\",\"code\":\"credit_balance_exhausted\"}}");
+
+        assertThat(OpenAiLlmGateway.isRetryable(outOfCredits)).isFalse();
+        assertThat(OpenAiLlmGateway.isOutOfCredits(outOfCredits)).isTrue();
+    }
+
+    @Test
+    void anOrdinaryRateLimitIsStillRetried() {
+        Exception rateLimit = new RuntimeException("429 - Rate limit reached for gpt-6-luna on tokens per min (TPM)");
+
+        assertThat(OpenAiLlmGateway.isRetryable(rateLimit)).isTrue();
+        assertThat(OpenAiLlmGateway.isOutOfCredits(rateLimit)).isFalse();
+    }
 }

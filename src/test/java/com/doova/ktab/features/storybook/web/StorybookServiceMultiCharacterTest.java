@@ -298,4 +298,36 @@ class StorybookServiceMultiCharacterTest {
         verify(ledger).recordLlm(isNull(), isNull(), eq(LlmPurpose.MODERATION), eq(llmCall));
         verifyNoInteractions(writer);
     }
+
+    @Test
+    void create_withMoreThanFourCharacters_throwsTooManyCharacters() {
+        java.util.List<CharacterInput> five = new java.util.ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            five.add(new CharacterInput("c" + i, "اسم", "HUMAN", i == 0 ? "PROTAGONIST" : "FRIEND", "x", null, List.of(), null));
+        }
+        CreateStorybookRequest req = new CreateStorybookRequest(
+                5L, null, List.of(), null, StorySetting.BEIRUT,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
+                "t", "w", "l", "i", List.of(), "PORTRAIT", five);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.create(owner, req))
+                .hasMessage("STORYBOOK_TOO_MANY_CHARACTERS");
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void create_withExactlyFourCharacters_isAccepted() {
+        java.util.List<CharacterInput> four = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            four.add(new CharacterInput("c" + i, "اسم", "HUMAN", i == 0 ? "PROTAGONIST" : "FRIEND", "x", null, List.of(), null));
+        }
+        CreateStorybookRequest req = new CreateStorybookRequest(
+                5L, null, List.of(), null, StorySetting.BEIRUT,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
+                "t", "w", "l", "i", List.of(), "PORTRAIT", four);
+
+        service.create(owner, req);
+
+        verify(writer).insertDraft(eq(owner), eq(child), any(), any());
+    }
 }

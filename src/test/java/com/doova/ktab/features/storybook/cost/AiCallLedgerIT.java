@@ -43,7 +43,7 @@ class AiCallLedgerIT extends StorybookJpaIT {
         assertThat(calls.findByStorybookIdOrderByIdAsc(book.getId()))
                 .extracting(c -> c.getPurpose() + ":" + c.isSuccess())
                 .containsExactly("STORY_PLAN:true", "IMAGE_PAGE:true", "IMAGE_PAGE:false");
-        // 0.007 (LLM) + 0.101 (image) = 0.108
-        assertThat(books.findById(book.getId()).orElseThrow().getTotalCostUsd()).isEqualByComparingTo("0.1080");
+        // 0.007 (LLM) + 0.067 (gemini-3.1-flash-image, see ktab.storybook.pricing) = 0.074
+        assertThat(books.findById(book.getId()).orElseThrow().getTotalCostUsd()).isEqualByComparingTo("0.0740");
     }
 }

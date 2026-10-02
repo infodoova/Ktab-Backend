@@ -45,4 +45,17 @@ class VisualQaTest {
         assertThat(new VisualQaResponse(true, false, false, true, List.of()).passed()).isFalse();
         assertThat(new VisualQaResponse(true, false, true, false, List.of()).passed()).isFalse();
     }
+
+    @Test
+    void aFailedQaCallIsNeverTreatedAsAPass() throws Exception {
+        var llm = org.mockito.Mockito.mock(com.doova.ktab.features.storybook.llm.LlmGateway.class);
+        org.mockito.Mockito.when(llm.call(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new com.doova.ktab.features.storybook.llm.LlmCallFailedException("429 rate limit", true, null));
+        VisualQa qa = new VisualQa(llm, new PromptLibrary(), new StorybookProperties());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> qa.check(png(512),
+                        List.of(new ReferenceImage(png(512), "image/png")), "The CHILD waves."))
+                .isInstanceOfSatisfying(com.doova.ktab.features.storybook.llm.LlmCallFailedException.class,
+                        e -> assertThat(e.retryable()).isTrue());
+    }
 }

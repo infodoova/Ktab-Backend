@@ -130,4 +130,128 @@ class PageIllustrationHandlerTest {
         verify(images).generate(req.capture());
         assertThat(req.getValue().prompt()).contains("book cover");
     }
+
+    private static PageContext lockedCtx(int pageIndex, String anchorKey) {
+        PageContext base = ctx(pageIndex, 1, 1, false, StorybookStatus.ILLUSTRATING,
+                List.of(new CharacterInScene("CHILD", "happy"), new CharacterInScene("COMPANION", "happy")));
+        return new PageContext(base.bookId(), base.status(), base.pageId(), base.pageIndex(), base.kind(), base.sceneEn(),
+                base.textZone(), base.cast(), base.pageGeneration(), base.roundStartGeneration(), base.imageRowExists(),
+                base.childSheetKey(), base.companionSheetKey(), base.style(), true, anchorKey, false,
+                "light olive skin, hazel eyes", "a turquoise hijab, a coral tunic and navy trousers",
+                "a small green pet parrot", "soft watercolor, warm light, thin brown outlines");
+    }
+
+    @Test
+    void thePagePromptCarriesTheIdentityLockAndTheBooksStyleNotes() {
+        when(store.get("anchor-key")).thenReturn(new byte[]{8});
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(lockedCtx(3, "anchor-key"));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().prompt())
+                .contains("wears NO glasses")
+                .contains("a turquoise hijab, a coral tunic and navy trousers")
+                .contains("light olive skin, hazel eyes")
+                .contains("a small green pet parrot")
+                .contains("soft watercolor, warm light, thin brown outlines");
+    }
+
+    @Test
+    void theApprovedCoverIsTheLastReferenceSoTheOtherReferencesKeepTheirPlaces() {
+        when(store.get("anchor-key")).thenReturn(new byte[]{8});
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(lockedCtx(3, "anchor-key"));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().references()).hasSize(4);
+        assertThat(req.getValue().references().get(3).bytes()).containsExactly(8);
+        assertThat(req.getValue().prompt()).contains("last reference image is the approved book cover");
+    }
+
+    @Test
+    void theCoverItselfHasNoAnchor() {
+        when(persistence.pageContext(9L, 0, 1)).thenReturn(lockedCtx(0, null));
+
+        handler.handle(job(0, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().prompt()).doesNotContain("approved book cover");
+        assertThat(req.getValue().prompt()).contains("wears NO glasses");
+    }
+
+    @Test
+    void anOutfitInAStoredSceneNeverReachesThePicturePrompt() {
+        PageContext base = ctx(3, 1, 1, false, StorybookStatus.ILLUSTRATING, List.of(new CharacterInScene("CHILD", "happy")));
+        PageContext dirty = new PageContext(base.bookId(), base.status(), base.pageId(), base.pageIndex(), base.kind(),
+                "CHILD waves. CHILD wears her fixed outfit and fully covering lavender hijab; the calm lower third is a wall.",
+                base.textZone(), base.cast(), base.pageGeneration(), base.roundStartGeneration(), base.imageRowExists(),
+                base.childSheetKey(), base.companionSheetKey(), base.style(), true);
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(dirty);
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().prompt()).doesNotContain("lavender").contains("CHILD waves");
+    }
+
+    private static PageContext supportingCtx(java.util.List<CharacterInScene> cast, String anchorKey, String sheetKey) {
+        PageContext base = lockedCtx(3, anchorKey);
+        return new PageContext(base.bookId(), base.status(), base.pageId(), base.pageIndex(), base.kind(), "CHILD shows SUPPORT_1 the map.",
+                base.textZone(), cast, base.pageGeneration(), base.roundStartGeneration(), base.imageRowExists(),
+                base.childSheetKey(), base.companionSheetKey(), base.style(), true, anchorKey, false,
+                base.appearanceEn(), base.childClothing(), base.companionEn(), base.styleNotes(),
+                java.util.List.of(new PageContext.SupportingLook("SUPPORT_1", "the grandfather, a man, about 68 years old",
+                        "a brown jalabiya", sheetKey)));
+    }
+
+    @Test
+    void aSupportingCharacterInTheSceneBringsItsSheetAfterTheCompanionAndBeforeTheCover() {
+        when(store.get("anchor-key")).thenReturn(new byte[]{8});
+        when(store.get("grandpa-sheet")).thenReturn(new byte[]{7});
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(supportingCtx(java.util.List.of(
+                new CharacterInScene("CHILD", "happy"), new CharacterInScene("COMPANION", "happy"),
+                new CharacterInScene("SUPPORT_1", "calm")), "anchor-key", "grandpa-sheet"));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().references()).hasSize(5); // child, style, companion, grandpa, cover
+        assertThat(req.getValue().references().get(3).bytes()).containsExactly(7);
+        assertThat(req.getValue().references().get(4).bytes()).containsExactly(8);
+        assertThat(req.getValue().prompt()).contains("Identity lock for SUPPORT_1").contains("a brown jalabiya")
+                .contains("Reference images, in order: CHILD sheet, style reference, COMPANION sheet, SUPPORT_1 sheet, approved book cover");
+    }
+
+    @Test
+    void aSupportingCharacterWhoIsNotInThisSceneAddsNothing() {
+        when(store.get("anchor-key")).thenReturn(new byte[]{8});
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(supportingCtx(java.util.List.of(
+                new CharacterInScene("CHILD", "happy"), new CharacterInScene("COMPANION", "happy")), "anchor-key", "grandpa-sheet"));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().references()).hasSize(4);
+        assertThat(req.getValue().prompt()).doesNotContain("Identity lock for SUPPORT_1");
+    }
+
+    @Test
+    void aSupportingCharacterWithoutASheetYetIsLeftOut() {
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(supportingCtx(java.util.List.of(
+                new CharacterInScene("CHILD", "happy"), new CharacterInScene("SUPPORT_1", "calm")), null, null));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
+        verify(images).generate(req.capture());
+        assertThat(req.getValue().prompt()).doesNotContain("Identity lock for SUPPORT_1");
+    }
 }

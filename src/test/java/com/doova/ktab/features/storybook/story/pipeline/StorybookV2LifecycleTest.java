@@ -148,10 +148,9 @@ class StorybookV2LifecycleTest {
         StoryBlueprintResponse blueprintResp = new StoryBlueprintResponse(
                 "مغامرة سامي في الحي",
                 "رحلة جميلة في شوارع بيروت",
-                List.of(
-                        new BlueprintPageBeat(1, "سامي يستيقظ بنشاط", "excited", "غرفة النوم", List.of("سامي")),
-                        new BlueprintPageBeat(2, "سامI يرتدي حذاءه", "ready", "المدخل", List.of("سامي"))
-                )
+                java.util.stream.IntStream.rangeClosed(1, 10)
+                        .mapToObj(i -> new BlueprintPageBeat(i, "حدث الصفحة " + i, "excited", "غرفة النوم", List.of("سامي")))
+                        .toList()
         );
         llm.enqueue(blueprintResp);
 
@@ -210,8 +209,9 @@ class StorybookV2LifecycleTest {
         assertThat(book.getStatus()).isEqualTo(StorybookStatus.ILLUSTRATING);
         assertThat(book.getLookApprovedAt()).isNotNull();
         assertThat(childCharacter.getSheetStatus()).isEqualTo(CharacterSheetStatus.APPROVED);
+        // the cover goes first; its verdict releases the story pages
         verify(enqueuer).enqueue(100L, JobStep.ILLUSTRATE_PAGE, 0, 1);
-        verify(enqueuer).enqueue(100L, JobStep.ILLUSTRATE_PAGE, 1, 1);
+        verify(enqueuer, never()).enqueue(100L, JobStep.ILLUSTRATE_PAGE, 1, 1);
     }
 
     @Test

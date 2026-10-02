@@ -238,4 +238,47 @@ class StorybookDraftWriterTest {
         assertThat(sc.getRole()).isEqualTo("MAIN");
         assertThat(sc.getCharacterType()).isEqualTo("HUMAN");
     }
+
+    @Test
+    void insertDraft_withThreeCharacters_makesTheThirdOneSupportingAndKeepsItsOwnDetails() {
+        StoryInputs inputs = createInputs(null);
+        CharacterInput kid = new CharacterInput("layla", "ليلى", "HUMAN", "PROTAGONIST", "Self", "yellow dress", List.of("curious"), StoryFixtures.APPEARANCE);
+        CharacterInput parrot = new CharacterInput("zomorrod", "زمرد", "ANIMAL", "COMPANION", "pet parrot", "green feathers", List.of("brave"), null);
+        CharacterInput grandpa = new CharacterInput("grandpa", "الجد", "HUMAN", 68, ChildGender.BOY, "Elder", "grandfather",
+                List.of("wise"), null, "a brown jalabiya and a white keffiyeh", "patience", "stubborn", "reading", "a brass pocket watch", "calm");
+        CreateStorybookRequest req = new CreateStorybookRequest(20L, null, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+                18, LanguageVariety.MSA, TashkeelLevel.FULL, null, "t", "w", "l", "i", List.of(), "PORTRAIT", List.of(kid, parrot, grandpa));
+
+        writer.insertDraft(owner, child, inputs, new StorybookDraftWriter.ResolvedSettings(req, LanguageVariety.MSA, TashkeelLevel.FULL, null));
+
+        ArgumentCaptor<StorybookCharacter> captor = ArgumentCaptor.forClass(StorybookCharacter.class);
+        verify(characters, times(3)).save(captor.capture());
+        List<StorybookCharacter> saved = captor.getAllValues();
+        assertThat(saved).extracting(StorybookCharacter::getKind)
+                .containsExactly(CharacterKind.CHILD, CharacterKind.COMPANION, CharacterKind.SUPPORTING);
+        StorybookCharacter third = saved.get(2);
+        assertThat(third.getCharacterId()).isEqualTo("grandpa");
+        assertThat(third.getRelationship()).isEqualTo("grandfather");
+        assertThat(third.getClothing()).isEqualTo("a brown jalabiya and a white keffiyeh");
+        assertThat(third.getAdvancedDetails()).containsEntry("name", "الجد").containsEntry("age", 68)
+                .containsEntry("signatureItem", "a brass pocket watch");
+    }
+
+    @Test
+    void insertDraft_aSupportingCharacterWithoutIdGetsAUniqueGeneratedId() {
+        StoryInputs inputs = createInputs(null);
+        CharacterInput kid = new CharacterInput("layla", "ليلى", "HUMAN", "PROTAGONIST", "Self", null, List.of(), StoryFixtures.APPEARANCE);
+        CharacterInput pet = new CharacterInput("pet", "زمرد", "ANIMAL", "COMPANION", "pet", null, List.of(), null);
+        CharacterInput friend = new CharacterInput(null, "سلمى", "HUMAN", "FRIEND", "friend", null, List.of(), null);
+        CharacterInput neighbour = new CharacterInput(null, null, "HUMAN", "NEIGHBOUR", "neighbour", null, List.of(), null);
+        CreateStorybookRequest req = new CreateStorybookRequest(20L, null, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+                18, LanguageVariety.MSA, TashkeelLevel.FULL, null, "t", "w", "l", "i", List.of(), "PORTRAIT", List.of(kid, pet, friend, neighbour));
+
+        writer.insertDraft(owner, child, inputs, new StorybookDraftWriter.ResolvedSettings(req, LanguageVariety.MSA, TashkeelLevel.FULL, null));
+
+        ArgumentCaptor<StorybookCharacter> captor = ArgumentCaptor.forClass(StorybookCharacter.class);
+        verify(characters, times(4)).save(captor.capture());
+        assertThat(captor.getAllValues().subList(2, 4)).extracting(StorybookCharacter::getCharacterId).doesNotHaveDuplicates()
+                .doesNotContainNull();
+    }
 }

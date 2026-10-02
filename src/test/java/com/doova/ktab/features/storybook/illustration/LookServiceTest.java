@@ -112,7 +112,7 @@ class LookServiceTest {
     }
 
     @Test
-    void approve_success_transitionsToIllustratingAndEnqueuesPages() {
+    void approve_success_transitionsToIllustratingAndStartsOnlyTheCover() {
         Storybook b = readyBook();
         when(guard.requireOwned(10L, owner)).thenReturn(b);
         StorybookCharacter c = readyChild(b);
@@ -131,7 +131,9 @@ class LookServiceTest {
         assertThat(c.getSheetStatus()).isEqualTo(CharacterSheetStatus.APPROVED);
         assertThat(p0.getGeneration()).isEqualTo(1);
         assertThat(p0.getRoundStartGeneration()).isEqualTo(1);
+        // the cover is drawn and checked first: it becomes the style anchor for every story page
+        assertThat(p1.getGeneration()).isEqualTo(1);
         verify(enqueuer).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 0, 1);
-        verify(enqueuer).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 1, 1);
+        verify(enqueuer, never()).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 1, 1);
     }
 }
