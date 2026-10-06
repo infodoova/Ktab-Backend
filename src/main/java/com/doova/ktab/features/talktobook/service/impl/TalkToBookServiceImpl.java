@@ -358,7 +358,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
             if (citation == null || citation.id() == null || citation.id() <= 0
                     || citation.snippet() == null || citation.snippet().isBlank()
                     || !ids.add(citation.id().toString())
-                    || (context != null && !context.contains(citation.snippet()))) {
+                    || (context != null && !isSnippetContainedInContext(context, citation.snippet()))) {
                 return false;
             }
         }
@@ -366,6 +366,49 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         CITATION_REFERENCE.matcher(payload.answer()).results()
                 .forEach(match -> references.add(match.group(1)));
         return ids.equals(references);
+    }
+
+    static boolean isSnippetContainedInContext(String context, String snippet) {
+        if (context == null || context.isBlank() || snippet == null || snippet.isBlank()) {
+            return false;
+        }
+        if (context.contains(snippet)) {
+            return true;
+        }
+        String normContext = normalizeForComparison(context);
+        String normSnippet = normalizeForComparison(snippet);
+        if (normSnippet.isBlank()) {
+            return false;
+        }
+        if (normContext.contains(normSnippet)) {
+            return true;
+        }
+
+        // Fuzzy sub-phrase matching: if snippet is 4+ words, check if a 4-word continuous window matches
+        String[] words = normSnippet.split(" ");
+        if (words.length >= 4) {
+            for (int i = 0; i <= words.length - 4; i++) {
+                String sub = words[i] + " " + words[i + 1] + " " + words[i + 2] + " " + words[i + 3];
+                if (normContext.contains(sub)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    static String normalizeForComparison(String text) {
+        if (text == null) return "";
+        return text
+                .toLowerCase()
+                .replaceAll("[\\u064B-\\u065F\\u0670]", "") // Tashkeel / diacritics
+                .replaceAll("\\u0640", "")                  // Tatweel / kashida
+                .replaceAll("[إأآٱ]", "ا")                   // Alef variants
+                .replaceAll("ى", "ي")                       // Alif maqsura -> Yaa
+                .replaceAll("ة", "ه")                       // Taa marbouta -> Haa
+                .replaceAll("[«»\"'“”‘’،,.:;!؟?\\-\\(\\)\\[\\]\\{\\}]", " ") // Punctuation to space
+                .replaceAll("\\s+", " ")                    // Whitespace
+                .trim();
     }
 
     private LlmAnswerPayload parseLlmResponse(String rawOutput) {

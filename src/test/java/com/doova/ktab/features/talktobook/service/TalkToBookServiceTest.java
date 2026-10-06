@@ -483,6 +483,29 @@ class TalkToBookServiceTest {
                 eq(response.answer()), eq(response.citations()), eq(List.of(1)), eq(false), eq("revision"));
     }
 
+    @Test
+    @DisplayName("askQuestion_arabicWithTatweelAndTashkeel_successfullyValidatesCitation")
+    void askQuestion_arabicWithTatweelAndTashkeel_successfullyValidatesCitation() {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(cacheService.computeHash(any())).thenReturn("hash-arabic");
+        when(cacheService.findSimilar(eq(1L), any(), isNull(), eq("revision"))).thenReturn(Optional.empty());
+        when(guardrailService.evaluate(eq(testBook), any())).thenReturn(GuardrailDecision.allow(QueryIntent.PINPOINT));
+
+        String arabicContextWithKashida = "عندما ينــــــــــــام\nالعــــــــــــــــــــــالم\nقصص، كلمات، وجروح فلسطينيّة مفتوحة";
+        when(knowledgeRetriever.retrievePinpointContext(eq(1L), any()))
+                .thenReturn(new RetrievedContext(arabicContextWithKashida, List.of(3)));
+
+        String arabicAnswer = "{\"answer\":\"يتناول قضايا الوطن الجريح [1].\",\"citations\":[{\"id\":1,\"snippet\":\"عندما ينام العالم\"}]}";
+        when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse(arabicAnswer));
+
+        TalkToBookResponse response = talkToBookService.askQuestion(1L, new TalkToBookRequest("عن ماذا يتحدث الكتاب؟"), 100L);
+
+        assertThat(response.answer()).isEqualTo("يتناول قضايا الوطن الجريح [1].");
+        assertThat(response.citations()).containsExactly(new BookCitation(1, "عندما ينام العالم"));
+        // Successfully validated on first attempt without triggering retry
+        verify(chatModel, times(1)).call(any(Prompt.class));
+    }
+
     private void stubSummaryRetrieval() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
         when(cacheService.computeHash(any())).thenReturn("hash");
