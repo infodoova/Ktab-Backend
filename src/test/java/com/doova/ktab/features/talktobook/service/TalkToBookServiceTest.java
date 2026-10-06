@@ -90,6 +90,21 @@ class TalkToBookServiceTest {
     }
 
     @Test
+    void authorNameQuestionUsesBookMetadataWithoutPageCitations() {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(guardrailService.evaluate(testBook, "what is the name of the author of this books"))
+                .thenReturn(GuardrailDecision.allow(QueryIntent.PINPOINT));
+
+        TalkToBookResponse response = talkToBookService.askQuestion(1L,
+                new TalkToBookRequest("what is the name of the author of this books"), 100L);
+
+        assertThat(response.answer()).contains("Kahlil Gibran");
+        assertThat(response.citations()).isEmpty();
+        assertThat(response.source()).isEqualTo("BOOK_METADATA");
+        verifyNoInteractions(knowledgeRetriever, chatModel, embeddingModel);
+    }
+
+    @Test
     @DisplayName("askQuestion_cacheHit_returnsCachedAnswerWithoutCallingGuardrailOrLLM")
     void askQuestion_cacheHit_returnsCachedAnswerWithoutCallingGuardrailOrLLM() {
         when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
@@ -443,6 +458,42 @@ class TalkToBookServiceTest {
     }
 
     @Test
+    void ambiguousQuestionReturnsClarificationWithoutInventingCitation() {
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(testBook));
+        when(cacheService.computeHash(any())).thenReturn("ambiguous-hash");
+        when(guardrailService.evaluate(testBook, "how old is he"))
+                .thenReturn(GuardrailDecision.allow(QueryIntent.PINPOINT));
+        when(knowledgeRetriever.retrievePinpointContext(1L, "how old is he"))
+                .thenReturn(new RetrievedContext("Unrelated book passage", List.of(7)));
+        when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse(
+                "{\"answer\":\"من تقصد بضمير هو؟\",\"status\":\"NEEDS_CLARIFICATION\",\"citations\":[]}"));
+
+        TalkToBookResponse response = talkToBookService.askQuestion(1L,
+                new TalkToBookRequest("how old is he"), 100L);
+
+        assertThat(response.source()).isEqualTo("NEEDS_CLARIFICATION");
+        assertThat(response.answer()).isEqualTo("من تقصد بضمير هو؟");
+        assertThat(response.citations()).isEmpty();
+        verify(chatModel).call(any(Prompt.class));
+        verify(cacheService, never()).saveRecord(any(), any(), any(), any(), any(), any(), any(), anyBoolean(), any());
+    }
+
+    @Test
+    void missingBookEvidenceReturnsUncitedLimitation() {
+        stubSummaryRetrieval();
+        when(knowledgeRetriever.retrieveMacroContext(1L)).thenReturn(new RetrievedContext("", List.of()));
+        when(chatModel.call(any(Prompt.class))).thenReturn(chatResponse(
+                "{\"answer\":\"لا أجد هذه المعلومة في نص الكتاب المتاح.\",\"status\":\"NOT_FOUND\",\"citations\":[]}"));
+
+        TalkToBookResponse response = talkToBookService.askQuestion(1L,
+                new TalkToBookRequest("Summarize"), 100L);
+
+        assertThat(response.source()).isEqualTo("NOT_FOUND");
+        assertThat(response.citations()).isEmpty();
+        verify(cacheService, never()).saveRecord(any(), any(), any(), any(), any(), any(), any(), anyBoolean(), any());
+    }
+
+    @Test
     void askQuestion_summaryWithoutEvidence_failsWithoutCaching() {
         stubSummaryRetrieval();
         when(knowledgeRetriever.retrieveMacroContext(1L)).thenReturn(new RetrievedContext("", List.of()));
@@ -473,7 +524,7 @@ class TalkToBookServiceTest {
             assertThat(format.getType()).isEqualTo(org.springframework.ai.openai.api.ResponseFormat.Type.JSON_SCHEMA);
             assertThat(format.getJsonSchema().getStrict()).isTrue();
             var schema = objectMapper.valueToTree(format.getJsonSchema().getSchema());
-            assertThat(schema.get("required").toString()).isEqualTo("[\"answer\",\"citations\"]");
+            assertThat(schema.get("required").toString()).isEqualTo("[\"answer\",\"status\",\"citations\"]");
             assertThat(schema.get("additionalProperties").asBoolean()).isFalse();
             assertThat(schema.at("/properties/citations/items/required").toString()).isEqualTo("[\"id\",\"snippet\"]");
             assertThat(schema.at("/properties/citations/items/additionalProperties").asBoolean()).isFalse();

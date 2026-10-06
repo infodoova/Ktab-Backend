@@ -2,13 +2,27 @@ package com.doova.ktab.features.tts.ws.dto;
 
 import java.util.Map;
 
-public record TtsStreamParams(Long bookId, int start, int end, String voiceId) {
+public record TtsStreamParams(
+        Long bookId,
+        int start,
+        int end,
+        String voiceId,
+        String text,
+        Integer page,
+        Integer wordsPerPage
+) {
     public static TtsStreamParams fromMap(Map<String, Object> m) {
+        String directText = stringValue(m.get("text"));
+        Integer page = optionalInt(m, "page");
+        Integer wordsPerPage = optionalInt(m, "wordsPerPage");
         return new TtsStreamParams(
                 requiredLong(m, "bookId"),
-                requiredInt(m, "start", "startWord"),
-                requiredInt(m, "end", "endWord"),
-                stringValue(m.get("voiceId"))
+                optionalInt(m, "start", 0, "startWord"),
+                optionalInt(m, "end", 0, "endWord"),
+                stringValue(m.get("voiceId")),
+                directText,
+                page,
+                wordsPerPage
         );
     }
 
@@ -33,23 +47,33 @@ public record TtsStreamParams(Long bookId, int start, int end, String voiceId) {
         throw new IllegalArgumentException("Field '" + name + "' must be an integer");
     }
 
-    private static int requiredInt(Map<String, Object> values, String name, String... aliases) {
-        String resolvedName = name;
-        Object valueObject = values.get(name);
-        if (valueObject == null) {
+    private static Integer optionalInt(Map<String, Object> values, String name, String... aliases) {
+        Object val = values.get(name);
+        if (val == null) {
             for (String alias : aliases) {
                 if (values.containsKey(alias)) {
-                    resolvedName = alias;
+                    val = values.get(alias);
                     break;
                 }
             }
         }
-
-        long value = requiredLong(values, resolvedName);
-        if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Field '" + resolvedName + "' is out of range");
+        if (val == null) {
+            return null;
         }
-        return (int) value;
+        if (val instanceof Number number) {
+            return number.intValue();
+        }
+        if (val instanceof String text) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {}
+        }
+        return null;
+    }
+
+    private static int optionalInt(Map<String, Object> values, String name, int defaultValue, String... aliases) {
+        Integer val = optionalInt(values, name, aliases);
+        return val != null ? val : defaultValue;
     }
 
     private static String stringValue(Object value) {
@@ -59,6 +83,6 @@ public record TtsStreamParams(Long bookId, int start, int end, String voiceId) {
         if (value instanceof String text) {
             return text;
         }
-        throw new IllegalArgumentException("Field 'voiceId' must be a string");
+        throw new IllegalArgumentException("Field must be a string");
     }
 }

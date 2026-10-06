@@ -1,5 +1,6 @@
 package com.doova.ktab.features.extraction.web;
 
+import com.doova.ktab.features.extraction.BookExtractionQueryService;
 import com.doova.ktab.features.extraction.BookExtractionService;
 import com.doova.ktab.features.extraction.dto.*;
 import com.doova.ktab.features.extraction.pdf.PdfRejectedException;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,11 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookExtractionControllerTest {
 
     private final BookExtractionService service = mock(BookExtractionService.class);
+    private final BookExtractionQueryService queryService = mock(BookExtractionQueryService.class);
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new BookExtractionController(service)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new BookExtractionController(service, queryService)).build();
     }
 
     private static BookExtractionResult sample() {

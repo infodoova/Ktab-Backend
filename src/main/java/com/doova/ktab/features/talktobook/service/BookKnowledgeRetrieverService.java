@@ -14,7 +14,7 @@ public interface BookKnowledgeRetrieverService {
     RetrievedContext retrievePinpointContext(Long bookId, String question);
 
     /**
-     * Retrieves high-level book structure, table of contents, and introductory pages for macro-level questions.
+     * Retrieves high-level book structure and representative body pages across the book for macro-level questions.
      *
      * @param bookId The ID of the target book
      * @return RetrievedContext containing structure outline and sample pages

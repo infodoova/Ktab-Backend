@@ -3,6 +3,7 @@ package com.doova.ktab.controller.v1.reader;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.book.BookStatsResponse;
+import com.doova.ktab.dto.book.ReaderPageResponse;
 import com.doova.ktab.dto.book.TextRangeResponse;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.service.book.BookTextService;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping(path = "/books", produces = "application/json")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('READER')")
+@PreAuthorize("hasAnyAuthority('READER', 'ADMIN', 'LIBRARIAN', 'ADMIN_LIBRARIAN', 'AUTHOR')")
 @Tag(name = "Reader Book Text API", description = "Endpoints for reading, paginating, and analyzing book text.")
 public class BookTextController {
 
@@ -113,5 +114,39 @@ public class BookTextController {
                 bookTextService.searchInBook(bookId, q, pageable);
 
         return ResponseUtils.success(result, ApiMessageKey.READER_SEARCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    // ============================================================================================
+    // GET PAGINATED READER PAGES (PURE BODY TEXT ONLY)
+    // ============================================================================================
+    @Operation(summary = "Get paginated reader page starting strictly from body chapters (excluding introductions, front matter, appendixes, bibliographies)")
+    @GetMapping(path = {"/{bookId}/reader-pages", "/{bookId}/pages"})
+    public ResponseEntity<ApiResponse<ReaderPageResponse>> getReaderPage(
+            @PathVariable Long bookId,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "80") @Min(1) int wordsPerPage
+    ) {
+        ReaderPageResponse result = bookTextService.getReaderPage(bookId, page, wordsPerPage);
+        return ResponseUtils.success(result, ApiMessageKey.BOOK_TEXT_PAGE_FETCH_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get book navigation hierarchy (chapters, parts) with direct target page mapping, and separate appendixes")
+    @GetMapping("/{bookId}/navigator")
+    public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookNavigatorResponse>> getNavigator(
+            @PathVariable Long bookId,
+            @RequestParam(defaultValue = "80") @Min(1) int wordsPerPage
+    ) {
+        com.doova.ktab.dto.book.BookNavigatorResponse response = bookTextService.getNavigator(bookId, wordsPerPage);
+        return ResponseUtils.success(response, "تم جلب شجرة تصفح الكتاب بنجاح", HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get full section content by section ID (for appendixes, glossaries, bibliographies)")
+    @GetMapping("/{bookId}/sections/{sectionId}")
+    public ResponseEntity<ApiResponse<com.doova.ktab.dto.book.BookSectionContentResponse>> getSectionContent(
+            @PathVariable Long bookId,
+            @PathVariable Long sectionId
+    ) {
+        com.doova.ktab.dto.book.BookSectionContentResponse response = bookTextService.getSectionContent(bookId, sectionId);
+        return ResponseUtils.success(response, "تم جلب محتوى الملحق بنجاح", HttpStatus.OK);
     }
 }

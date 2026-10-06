@@ -80,25 +80,20 @@ class BookAgentRecordCacheServiceTest {
     }
 
     @Test
-    @DisplayName("findSimilar_semanticCosineMatchAboveThreshold_incrementsCountAndReturnsRecord")
-    void findSimilar_semanticCosineMatchAboveThreshold_incrementsCountAndReturnsRecord() {
-        when(recordRepository.findByBookIdAndQuestionHash(1L, "hash"))
-                .thenReturn(Optional.empty());
-
+    void embeddingSimilarityAloneDoesNotReuseAnAnswer() {
         BookAgentRecord candidate = new BookAgentRecord();
-        candidate.setCountUsed(1);
         markFresh(candidate);
-        candidate.setQuestionEmbedding(List.of(1.0f, 0.0f, 0.0f));
-
+        candidate.setQuestion("summarize chapter two");
+        candidate.setQuestionEmbedding(List.of(1.0f, 0.0f));
         when(recordRepository.findByBookId(1L)).thenReturn(List.of(candidate));
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class)))
+                .thenReturn(aiMatchResponse("{\"matchIndex\":null}"));
 
-        // Query vector is almost identical: cosine similarity = 0.999
-        List<Float> queryVector = List.of(0.99f, 0.01f, 0.0f);
-        Optional<BookAgentRecord> result = cacheService.findSimilar(1L, "hash", queryVector, "revision");
+        Optional<BookAgentRecord> result = cacheService.findSimilar(
+                1L, null, "summarize the whole book", List.of(1.0f, 0.0f), "revision");
 
-        assertThat(result).isPresent();
-        assertThat(result.get().getCountUsed()).isEqualTo(2);
-        verify(recordRepository).save(candidate);
+        assertThat(result).isEmpty();
+        verify(recordRepository, never()).save(any());
     }
 
     @Test
@@ -130,6 +125,12 @@ class BookAgentRecordCacheServiceTest {
         ArgumentCaptor<BookAgentRecordCreatedEvent> eventCaptor = ArgumentCaptor.forClass(BookAgentRecordCreatedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().bookId()).isEqualTo(10L);
+    }
+
+    private org.springframework.ai.chat.model.ChatResponse aiMatchResponse(String json) {
+        return new org.springframework.ai.chat.model.ChatResponse(List.of(
+                new org.springframework.ai.chat.model.Generation(
+                        new org.springframework.ai.chat.messages.AssistantMessage(json))));
     }
 
     private void markFresh(BookAgentRecord record) {
@@ -226,6 +227,86 @@ class BookAgentRecordCacheServiceTest {
         assertThat(rulesUpdated).isNotEqualTo(contentUpdated);
         properties.setModel("new-model");
         assertThat(cacheService.computeRevision(book)).isNotEqualTo(rulesUpdated);
+    }
+
+    @Test
+    void arabicSummaryRequestReusesEnglishWholeBookSummaryAfterAiReview() {
+        BookAgentRecord chapter = new BookAgentRecord();
+        markFresh(chapter);
+        chapter.setQuestion("summarize chapter two");
+        chapter.setCountUsed(10);
+
+        BookAgentRecord wholeBook = new BookAgentRecord();
+        markFresh(wholeBook);
+        wholeBook.setQuestion("summarize this book");
+        wholeBook.setCountUsed(2);
+
+        when(recordRepository.findByBookId(1L)).thenReturn(List.of(chapter, wholeBook));
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class)))
+                .thenReturn(aiMatchResponse("{\"matchIndex\":2}"));
+        Optional<BookAgentRecord> result = cacheService.findSimilar(1L, null, "لخص", null, "revision");
+
+        assertThat(result).contains(wholeBook);
+        assertThat(wholeBook.getCountUsed()).isEqualTo(3);
+        verify(recordRepository).save(wholeBook);
+        verify(chatModel).call(any(org.springframework.ai.chat.prompt.Prompt.class));
+    }
+
+    @Test
+    void misspelledSummaryRequestReusesWholeBookAnswerAfterAiReview() {
+        properties.setModel("gpt-6-luna");
+        BookAgentRecord wholeBook = new BookAgentRecord();
+        markFresh(wholeBook);
+        wholeBook.setQuestion("summarize this book");
+        when(recordRepository.findByBookId(1L)).thenReturn(List.of(wholeBook));
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class)))
+                .thenReturn(aiMatchResponse("{\"matchIndex\":1}"));
+
+        Optional<BookAgentRecord> result = cacheService.findSimilar(
+                1L, null, "sammurize .", null, "revision");
+
+        assertThat(result).contains(wholeBook);
+        verify(recordRepository).save(wholeBook);
+        ArgumentCaptor<org.springframework.ai.chat.prompt.Prompt> sent = ArgumentCaptor.forClass(org.springframework.ai.chat.prompt.Prompt.class);
+        verify(chatModel).call(sent.capture());
+        var options = (org.springframework.ai.openai.OpenAiChatOptions) sent.getValue().getOptions();
+        assertThat(options.getTemperature()).isNull();
+        assertThat(options.getMaxCompletionTokens()).isEqualTo(256);
+    }
+
+    @Test
+    void wholeBookSummaryDoesNotReuseChapterSummary() {
+        BookAgentRecord chapter = new BookAgentRecord();
+        markFresh(chapter);
+        chapter.setQuestion("summarize chapter two");
+        chapter.setQuestionEmbedding(List.of(1f, 0f));
+        when(recordRepository.findByBookId(1L)).thenReturn(List.of(chapter));
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class)))
+                .thenReturn(aiMatchResponse("{\"matchIndex\":null}"));
+
+        Optional<BookAgentRecord> result = cacheService.findSimilar(1L, null, "لخص", List.of(1f, 0f), "revision");
+
+        assertThat(result).isEmpty();
+        verify(recordRepository, never()).save(any());
+    }
+
+    @Test
+    void aiChecksCandidatesBeyondFirstBatch() {
+        java.util.ArrayList<BookAgentRecord> records = new java.util.ArrayList<>();
+        for (int i = 0; i < 31; i++) {
+            BookAgentRecord record = new BookAgentRecord();
+            markFresh(record);
+            record.setQuestion("question " + i);
+            record.setCountUsed(31 - i);
+            records.add(record);
+        }
+        when(recordRepository.findByBookId(1L)).thenReturn(records);
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class)))
+                .thenReturn(aiMatchResponse("{\"matchIndex\":null}"), aiMatchResponse("{\"matchIndex\":1}"));
+
+        assertThat(cacheService.findSimilar(1L, null, "different wording", null, "revision"))
+                .contains(records.get(30));
+        verify(chatModel, times(2)).call(any(org.springframework.ai.chat.prompt.Prompt.class));
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.doova.ktab.service.book.BookTextService;
 import com.doova.ktab.dto.book.ReaderPageResponse;
 import com.doova.ktab.exception.ResourceNotFoundException;
 import com.doova.ktab.model.book.Book;
+import com.doova.ktab.features.extraction.BookExtractionQueryService;
 import com.doova.ktab.model.book.BookSection;
 import com.doova.ktab.repository.book.BookRepository;
 import com.doova.ktab.repository.book.BookSectionRepository;
@@ -31,6 +32,7 @@ public class BookTextServiceImpl implements BookTextService {
     private final BookPageRepository sectionRepository;
     private final BookRepository bookRepository;
     private final BookSectionRepository bookSectionRepository;
+    private final BookExtractionQueryService bookExtractionQueryService;
 
     @Override
     public String getFullText(Long bookId) {
@@ -165,123 +167,18 @@ public class BookTextServiceImpl implements BookTextService {
     }
 
     @Override
-    @Transactional
     public ReaderPageResponse getReaderPage(Long bookId, int page, int wordsPerPage) {
-        if (page < 1) {
-            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
-        }
-        if (wordsPerPage <= 0) {
-            wordsPerPage = 80;
-        }
+        return bookExtractionQueryService.getReaderPage(bookId, page, wordsPerPage);
+    }
 
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.READER_BOOK_NOT_FOUND));
+    @Override
+    public com.doova.ktab.dto.book.BookNavigatorResponse getNavigator(Long bookId, int wordsPerPage) {
+        return bookExtractionQueryService.getNavigator(bookId, wordsPerPage);
+    }
 
-        int totalWords = sectionRepository.getTotalWordCount(bookId);
-        if (totalWords == 0) {
-            sectionRepository.backfillWordCountsIfMissing(bookId);
-            totalWords = sectionRepository.getTotalWordCount(bookId);
-        }
-
-        int totalPages = totalWords > 0 ? (int) Math.ceil((double) totalWords / wordsPerPage) : 0;
-        if (totalPages > 0 && page > totalPages) {
-            throw new BadRequestException(ApiMessageKey.VALIDATION_FAILED);
-        }
-
-        long startWord = (long) (page - 1) * wordsPerPage;
-        long endWord = startWord + wordsPerPage;
-
-        Pattern wordPattern = Pattern.compile("\\S+");
-        StringBuilder contentBuilder = new StringBuilder();
-        int globalWordIndex = 0;
-        int wordCountOnPage = 0;
-        String chapterTitle = null;
-        Integer currentPdfPage = null;
-
-        try (Stream<BookPage> stream = sectionRepository.streamByBookIdOrderByPageNumberAsc(bookId)) {
-            for (BookPage bp : (Iterable<BookPage>) stream::iterator) {
-                String text = bp.getMarkdownClean() != null && !bp.getMarkdownClean().isBlank()
-                        ? bp.getMarkdownClean()
-                        : bp.getMarkdownContent();
-                if (text == null || text.isBlank()) {
-                    continue;
-                }
-
-                Matcher matcher = wordPattern.matcher(text);
-                int prevEnd = -1;
-                while (matcher.find()) {
-                    if (globalWordIndex >= startWord && globalWordIndex < endWord) {
-                        if (currentPdfPage == null) {
-                            currentPdfPage = bp.getPageNumber();
-                            if (bp.getSection() != null) {
-                                chapterTitle = bp.getSection().getTitle();
-                            }
-                        }
-
-                        if (wordCountOnPage > 0) {
-                            if (prevEnd != -1 && matcher.start() > prevEnd) {
-                                String gap = text.substring(prevEnd, matcher.start());
-                                if (gap.contains("\n\n")) {
-                                    contentBuilder.append("\n\n");
-                                } else {
-                                    contentBuilder.append(" ");
-                                }
-                            } else {
-                                contentBuilder.append(" ");
-                            }
-                        }
-
-                        contentBuilder.append(text, matcher.start(), matcher.end());
-                        wordCountOnPage++;
-                        prevEnd = matcher.end();
-                    }
-
-                    globalWordIndex++;
-                    if (globalWordIndex >= endWord) {
-                        break;
-                    }
-                }
-
-                if (globalWordIndex >= endWord) {
-                    break;
-                }
-            }
-        }
-
-        if (chapterTitle == null && currentPdfPage != null) {
-            List<BookSection> sections = bookSectionRepository.findByBook_IdOrderBySortOrderAsc(bookId);
-            for (BookSection s : sections) {
-                if (s.getStartPage() != null && s.getEndPage() != null
-                        && currentPdfPage >= s.getStartPage() && currentPdfPage <= s.getEndPage()) {
-                    chapterTitle = s.getTitle();
-                    break;
-                }
-            }
-        }
-
-        double progress = totalPages > 0
-                ? Math.min(100.0, Math.round(((double) page / totalPages) * 10000.0) / 100.0)
-                : 0.0;
-
-        return new ReaderPageResponse(
-                bookId,
-                book.getTitle(),
-                page,
-                totalPages,
-                wordsPerPage,
-                wordCountOnPage,
-                startWord,
-                Math.min(endWord, (long) totalWords),
-                totalWords,
-                progress,
-                chapterTitle,
-                currentPdfPage,
-                contentBuilder.toString().trim(),
-                page == 1,
-                page >= totalPages,
-                page < totalPages,
-                page > 1
-        );
+    @Override
+    public com.doova.ktab.dto.book.BookSectionContentResponse getSectionContent(Long bookId, Long sectionId) {
+        return bookExtractionQueryService.getSectionContent(bookId, sectionId);
     }
 
 

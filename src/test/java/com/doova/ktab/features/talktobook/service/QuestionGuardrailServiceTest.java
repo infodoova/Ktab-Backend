@@ -1,6 +1,7 @@
 package com.doova.ktab.features.talktobook.service;
 
 import com.doova.ktab.features.talktobook.dto.GuardrailDecision;
+import com.doova.ktab.features.talktobook.enums.QueryIntent;
 import com.doova.ktab.features.talktobook.service.impl.QuestionGuardrailServiceImpl;
 import com.doova.ktab.model.book.Book;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +40,31 @@ class QuestionGuardrailServiceTest {
         testBook = new Book();
         testBook.setId(10L);
         testBook.setTitle("رواية اللص والكلاب");
+    }
+
+    @Test
+    void authorNameQuestionIsInScopeWithoutAClassifierCall() {
+        GuardrailDecision decision = guardrailService.evaluate(testBook,
+                "what is the name of the author of this books");
+        assertThat(decision.allowed()).isTrue();
+        assertThat(decision.intent()).isEqualTo(QueryIntent.PINPOINT);
+        org.mockito.Mockito.verifyNoInteractions(chatModel);
+    }
+
+    @Test
+    void aiClassifiesShortAndMisspelledBookSummaryCommands() {
+        var response = new org.springframework.ai.chat.model.ChatResponse(java.util.List.of(
+                new org.springframework.ai.chat.model.Generation(
+                        new org.springframework.ai.chat.messages.AssistantMessage(
+                                "{\"allowed\":true,\"intent\":\"MACRO_SUMMARY\",\"reason\":\"OK\"}"))));
+        when(chatModel.call(any(org.springframework.ai.chat.prompt.Prompt.class))).thenReturn(response);
+        for (String question : java.util.List.of("لخص", "لخّص لي هذا الكتاب", "summarize", "summarize this book", "sammurize .")) {
+            GuardrailDecision decision = guardrailService.evaluate(testBook, question);
+            assertThat(decision.allowed()).as(question).isTrue();
+            assertThat(decision.intent()).as(question).isEqualTo(QueryIntent.MACRO_SUMMARY);
+        }
+        org.mockito.Mockito.verify(chatModel, org.mockito.Mockito.times(5))
+                .call(any(org.springframework.ai.chat.prompt.Prompt.class));
     }
 
     @Test

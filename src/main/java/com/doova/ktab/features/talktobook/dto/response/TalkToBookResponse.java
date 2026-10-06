@@ -42,7 +42,7 @@ public record TalkToBookResponse(
         @Schema(description = "Whether this answer was served from the cache")
         boolean cached,
 
-        @Schema(description = "Source origin: CACHED, INTERNAL_RAG, WEB_AUGMENTED, or REJECTED_OFF_TOPIC")
+        @Schema(description = "Source origin: CACHED, BOOK_METADATA, INTERNAL_RAG, WEB_AUGMENTED, or REJECTED_OFF_TOPIC")
         String source,
 
         @Schema(description = "Total times this or semantically similar question has been asked")

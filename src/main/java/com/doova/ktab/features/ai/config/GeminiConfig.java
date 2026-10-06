@@ -30,10 +30,16 @@ public class GeminiConfig {
     @Value("${spring.ai.vertex.ai.gemini.project-id:${GCP_PROJECT_ID:ktab-prod}}")
     private String projectId;
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GeminiConfig.class);
+
     private GoogleCredentials getCredentials() throws IOException {
         if (credentialsBase64 != null && !credentialsBase64.isBlank()) {
-            byte[] decoded = java.util.Base64.getDecoder().decode(credentialsBase64.trim());
-            return GoogleCredentials.fromStream(new java.io.ByteArrayInputStream(decoded));
+            try {
+                byte[] decoded = java.util.Base64.getDecoder().decode(credentialsBase64.trim());
+                return GoogleCredentials.fromStream(new java.io.ByteArrayInputStream(decoded));
+            } catch (Exception e) {
+                log.warn("Failed to load Google credentials from GCP_CREDENTIALS_BASE64: {}. Falling back to alternative credentials.", e.getMessage());
+            }
         }
         if (credentialsResource != null && credentialsResource.exists()) {
             return GoogleCredentials.fromStream(credentialsResource.getInputStream());
