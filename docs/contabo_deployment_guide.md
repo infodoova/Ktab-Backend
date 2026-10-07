@@ -85,6 +85,8 @@ Run:
 sudo bash scripts/vps_setup.sh
 ```
 
+This is for a **new** server. On a server that already runs Ktab the script refuses to run (it restarts Docker, which restarts every container, and could change the firewall); to update such a server use `scripts/deploy.sh`. If an active firewall is already configured it keeps its rules and only makes sure ports 22, 80 and 443 are open, and Docker is restarted only when its log settings actually change. It also installs `openssl` (used to generate keys). `SWAP_GB=8 sudo -E bash scripts/vps_setup.sh` changes the swap size.
+
 ### Allow running Docker without `sudo` (Recommended)
 After the setup script finishes, add your user to the docker group so you don't need `sudo` for every Docker command:
 ```bash
@@ -95,6 +97,8 @@ newgrp docker
 ---
 
 ## Step 4: Configure Your Environment Variables
+
+> **Already running an older version?** Do not recreate `.env.production`. Follow [Updating a server that already runs an older version](#-updating-a-server-that-already-runs-an-older-version) instead, which merges the new variables into the file you already have.
 
 Create or edit your `.env.production` file on the VPS:
 
@@ -308,15 +312,18 @@ bash scripts/deploy.sh
 ```
 
 This script will:
-1. Build the multi-stage Docker image with Java 21 and fonts for PDFBox.
-2. Launch `ktab-db` (PostgreSQL 17), verify its healthcheck, and mount `postgres_data`.
-3. Launch `ktab-app`, execute every pending Flyway migration (`V1` through `V35`, including all genres and subgenres).
-4. Launch `ktab-nginx` reverse proxy.
-5. Prune dangling Docker build artifacts.
+1. **Check `.env.production`**: it exists, has Linux line endings, and `DB_PASSWORD` and `JWT_SECRET` are set (not empty, not the `__KEEP_EXISTING_VALUE_FROM_THE_SERVER__` placeholder). It also prints which features are switched on and warns about a missing `CORS_ALLOWED_ORIGINS` or `QSTASH_VERIFY_SIGNATURE` that is not `true`.
+2. **Pull the latest code** (`git pull --rebase`). If the pull fails the deploy **stops**: it never builds old code without telling you.
+3. **Back up the database** (when it is running) with `scripts/backup_db.sh`, and stop if the backup fails.
+4. **Build the new image while the old version keeps serving** (Java 21, Chromium, ffmpeg, fonts), then start `ktab-db`, `ktab-app` and `ktab-nginx`, recreating only what changed.
+5. **Wait up to 5 minutes for `ktab-app` to be healthy.** On the first start Flyway runs every pending migration (`V1` through `V35`, including all genres and subgenres). If the app is not healthy in time the script prints the last log lines and exits with an error.
+6. Print the Flyway version the database is now at, prune dangling Docker images and show the container status.
+
+Options: `--no-backup` (skip step 3, not recommended), `--no-pull` (deploy the files exactly as they are on the server). Slow-start servers can raise the wait with `DEPLOY_WAIT_RETRIES` (polls of `DEPLOY_WAIT_SLEEP` seconds, default 50 x 6).
 
 > **Permission denied on Docker?** Run `sudo bash scripts/deploy.sh` or add your user to the docker group (see Step 3).
 
-> **Downtime.** `deploy.sh` stops the containers and starts them again, so the API is unavailable for roughly a minute while the app starts. Storybook jobs that were running are picked up again after the restart.
+> **Downtime.** The image is built **before** anything is stopped, so the old version keeps serving during the build. The API is unavailable only while `ktab-app` is replaced and restarts, usually about a minute, longer when new migrations have to run. Storybook jobs that were running are picked up again after the restart.
 
 > **Migrations and checksums.** Flyway records a checksum of every migration it has applied and refuses to start if an applied file is edited. Never edit a `V*.sql` file that has already run in production: add a new, higher-numbered one instead.
 
@@ -392,7 +399,7 @@ docker compose --env-file .env.production restart
 ```
 
 ### 3. Deploy Updates / Rebuild After Code Changes
-Take a backup first: new releases can add or change tables, and a migration cannot be undone by deploying the old code.
+When a release adds environment variables, merge them first with `scripts/merge_env.sh` (see [Updating a server that already runs an older version](#-updating-a-server-that-already-runs-an-older-version)). Take a backup first: new releases can add or change tables, and a migration cannot be undone by deploying the old code.
 ```bash
 cd ~/Ktab-Backend
 bash scripts/backup_db.sh
@@ -410,7 +417,7 @@ To take an instant gzipped PostgreSQL backup on the VPS:
 ```bash
 bash ~/Ktab-Backend/scripts/backup_db.sh
 ```
-*Backups are saved to `~/Ktab-Backend/backups/` and automatically rotated (retaining the last 7 days).*
+*Backups are saved to `~/Ktab-Backend/backups/` and automatically rotated (retaining the last 7 days; set `RETENTION_DAYS=14` to keep longer). Each backup is checked after it is written: a corrupt or empty one is deleted and the script fails, so a bad file is never kept as if it were good. `deploy.sh` and `restore_db.sh` run this script for you before they change anything.*
 
 To schedule **daily automated backups at 3:00 AM**, add this to crontab (`crontab -e`):
 ```cron
@@ -436,6 +443,70 @@ To schedule **daily automated backups at 3:00 AM**, add this to crontab (`cronta
    bash scripts/restore_db.sh backups/ktab_backup.sql
    ```
    *The script restores all tables/data into `ktab-db` and automatically restarts `ktab-app` to refresh connections.*
+
+---
+
+## 🔄 Updating a server that already runs an older version
+
+Use this when Ktab is **already live** on the VPS. The server has its own `.env.production` (with the real database password and JWT secret) and a database full of data. **Do not recreate the env file and do not copy a new one over it:** a different `DB_PASSWORD` stops the app from reaching the existing database, and a different `JWT_SECRET` logs every user out.
+
+### 1. Find out where the server is now
+```bash
+cd ~/Ktab-Backend
+git log -1 --format='%h %ad %s' --date=short        # the version the code is at
+docker exec ktab-db psql -U ktab_user -d ktab -c "select version, description, success from flyway_schema_history order by installed_rank desc limit 3;"
+```
+The second command shows the last migration that ran. Every migration after it (up to `V35`) will run on the next start. All of them should say `success = t`. If one says `f`, stop and fix that first.
+
+### 2. Back up first
+```bash
+bash scripts/backup_db.sh
+```
+Copy the file in `backups/` off the VPS (for example with `scp` to your computer). A migration cannot be undone by deploying old code.
+
+### 3. Merge the new variables into the live file
+On your computer, `.env.production` was built from the local `.env`. Send it to the server under a **different name**:
+```powershell
+scp .env.production ktabadmin@<YOUR_CONTABO_VPS_IP>:~/Ktab-Backend/.env.production.new
+```
+On the VPS, merge it. The script (`scripts/merge_env.sh`) keeps every value already set in the live file, appends only the variables that are missing, backs the live file up first, and prints variable **names only**, never values:
+```bash
+bash scripts/merge_env.sh
+```
+Read the report:
+
+| Section of the report | What to do |
+|---|---|
+| **ADDED** | New variables for features the older version did not have. Nothing to do, but check the values make sense for the server |
+| **DIFFERENT, live value kept** | The server already has a value and the new file has another. Decide one by one. Keep the server's value for `DB_*`, `JWT_SECRET` (keeping it keeps users logged in) and the API keys. Look closely at `CORS_ALLOWED_ORIGINS` (must list your real frontends), `COOKIE_SAME_SITE`, `APP_BASE_URL`, `KTAB_PUBLIC_BASE_URL` and `FRONTEND_URL` |
+| **ONLY IN THE LIVE FILE** | Variables the new version does not read, for example `MAIL_USERNAME` and `MAIL_PASSWORD` (email now uses `ZEPTOMAIL_*`). Harmless; remove them once email works |
+| **MUST BE SET BY YOU** | Exits with an error. Set those variables in the live file, then run the merge again |
+
+To switch a variable to the new file's value, name it with `--take`. Two that are worth taking if the server has the unsafe value:
+```bash
+bash scripts/merge_env.sh .env.production .env.production.new --take QSTASH_VERIFY_SIGNATURE,KTAB_STORYBOOK_CREDITS_REQUIRED
+```
+`QSTASH_VERIFY_SIGNATURE` should be `true` in production. `KTAB_STORYBOOK_MAX_BOOK_COST_USD` is the spend cap per storybook; set it to a value you are comfortable with. Afterwards delete `.env.production.new` from the VPS and from your computer: it holds live secrets.
+
+### 4. Deploy
+```bash
+git pull origin master
+bash scripts/deploy.sh
+```
+`deploy.sh` builds the new image first (a few minutes the first time, because the image now includes Chromium and ffmpeg) while the old version keeps serving, then replaces `ktab-app`. The API is **unavailable for about a minute, longer while new migrations run**. Pick a quiet time. The script already takes a database backup first (step 2 above is still worth doing by hand so you can copy the file off the server). Watch the migrations run:
+```bash
+docker compose --env-file .env.production logs -f ktab-app
+```
+`Successfully applied N migrations` means the database is up to date.
+
+### 5. Check it
+Follow Step 6 (Flyway version `35`, health, the public endpoints), then log in with an existing account to confirm that sessions and data are intact. If something goes wrong, see "Rolling back" below; the backup from step 2 is what makes that possible.
+
+### Things that are different from a fresh install
+- **Existing books and storybooks keep working.** Older storybook images keep serving the full PNG; only new images get the smaller copy.
+- **The old `/api/...` paths for OCR, ingestion, structure and studio keep answering** (next to `/api/v1/...`), but their responses now use the standard `ApiResponse` envelope. Update anything that calls them (a dashboard, a script) at the same time.
+- **New columns and tables only add.** Nothing existing is dropped or renamed, so the older code could still run on the new database if you had to roll the code back.
+- **Features stay off until you switch them on.** If the old `.env.production` had no `KTAB_STORYBOOK_ENABLED`, `KTAB_TRAILER_ENABLED` or `KTAB_OCR_ENABLED`, the merge adds the values from your local `.env`, so check that those three say what you want on the server.
 
 ---
 
@@ -514,7 +585,9 @@ Notes:
 | Website calls fail with a CORS error | `CORS_ALLOWED_ORIGINS` still has only the localhost defaults | Set it to the real website addresses (4.2) |
 | Login works but the browser keeps asking to log in again | The website and the API are on different sites and the cookie is dropped | Serve both under the same site (`ktab.app` and `api.ktab.app`), or `COOKIE_SAME_SITE=None` (Safari may still refuse) |
 | OCR endpoints answer **409** "OCR is disabled" | `KTAB_OCR_ENABLED` is `false` | Set it to `true` when you want OCR to run |
-| PDF upload answers **413** from Nginx | The PDF is larger than Nginx's `client_max_body_size` (100 MB) | Raise it in `nginx/conf.d/ktab.conf` and `scripts/setup_ssl.sh`, and keep `KTAB_EXTRACTION_MAX_UPLOAD_BYTES` in step |
+| PDF upload answers **413** from Nginx | The PDF is larger than Nginx's `client_max_body_size` (100 MB) | Run `sudo CLIENT_MAX_BODY_SIZE=220M bash scripts/setup_ssl.sh api.ktab.app <email>`, and keep `KTAB_EXTRACTION_MAX_UPLOAD_BYTES` in step |
+| `deploy.sh` stops with "git pull failed" | Local changes on the server block the pull, most often `nginx/conf.d/ktab.conf` rewritten by `setup_ssl.sh` | Follow "Update an existing server's Nginx" in Nginx notes, or deploy the files as they are with `bash scripts/deploy.sh --no-pull` |
+| `deploy.sh` stops with ".env.production has Windows line endings" or a missing `DB_PASSWORD` or `JWT_SECRET` | The file was edited on Windows, or a value is empty or still the placeholder | `sed -i 's/\r$//' .env.production`, and set the missing variable |
 | Storybook illustrations or other Google AI calls fail, nothing else is wrong | No Google credential (`Failed to load Google credentials` in the log) | Set `GCP_CREDENTIALS_BASE64` or `GEMINI_API_KEY` (4.5) |
 | Storybook stays on "illustrating" | A job died, or the book is waiting for a person | Wait one stall-recovery cycle (5 min). Then look for `is dead` in the log. Pages flagged by the checker wait for an admin in `GET /api/v1/admin/storybook/flagged-pages` |
 | Trailer fails at the end with `ffprobe unavailable` | `ffprobe` is missing in the app container | Rebuild the image from the current `Dockerfile` (it installs `ffmpeg`) and check with `docker exec ktab-app ffprobe -version` |
@@ -529,7 +602,7 @@ Notes:
 ## ⏪ Rolling back
 
 - **Code only.** Migrations `V31` to `V35` only add tables, columns and constraints, so older code runs fine against the newer database. To go back: `git checkout <previous-commit-or-tag>` then `bash scripts/deploy.sh`. (`deploy.sh` runs `git pull --rebase` first when the branch tracks a remote; stay on a branch that points where you want, or deploy from a detached checkout by running the `docker compose --env-file .env.production up -d --build` line yourself.)
-- **Code and data.** Restore the backup you took before the deploy: `bash scripts/restore_db.sh backups/<file>`. Everything written after the backup is lost, including new storybooks, trailers and early-access signups.
+- **Code and data.** Restore the backup you took before the deploy: `bash scripts/restore_db.sh backups/<file>`. The script first takes a safety backup of what is there now (so the restore itself can be undone), stops `ktab-app` while the data is replaced, restores, and starts the app again. Everything written after the backup is lost, including new storybooks, trailers and early-access signups.
 - Files in R2 are not part of the database backup. A restored database may point at files that were deleted in the meantime (the nightly orphan sweep deletes the files of storybooks that are not in the database).
 
 ---
@@ -617,7 +690,7 @@ The limiter reads the real visitor IP from `X-Forwarded-For` / `X-Real-IP`, whic
 - **`scripts/setup_ssl.sh` rewrites `nginx/conf.d/ktab.conf`.** It writes the whole file from a template, so a manual edit to `ktab.conf` is lost the next time the script runs. Make every Nginx change in **both** places: `nginx/conf.d/ktab.conf` and the matching block in `scripts/setup_ssl.sh`.
 - **Upload size** is `client_max_body_size 100M`. See the warning in Step 4.8 about PDFs between 100 MB and 200 MB.
 - **Timeouts** are 300 s for reading and sending. A request that runs longer ends with `504`. The slow features (storybooks, trailers, OCR) run in the background, so this only matters for a long synchronous AI call.
-- **Streamed answers.** `POST /api/v1/conclusion/stream` streams text to the browser (server-sent events). With `proxy_buffering on`, Nginx holds the stream back and the browser receives it in large lumps or all at the end. To stream properly, add this block **inside the `server { ... }` of both files, above `location / {`**, and reload with `docker compose --env-file .env.production restart ktab-nginx`:
+- **Streamed answers.** `POST /api/v1/conclusion/stream` streams text to the browser (server-sent events). With `proxy_buffering on`, Nginx would hold the stream back and the browser would receive it in large lumps or all at the end. **The repository now handles this**: `nginx/conf.d/ktab.conf` and the HTTPS template in `scripts/setup_ssl.sh` both contain a `location = /api/v1/conclusion/stream` block with `proxy_buffering off`. On a server that already has HTTPS, apply it with the command in "Update an existing server's Nginx" below. For reference, the block is:
   ```nginx
   location = /api/v1/conclusion/stream {
       proxy_pass http://ktab-app:8080;
@@ -631,7 +704,14 @@ The limiter reads the real visitor IP from `X-Forwarded-For` / `X-Real-IP`, whic
       proxy_read_timeout 300s;
   }
   ```
-  This has not been applied to the repository's Nginx files.
+- **Update an existing server's Nginx.** On a server where `scripts/setup_ssl.sh` was run, `nginx/conf.d/ktab.conf` has been **rewritten on the server** (it holds the HTTPS configuration), which makes it differ from the version in git. That blocks `git pull` (and `deploy.sh` stops with a message saying so). Put the repository version back, pull, and write the HTTPS file again; the certificate is kept and there is no downtime for a certificate that is still valid:
+  ```bash
+  cd ~/Ktab-Backend
+  git checkout -- nginx/conf.d/ktab.conf
+  git pull --rebase
+  sudo bash scripts/setup_ssl.sh api.ktab.app admin@ktab.app
+  ```
+  `setup_ssl.sh` keeps the old file as `nginx/ktab.conf.bak-<time>` and checks the new configuration with `nginx -t` before it finishes. To also allow PDFs larger than 100 MB, run it as `sudo CLIENT_MAX_BODY_SIZE=220M bash scripts/setup_ssl.sh api.ktab.app admin@ktab.app`.
 - **Public endpoints that must stay reachable** from outside, with no login: `/api/v1/internal/ocr/process` (QStash), `/api/v1/public/trailer-agent/webhook` and `/api/v1/public/trailer-agent/higgsfield/callback` (trailers), and the `/api/v1/public/...` catalog and early-access endpoints. Do not add IP allow-lists or basic auth in front of them.
 
 ---
@@ -678,9 +758,11 @@ sudo bash ~/Ktab-Backend/scripts/setup_ssl.sh api.ktab.app admin@ktab.app
 This automated script:
 - Requests a verified Let's Encrypt certificate for `api.ktab.app`
 - Configures Nginx with HTTP-to-HTTPS redirect (301)
-- Enables HTTP/2, modern TLS 1.2/1.3 ciphers, and 100M upload limits
+- Enables HTTP/2, modern TLS 1.2/1.3 ciphers, and a 100M upload limit (`CLIENT_MAX_BODY_SIZE=220M sudo -E bash scripts/setup_ssl.sh ...` raises it)
+- Adds the non-buffered block for the streamed conclusion endpoint
 - Sets up an automatic certificate renewal hook
-- Restarts `ktab-nginx`
+- Restarts `ktab-nginx` and checks the configuration with `nginx -t`
+- Is safe to run again: a certificate with more than 30 days left is kept (no downtime), the previous `ktab.conf` is saved as `nginx/ktab.conf.bak-<time>`
 
 ---
 
