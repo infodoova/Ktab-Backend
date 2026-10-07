@@ -156,7 +156,6 @@ class StorybookFromScratchLiveIT {
         // No blueprintKey: the structure comes from these inputs alone.
         CreateStorybookRequest request = new CreateStorybookRequest(
                 profile.getId(),
-                null,
                 List.of(Interest.BOOKS, Interest.SPACE),
                 new CompanionSpec(CompanionSpec.CompanionType.PARROT, "زمرد", null, CompanionSpec.PetColor.GREEN),
                 StorySetting.AMMAN,

@@ -71,4 +71,6 @@ replay_pid*
 backups/
 *.sql.gz
 *.sql.dump
+scratch/
+session-events*.json
 

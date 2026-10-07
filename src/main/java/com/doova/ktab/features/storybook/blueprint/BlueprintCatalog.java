@@ -71,7 +71,7 @@ public class BlueprintCatalog {
             throw new IllegalStateException("Blueprint " + b.key() + " must have beat orders 1..15");
         }
         for (BlueprintBeat beat : b.beats()) {
-            if (!Blueprint.PAGE_COUNTS.contains(beat.minPageCount())) {
+            if (!Blueprint.BEAT_THRESHOLDS.contains(beat.minPageCount())) {
                 throw new IllegalStateException("Blueprint " + b.key() + " beat " + beat.order()
                         + " has minPageCount " + beat.minPageCount() + "; use 10, 12 or 15");
             }

@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping("/stories")
+@RequestMapping(path = "/stories", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Interactive Story Authoring API", description = "Endpoints for creating and managing AI-driven interactive story definitions.")
 public class StoryController {

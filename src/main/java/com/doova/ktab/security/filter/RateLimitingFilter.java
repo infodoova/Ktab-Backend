@@ -99,7 +99,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         // Authentication & Credential-sensitive endpoints
-        if (path.startsWith("/api/v1/auth/")) {
+        if (path.startsWith("/api/v1/auth/") || path.startsWith("/api/v1/public/early-access")) {
             return RateLimitTier.AUTH;
         }
 

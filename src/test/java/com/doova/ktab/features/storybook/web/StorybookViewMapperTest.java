@@ -55,4 +55,49 @@ class StorybookViewMapperTest {
         assertThat(detail.pageRegenerationsLeft()).isEqualTo(3);
         assertThat(detail.characterSheetUrl()).isNull();
     }
+
+    @Test
+    void toSummary_withCoverImageUrl_returnsPopulatedSummary() {
+        Storybook book = new Storybook();
+        book.setId(42L);
+        book.setTitleAr("سِرُّ الْبَحْرِ");
+        book.setStatus(StorybookStatus.READY);
+        book.setPageCount(16);
+        book.setTashkeelLevel(TashkeelLevel.FULL);
+        book.setInputs(new StoryInputs("سامي", ChildGender.BOY, AgeBand.AGE_6_8, StoryFixtures.APPEARANCE,
+                List.of(), null, null, null));
+
+        com.doova.ktab.features.storybook.web.dto.StorybookSummary summary =
+                mapper.toSummary(book, "https://signed/cover.png");
+
+        assertThat(summary.id()).isEqualTo(42L);
+        assertThat(summary.titleAr()).isEqualTo("سِرُّ الْبَحْرِ");
+        assertThat(summary.childNameAr()).isEqualTo("سامي");
+        assertThat(summary.status()).isEqualTo(StorybookStatus.READY);
+        assertThat(summary.pageCount()).isEqualTo(16);
+        assertThat(summary.coverImageUrl()).isEqualTo("https://signed/cover.png");
+    }
+
+    @Test
+    void resolveCoverImageUrl_pageWithImage_returnsSignedUrl() {
+        StorybookPage coverPage = new StorybookPage();
+        StorybookPageImage image = new StorybookPageImage();
+        image.setImageKey("covers/book42.png");
+        coverPage.setCurrentImage(image);
+
+        when(storage.getFileUrl("covers/book42.png", UrlStrategy.SIGNED)).thenReturn("https://signed/covers/book42.png");
+
+        String url = mapper.resolveCoverImageUrl(coverPage);
+
+        assertThat(url).isEqualTo("https://signed/covers/book42.png");
+    }
+
+    @Test
+    void resolveCoverImageUrl_pageWithoutImage_returnsNull() {
+        StorybookPage coverPage = new StorybookPage();
+        coverPage.setCurrentImage(null);
+
+        assertThat(mapper.resolveCoverImageUrl(coverPage)).isNull();
+        assertThat(mapper.resolveCoverImageUrl(null)).isNull();
+    }
 }

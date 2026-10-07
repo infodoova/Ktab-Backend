@@ -14,13 +14,17 @@ import com.doova.ktab.features.storybook.orchestrator.StepHandler;
 import com.doova.ktab.features.storybook.orchestrator.StepOutcome;
 import com.doova.ktab.features.storybook.storage.StorybookAssetStore;
 import com.doova.ktab.features.storybook.storage.StorybookKeys;
+import com.doova.ktab.features.storybook.config.StorybookProperties;
+import com.doova.ktab.features.storybook.image.ImageDownscaler;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class PageIllustrationHandler implements StepHandler {
 
     private final ImageProvider images;
@@ -29,6 +33,7 @@ public class PageIllustrationHandler implements StepHandler {
     private final AiCallLedger ledger;
     private final StyleReferences styles;
     private final ModelSelector models;
+    private final StorybookProperties properties;
 
     @Override
     public JobStep step() {
@@ -39,6 +44,10 @@ public class PageIllustrationHandler implements StepHandler {
     public StepOutcome handle(StorybookJob job) {
         int generation = job.getGeneration();
         PageContext ctx = persistence.pageContext(job.getStorybookId(), job.getPageIndex(), generation);
+        if (ctx.status() == StorybookStatus.FAILED) {
+            // Not "success": that would strand the page, because resume only revives dead jobs.
+            return StepOutcome.fail("book is FAILED; this step reruns when it is resumed");
+        }
         if (ctx.status() != StorybookStatus.ILLUSTRATING || ctx.pageGeneration() != generation) {
             return StepOutcome.success();
         }
@@ -50,6 +59,7 @@ public class PageIllustrationHandler implements StepHandler {
         String model = models.modelFor(generation - ctx.roundStartGeneration() + 1);
         String key = StorybookKeys.pageImage(ctx.bookId(), ctx.pageIndex(), generation);
         BigDecimal cost = BigDecimal.ZERO;
+        byte[] generated = null;
         if (!store.exists(key)) {
             boolean hasCompanion = ctx.companionSheetKey() != null;
             // A model takes only so many reference images (four for the cheaper one, five for Pro). Who must be recognisable on this
@@ -98,8 +108,31 @@ public class PageIllustrationHandler implements StepHandler {
             ImageResult result = images.generate(new ImageRequest(model, prompt, references));
             cost = ledger.recordImage(ctx.bookId(), job.getId(), "IMAGE_PAGE", result);
             store.put(key, result.bytes(), result.mimeType());
+            generated = result.bytes();
         }
-        persistence.savePageImage(ctx.bookId(), ctx.pageId(), ctx.pageIndex(), generation, key, model, cost);
+        String webKey = writeWebCopy(ctx.bookId(), ctx.pageIndex(), generation, key, generated);
+        persistence.savePageImage(ctx.bookId(), ctx.pageId(), ctx.pageIndex(), generation, key, webKey, model, cost);
         return StepOutcome.success();
+    }
+
+    /**
+     * Stores the JPEG copy that readers load (the PNG is several MB). Never fails the page: a copy that cannot be made
+     * leaves the key null and readers fall back to the original. {@code generated} is null when the original was
+     * already stored by an earlier attempt, so it is read back.
+     */
+    private String writeWebCopy(Long bookId, int pageIndex, int generation, String originalKey, byte[] generated) {
+        String webKey = StorybookKeys.pageImageWeb(bookId, pageIndex, generation);
+        try {
+            if (!store.exists(webKey)) {
+                byte[] original = generated != null ? generated : store.get(originalKey);
+                byte[] jpeg = ImageDownscaler.toJpeg(original, properties.getImage().getWebMaxSidePx());
+                store.put(webKey, jpeg, "image/jpeg");
+            }
+            return webKey;
+        } catch (RuntimeException e) {
+            log.warn("storybook {} page {} g{}: no web copy made, readers will get the original: {}",
+                    bookId, pageIndex, generation, e.toString());
+            return null;
+        }
     }
 }

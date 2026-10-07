@@ -14,10 +14,16 @@ import java.util.Optional;
 public interface StorybookRepository extends JpaRepository<Storybook, Long> {
     Optional<Storybook> findByIdAndOwner_Id(Long id, Long ownerId);
 
+    @Query("select b.id from Storybook b where b.status = :status")
+    List<Long> findIdsByStatus(@Param("status") com.doova.ktab.features.storybook.enums.StorybookStatus status);
+
     /** Serializes book-level status advancement when several page jobs finish at once (sub-plan 05). */
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Storybook b where b.id = :id")
     Optional<Storybook> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("select b from Storybook b join fetch b.owner where b.id = :id")
+    Optional<Storybook> findByIdWithOwner(@Param("id") Long id);
 
     List<Storybook> findByOwner_IdOrderByCreatedAtDesc(Long ownerId);
 

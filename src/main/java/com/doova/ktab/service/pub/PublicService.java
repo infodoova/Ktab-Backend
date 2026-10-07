@@ -24,6 +24,21 @@ public interface PublicService {
     PageResponse<BookCoverResponse> getBookCovers(int page, int size);
 
     /**
+     * Cover image URLs only, of the best-rated published books that have at least one review.
+     *
+     * @param limit how many to return (1 to 50)
+     */
+    List<String> getTopReviewedCoverImages(int limit);
+
+    /**
+     * Cover image URLs only, of the published books, newest first.
+     *
+     * @param page zero-based page index
+     * @param size number of books per page (1 to 200)
+     */
+    PageResponse<String> getCoverImages(int page, int size);
+
+    /**
      * Returns the user-registration roles available for public signup
      * (Author and Reader only).
      *

@@ -2,6 +2,8 @@ package com.doova.ktab.features.tts.ws;
 
 import com.doova.ktab.dto.book.TextRangeResponse;
 import com.doova.ktab.dto.*;
+import com.doova.ktab.features.extraction.BookExtractionQueryService;
+import com.doova.ktab.dto.book.ReaderPageResponse;
 import com.doova.ktab.features.tts.dto.TextChunk;
 import com.doova.ktab.features.tts.dto.TtsStreamChunk;
 import com.doova.ktab.features.tts.dto.TtsWsChunkMessage;
@@ -45,6 +47,7 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
 
     private final ElevenLabsTimestampTtsService elevenLabsTts;
     private final BookTextService bookTextService;
+    private final BookExtractionQueryService bookExtractionQueryService;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
@@ -160,12 +163,43 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
 
         try {
 
-            TextRangeResponse mainText = bookTextService.getTextByWordRange(params.bookId(), params.start(), params.end());
-            log.info("--- WS_TEXT_FETCHED sid={} textLen={}", sid, mainText.text().length());
+            String textToSpeak = null;
 
-            List<TextChunk> chunksForV3 = ElevenLabsV3TextChunker.chunk(mainText.text(), mainText.startChar());
+            // 1. Direct text supplied by client (the authentic page text visible to user right now)
+            if (params.text() != null && !params.text().isBlank()) {
+                textToSpeak = params.text();
+            }
 
-            log.info("WS_TTS_RANGE sid={} bookId={} start={} end={} chunksCount={}", sid, params.bookId(), params.start(), params.end(), chunksForV3.size());
+            // 2. Direct page request from BookExtractionQueryService (strictly body pages, skipping front matter and prefaces)
+            if ((textToSpeak == null || textToSpeak.isBlank()) && params.page() != null && params.page() > 0) {
+                int wpp = params.wordsPerPage() != null && params.wordsPerPage() > 0 ? params.wordsPerPage() : 80;
+                ReaderPageResponse pageResp = bookExtractionQueryService.getReaderPage(params.bookId(), params.page(), wpp);
+                if (pageResp != null && pageResp.content() != null && !pageResp.content().isBlank()) {
+                    textToSpeak = pageResp.content();
+                }
+            }
+
+            // 3. Fallback: derive page from startWord offset using BookExtractionQueryService
+            if (textToSpeak == null || textToSpeak.isBlank()) {
+                int wpp = params.wordsPerPage() != null && params.wordsPerPage() > 0 ? params.wordsPerPage() : 80;
+                int calcPage = Math.max(1, (params.start() / wpp) + 1);
+                ReaderPageResponse pageResp = bookExtractionQueryService.getReaderPage(params.bookId(), calcPage, wpp);
+                if (pageResp != null && pageResp.content() != null && !pageResp.content().isBlank()) {
+                    textToSpeak = pageResp.content();
+                }
+            }
+
+            // 4. Final safety fallback to BookTextService
+            if (textToSpeak == null || textToSpeak.isBlank()) {
+                TextRangeResponse mainText = bookTextService.getTextByWordRange(params.bookId(), params.start(), params.end());
+                textToSpeak = mainText.text();
+            }
+
+            log.info("--- WS_TEXT_FETCHED sid={} textLen={}", sid, textToSpeak.length());
+
+            List<TextChunk> chunksForV3 = ElevenLabsV3TextChunker.chunk(textToSpeak, 0);
+
+            log.info("WS_TTS_RANGE sid={} bookId={} page={} start={} end={} chunksCount={}", sid, params.bookId(), params.page(), params.start(), params.end(), chunksForV3.size());
 
 
             if (chunksForV3.isEmpty()) {

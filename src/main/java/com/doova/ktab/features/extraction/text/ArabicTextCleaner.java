@@ -28,6 +28,11 @@ public class ArabicTextCleaner {
     private static final Pattern BLANK_RUNS = Pattern.compile("\\n{3,}");
     /** The same tashkeel mark twice in a row, which no Arabic text has: fake-bold overprinting in the source PDF. */
     private static final Pattern DUPLICATE_MARK = Pattern.compile("([\\u064B-\\u0652\\u0670])\\1+");
+    /** An unmappable glyph (U+FFFD) sitting between an Arabic letter and a diacritic, or right after a diacritic inside a word. */
+    private static final Pattern STRAY_REPLACEMENT = Pattern.compile(
+            "(?<=[\\u0621-\\u064A])\\uFFFD+(?=[\\u064B-\\u0652\\u0670\\u0640])|(?<=[\\u064B-\\u0652\\u0670\\u0640])\\uFFFD+(?=[\\u0621-\\u064A])");
+    /** Kashida (tatweel) is justification padding, not text. */
+    private static final Pattern TATWEEL = Pattern.compile("\\u0640+");
 
     public List<PageContent> clean(List<PageContent> pages, BookMetadata metadata) {
         Set<String> chrome = repeatedEdgeLines(pages);
@@ -70,7 +75,7 @@ public class ArabicTextCleaner {
                 text.append(lines.get(i)).append('\n');
             }
         }
-        return new PageContent(page.pdfPage(), page.rawText(), collapseDuplicateMarks(collapseWhitespace(text.toString())), label, header,
+        return new PageContent(page.pdfPage(), page.rawText(), repairArtifacts(collapseDuplicateMarks(collapseWhitespace(text.toString()))), label, header,
                 page.lines(), false);
     }
 
@@ -126,6 +131,15 @@ public class ArabicTextCleaner {
      */
     public static String collapseDuplicateMarks(String text) {
         return text == null ? null : DUPLICATE_MARK.matcher(text).replaceAll("$1");
+    }
+
+    /** Removes stray U+FFFD inside Arabic words (next to a diacritic) and kashida; letters and diacritics are never changed. */
+    public static String repairArtifacts(String text) {
+        if (text == null) {
+            return null;
+        }
+        String repaired = STRAY_REPLACEMENT.matcher(text).replaceAll("");
+        return TATWEEL.matcher(repaired).replaceAll("");
     }
 
     /** Only runs of spaces and blank lines change: letters and diacritics are untouched. */

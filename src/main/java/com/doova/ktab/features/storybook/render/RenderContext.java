@@ -8,5 +8,12 @@ import java.util.Map;
 
 public record RenderContext(Long bookId, StorybookStatus status, String titleAr, String childNameAr, String dedication,
                             TashkeelLevel level, List<RenderModelFactory.PageSource> pages,
-                            Map<Integer, String> imageKeysByPageIndex) {
+                            Map<Integer, String> imageKeysByPageIndex, Map<Integer, String> webImageKeysByPageIndex) {
+
+    /** Without web copies: the reader then serves the originals. */
+    public RenderContext(Long bookId, StorybookStatus status, String titleAr, String childNameAr, String dedication,
+                         TashkeelLevel level, List<RenderModelFactory.PageSource> pages,
+                         Map<Integer, String> imageKeysByPageIndex) {
+        this(bookId, status, titleAr, childNameAr, dedication, level, pages, imageKeysByPageIndex, Map.of());
+    }
 }

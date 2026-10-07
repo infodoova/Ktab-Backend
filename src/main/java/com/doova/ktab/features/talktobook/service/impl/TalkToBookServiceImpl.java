@@ -10,6 +10,7 @@ import com.doova.ktab.features.talktobook.dto.response.TalkToBookResponse;
 import com.doova.ktab.features.talktobook.enums.QueryIntent;
 import com.doova.ktab.features.talktobook.model.BookAgentRecord;
 import com.doova.ktab.features.talktobook.service.*;
+import com.doova.ktab.features.talktobook.util.BookMetadataQuestion;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.repository.book.BookRepository;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -45,6 +46,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
               "type": "object",
               "properties": {
                 "answer": {"type": "string"},
+                "status": {"type": "string", "enum": ["ANSWERED", "NEEDS_CLARIFICATION", "NOT_FOUND"]},
                 "citations": {
                   "type": "array",
                   "items": {
@@ -58,7 +60,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                   }
                 }
               },
-              "required": ["answer", "citations"],
+              "required": ["answer", "status", "citations"],
               "additionalProperties": false
             }
             """;
@@ -105,6 +107,23 @@ public class TalkToBookServiceImpl implements TalkToBookService {
 
         // Capture before retrieval so concurrent edits cannot mark an old answer as current.
         String cacheRevision = cacheService.computeRevision(book);
+
+        // A name stored on the book does not need (and may not have) a page quotation.
+        if (BookMetadataQuestion.asksAuthorName(rawQuestion)) {
+            GuardrailDecision metadataDecision = guardrailService.evaluate(book, rawQuestion);
+            if (!metadataDecision.allowed()) {
+                return new TalkToBookResponse(rawQuestion, metadataDecision.refusalReason(),
+                        List.of(), false, "REJECTED_OFF_TOPIC", 0);
+            }
+            String authorName = book.getCustomAuthorName();
+            if (authorName == null || authorName.isBlank()) {
+                authorName = book.getAuthor() != null ? book.getAuthor().getFullName() : null;
+            }
+            String answer = authorName != null && !authorName.isBlank()
+                    ? "مؤلف كتاب «" + book.getTitle() + "» هو " + authorName.trim() + "."
+                    : "اسم مؤلف هذا الكتاب غير متوفر في بياناته.";
+            return new TalkToBookResponse(rawQuestion, answer, List.of(), false, "BOOK_METADATA", 1);
+        }
 
         // Step 1: Exact Hash Cache Lookup (Tier 1)
         Optional<BookAgentRecord> cachedRecord = cacheService.findSimilar(bookId, questionHash, null, cacheRevision);
@@ -218,6 +237,8 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                 3. الذكاء وتوظيف السياق المتاح: استثمر عنوان الكتاب ونبذته ومحتوياته بذكاء لتقديم أفضل إجابة ممكنة تسعد القارئ وتفيده، ولا تعتذر بعدم توفر المعلومة إلا في حال كان السؤال عن تفصيلة غائبة تماماً ولا يمكن استنتاجها من السياق.
                 4. حماية خصوصية وبيانات الكتاب: يُمنع منعاً باتاً تفريغ أو استخراج نص الكتاب كاملاً أو نسخ فصول وصفحات كاملة حرفياً؛ إذا طُلب منك نص الكتاب كاملاً، ارفض بأدب موضحاً أن ذلك محفوظ بحقوق الملكية الفكرية وشجعه على قراءة الكتاب عبر قارئ المنصة.
                 5. نطاق الكتاب: ركز إجابتك حصراً ضمن نطاق هذا الكتاب وسياقه ومؤلفه وموضوعاته.
+                6. إذا كان السؤال غامضاً (مثل ضمير لا يُعرف مرجعه)، أعد status=NEEDS_CLARIFICATION واسأل القارئ سؤالاً قصيراً يوضح المقصود. وإذا لم تتوفر في نصوص الكتاب أدلة للإجابة، أعد status=NOT_FOUND واذكر ذلك بوضوح. في هاتين الحالتين اترك citations فارغة ولا تكتب علامات [n]، ولا تخمّن إجابة.
+                7. عند تقديم إجابة مدعومة من نص الكتاب أعد status=ANSWERED وأرفق الاستشهادات الصحيحة فقط.
 
                 ### CITATION & EVIDENCE GUIDELINES:
                 1. Citations [n] are strictly for reader text navigation to exact passages inside the book:
@@ -235,6 +256,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                 4. Output your response strictly in the required JSON format:
                 {
                   "answer": "your detailed response with citations like [1] and [2]",
+                  "status": "ANSWERED",
                   "citations": [
                     {
                       "id": 1,
@@ -254,6 +276,9 @@ public class TalkToBookServiceImpl implements TalkToBookService {
 
         Prompt prompt = new Prompt(List.of(new SystemMessage(systemPrompt), new UserMessage(userPrompt)));
         LlmAnswerPayload parsedPayload = generateAnswer(prompt);
+        if (isValidUncitedResolution(parsedPayload)) {
+            return uncitedResolution(rawQuestion, parsedPayload);
+        }
         if (!hasValidCitations(parsedPayload, citablePagesText)) {
             log.warn("Invalid citation metadata for book {}; retrying generation once", bookId);
             Prompt retryPrompt = new Prompt(List.of(new SystemMessage(systemPrompt),
@@ -261,9 +286,14 @@ public class TalkToBookServiceImpl implements TalkToBookService {
                             + "Return valid JSON with a non-empty answer and citations array. Every [n] must match "
                             + "exactly one positive citation id, every citation must be referenced, and every snippet "
                             + "must be copied verbatim from the actual book pages section (do not quote from the overview/description). "
-                            + "Do not invent evidence. Keep the answer concise: at most three short paragraphs and three citations, "
-                            + "so the complete JSON fits within the output budget.")));
+                            + "If the question is ambiguous or the available book text cannot support an answer, "
+                            + "set status to NEEDS_CLARIFICATION or NOT_FOUND, use citations [], and ask for clarification "
+                            + "or state the limitation without guessing. Otherwise keep the answer concise: at most three "
+                            + "short paragraphs and three citations, so the complete JSON fits within the output budget.")));
             parsedPayload = generateAnswer(retryPrompt);
+        }
+        if (isValidUncitedResolution(parsedPayload)) {
+            return uncitedResolution(rawQuestion, parsedPayload);
         }
         if (!hasValidCitations(parsedPayload, citablePagesText)) {
             throw new InvalidBookCitationsException();
@@ -321,8 +351,13 @@ public class TalkToBookServiceImpl implements TalkToBookService {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record LlmAnswerPayload(
             String answer,
-            List<BookCitation> citations
-    ) {}
+            List<BookCitation> citations,
+            String status
+    ) {
+        LlmAnswerPayload(String answer, List<BookCitation> citations) {
+            this(answer, citations, null);
+        }
+    }
 
     private LlmAnswerPayload generateAnswer(Prompt prompt) {
         // This model is also used by the guardrail, which has a different output schema.
@@ -344,7 +379,22 @@ public class TalkToBookServiceImpl implements TalkToBookService {
             return new LlmAnswerPayload("", List.of());
         }
         LlmAnswerPayload payload = parseLlmResponse(output);
-        return new LlmAnswerPayload(sanitizeAnswer(payload.answer()), payload.citations());
+        return new LlmAnswerPayload(sanitizeAnswer(payload.answer()), payload.citations(), payload.status());
+    }
+
+    private boolean isValidUncitedResolution(LlmAnswerPayload payload) {
+        return payload != null
+                && ("NEEDS_CLARIFICATION".equals(payload.status()) || "NOT_FOUND".equals(payload.status()))
+                && payload.answer() != null && !payload.answer().isBlank()
+                && (payload.citations() == null || payload.citations().isEmpty())
+                && !CITATION_REFERENCE.matcher(payload.answer()).find();
+    }
+
+    private TalkToBookResponse uncitedResolution(String question, LlmAnswerPayload payload) {
+        // No page citation can be supplied for a clarification or an unsupported fact.
+        // Do not cache this response: later questions may supply the missing context.
+        return new TalkToBookResponse(question, sanitizeAnswer(payload.answer()), List.of(),
+                false, payload.status(), 0);
     }
 
     // Cached snippets were verified against context when generated under this rules version.
@@ -358,7 +408,7 @@ public class TalkToBookServiceImpl implements TalkToBookService {
             if (citation == null || citation.id() == null || citation.id() <= 0
                     || citation.snippet() == null || citation.snippet().isBlank()
                     || !ids.add(citation.id().toString())
-                    || (context != null && !context.contains(citation.snippet()))) {
+                    || (context != null && !isSnippetContainedInContext(context, citation.snippet()))) {
                 return false;
             }
         }
@@ -366,6 +416,49 @@ public class TalkToBookServiceImpl implements TalkToBookService {
         CITATION_REFERENCE.matcher(payload.answer()).results()
                 .forEach(match -> references.add(match.group(1)));
         return ids.equals(references);
+    }
+
+    static boolean isSnippetContainedInContext(String context, String snippet) {
+        if (context == null || context.isBlank() || snippet == null || snippet.isBlank()) {
+            return false;
+        }
+        if (context.contains(snippet)) {
+            return true;
+        }
+        String normContext = normalizeForComparison(context);
+        String normSnippet = normalizeForComparison(snippet);
+        if (normSnippet.isBlank()) {
+            return false;
+        }
+        if (normContext.contains(normSnippet)) {
+            return true;
+        }
+
+        // Fuzzy sub-phrase matching: if snippet is 4+ words, check if a 4-word continuous window matches
+        String[] words = normSnippet.split(" ");
+        if (words.length >= 4) {
+            for (int i = 0; i <= words.length - 4; i++) {
+                String sub = words[i] + " " + words[i + 1] + " " + words[i + 2] + " " + words[i + 3];
+                if (normContext.contains(sub)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    static String normalizeForComparison(String text) {
+        if (text == null) return "";
+        return text
+                .toLowerCase()
+                .replaceAll("[\\u064B-\\u065F\\u0670]", "") // Tashkeel / diacritics
+                .replaceAll("\\u0640", "")                  // Tatweel / kashida
+                .replaceAll("[إأآٱ]", "ا")                   // Alef variants
+                .replaceAll("ى", "ي")                       // Alif maqsura -> Yaa
+                .replaceAll("ة", "ه")                       // Taa marbouta -> Haa
+                .replaceAll("[«»\"'“”‘’،,.:;!؟?\\-\\(\\)\\[\\]\\{\\}]", " ") // Punctuation to space
+                .replaceAll("\\s+", " ")                    // Whitespace
+                .trim();
     }
 
     private LlmAnswerPayload parseLlmResponse(String rawOutput) {

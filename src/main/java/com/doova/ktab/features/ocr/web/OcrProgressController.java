@@ -1,5 +1,14 @@
 package com.doova.ktab.features.ocr.web;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.doova.ktab.annotation.ApiVersion;
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.ResourceNotFoundException;
+import com.doova.ktab.utils.response.ResponseUtils;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.*;
 import org.springframework.batch.core.explore.JobExplorer;
@@ -14,29 +23,34 @@ import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/ocr/progress")
+@ApiVersion(value = 1, keepLegacyPath = true)
+@RequestMapping(path = "/ocr/progress", produces = "application/json")
+@PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 @Tag(name = "OCR Progress API", description = "Endpoints for monitoring batch OCR job execution and book OCR progress.")
 public class OcrProgressController {
 
     private final JobExplorer jobExplorer;
+    private final MessageSource messageSource;
 
     /**
      * Get progress by job execution ID
      */
+    @Operation(summary = "Get the progress of an OCR job execution")
     @GetMapping("/job-execution/{executionId}")
-    public ResponseEntity<Map<String, Object>> byExecution(@PathVariable Long executionId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> byExecution(@PathVariable Long executionId) {
         JobExecution exec = jobExplorer.getJobExecution(executionId);
         if (exec == null) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException(ApiMessageKey.OCR_JOB_NOT_FOUND);
         }
-        return ResponseEntity.ok(toDto(exec));
+        return ResponseUtils.success(toDto(exec), ApiMessageKey.OCR_PROGRESS_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**
      * Get latest OCR execution for a given bookId
      */
+    @Operation(summary = "Get the progress of a book's latest OCR job")
     @GetMapping("/book/{bookId}/latest")
-    public ResponseEntity<Map<String, Object>> latestForBook(@PathVariable Long bookId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> latestForBook(@PathVariable Long bookId) {
 
         // Spring Batch does NOT index job executions by parameters
         // We scan recent instances instead
@@ -58,10 +72,10 @@ public class OcrProgressController {
         }
 
         if (latest == null) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException(ApiMessageKey.OCR_JOB_NOT_FOUND);
         }
 
-        return ResponseEntity.ok(toDto(latest));
+        return ResponseUtils.success(toDto(latest), ApiMessageKey.OCR_PROGRESS_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**

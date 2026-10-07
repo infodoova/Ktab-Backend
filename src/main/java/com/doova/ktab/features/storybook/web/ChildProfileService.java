@@ -22,11 +22,16 @@ public class ChildProfileService {
     private final com.doova.ktab.features.storybook.billing.StorybookCreditPort credits;
 
     @Transactional
-    public ChildProfileResponse create(User owner, CreateChildProfileRequest r) {
+    public ChildProfile createProfile(User owner, CreateChildProfileRequest r) {
         ChildProfile p = new ChildProfile();
         p.setOwner(owner);
         apply(p, r);
-        return ChildProfileResponse.from(repository.save(p));
+        return repository.save(p);
+    }
+
+    @Transactional
+    public ChildProfileResponse create(User owner, CreateChildProfileRequest r) {
+        return ChildProfileResponse.from(createProfile(owner, r));
     }
 
     @Transactional(readOnly = true)

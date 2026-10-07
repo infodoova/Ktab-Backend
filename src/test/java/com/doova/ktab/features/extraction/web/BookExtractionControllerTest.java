@@ -1,5 +1,6 @@
 package com.doova.ktab.features.extraction.web;
 
+import com.doova.ktab.features.extraction.BookExtractionQueryService;
 import com.doova.ktab.features.extraction.BookExtractionService;
 import com.doova.ktab.features.extraction.dto.*;
 import com.doova.ktab.features.extraction.pdf.PdfRejectedException;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -23,11 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BookExtractionControllerTest {
 
     private final BookExtractionService service = mock(BookExtractionService.class);
+    private final BookExtractionQueryService queryService = mock(BookExtractionQueryService.class);
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new BookExtractionController(service)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new BookExtractionController(service, queryService)).build();
     }
 
     private static BookExtractionResult sample() {
@@ -41,7 +44,7 @@ class BookExtractionControllerTest {
     void aRejectedPdfIs422WithItsReason() throws Exception {
         when(service.extract(any())).thenThrow(new PdfRejectedException(PdfRejectedException.Reason.ENCRYPTED, "encrypted"));
 
-        mvc.perform(multipart("/api/books/extract").file(new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1})))
+        mvc.perform(multipart("/books/extract").file(new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1})))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.reason").value("ENCRYPTED"))
                 .andExpect(jsonPath("$.message").value("encrypted"));
@@ -52,14 +55,14 @@ class BookExtractionControllerTest {
         when(service.extract(any())).thenReturn(sample());
         MockMultipartFile file = new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1});
 
-        mvc.perform(multipart("/api/books/extract").file(file))
+        mvc.perform(multipart("/books/extract").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.structureDetection.source").value("EMBEDDED_OUTLINE"))
                 .andExpect(jsonPath("$.pages").isEmpty())
                 .andExpect(jsonPath("$.chapters[0].text").value("clean"))
                 .andExpect(jsonPath("$.chapters[0].pages").isEmpty());
 
-        mvc.perform(multipart("/api/books/extract").file(file).param("includePages", "true"))
+        mvc.perform(multipart("/books/extract").file(file).param("includePages", "true"))
                 .andExpect(jsonPath("$.pages[0].rawText").value("raw"))
                 .andExpect(jsonPath("$.chapters[0].pages[0].cleanedText").value("clean"));
     }

@@ -43,6 +43,9 @@ import java.time.Instant;
 import com.doova.ktab.dto.book.BookSourceFileResponseDto;
 import com.doova.ktab.exception.ResourceNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.List;
 
 @Slf4j
@@ -411,6 +414,69 @@ public class BookServiceImpl implements BookService {
                 booksPage.getTotalPages(),
                 booksPage.isLast()
         );
+    }
+
+    // =========================================================
+    // PUBLIC COVER IMAGES (cover URL only)
+    // =========================================================
+    private static final int TOP_REVIEWED_MAX = 50;
+    private static final int COVER_IMAGES_MAX_PAGE_SIZE = 200;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getTopReviewedCoverImages(int limit) {
+        enablePublishedFilter();
+
+        int wanted = Math.min(Math.max(limit, 1), TOP_REVIEWED_MAX);
+        Sort bestFirst = Sort.by(Sort.Direction.DESC, "averageRating")
+                .and(Sort.by(Sort.Direction.DESC, "totalReviews"))
+                .and(Sort.by(Sort.Direction.DESC, "id"));
+        // A book with no cover image is skipped, so look at more books than asked for.
+        List<Book> candidates = bookRepository
+                .findAllByBookSourceAndTotalReviewsGreaterThan(BookSource.AUTHOR, 0, PageRequest.of(0, wanted * 3, bestFirst))
+                .getContent();
+
+        Map<Long, String> coverUrls = coverImageUrls(candidates);
+        return candidates.stream()
+                .map(book -> coverUrls.get(book.getId()))
+                .filter(Objects::nonNull)
+                .limit(wanted)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<String> getCoverImages(int page, int size) {
+        enablePublishedFilter();
+
+        var pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), COVER_IMAGES_MAX_PAGE_SIZE),
+                Sort.by(Sort.Direction.DESC, "publishDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
+
+        Map<Long, String> coverUrls = coverImageUrls(booksPage.getContent());
+        List<String> urls = booksPage.getContent().stream()
+                .map(book -> coverUrls.get(book.getId()))
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new PageResponse<>(
+                urls,
+                booksPage.getNumber(),
+                booksPage.getSize(),
+                booksPage.getTotalElements(),
+                booksPage.getTotalPages(),
+                booksPage.isLast()
+        );
+    }
+
+    /** Signed cover image URLs for the books that have one, found with a single query for all of them. */
+    private Map<Long, String> coverImageUrls(List<Book> books) {
+        List<Long> ids = books.stream().map(Book::getId).toList();
+        Map<Long, String> urls = new HashMap<>();
+        attachmentService.getAttachments(ids, BookResponseBuilderService.BOOK_ENTITY_TYPE, BookResponseBuilderService.COVER_IMAGE_TYPE)
+                .forEach((bookId, attachment) ->
+                        urls.put(bookId, fileStorageService.getFileUrl(attachment.getStoragePath(), UrlStrategy.SIGNED)));
+        return urls;
     }
 
     // =========================================================

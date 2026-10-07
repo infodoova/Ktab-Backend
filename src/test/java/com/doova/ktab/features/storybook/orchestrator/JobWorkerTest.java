@@ -75,4 +75,14 @@ class JobWorkerTest {
         verify(claimer).releaseStale(new StorybookProperties().getWorker().getLease());
         verify(claimer).claim(anyString(), eq(4));
     }
+
+    @Test
+    void runOne_whenTransactionCreationFailsDuringShutdown_doesNotThrow() {
+        doThrow(new org.springframework.transaction.CannotCreateTransactionException("EntityManagerFactory is closed"))
+                .when(recorder).record(anyLong(), any(StepOutcome.class));
+
+        // Should log warning and not throw uncaught exception to caller/thread
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
+                worker(j -> StepOutcome.success()).runOne(job(JobStep.STORY_PLAN)));
+    }
 }

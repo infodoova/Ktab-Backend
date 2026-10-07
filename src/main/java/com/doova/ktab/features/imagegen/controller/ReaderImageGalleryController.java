@@ -30,7 +30,7 @@ import java.util.List;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = "/reader/images")
+@RequestMapping(path = "/reader/images", produces = "application/json")
 @RequiredArgsConstructor
 @Validated
 @Tag(name = "Reader Image Gallery", description = "Endpoints for retrieving all AI-generated images across all books with book metadata and filtering")

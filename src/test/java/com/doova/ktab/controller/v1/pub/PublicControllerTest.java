@@ -111,4 +111,46 @@ class PublicControllerTest {
 
         verify(publicService).getRoles();
     }
+
+    // ========================================================================================
+    // GET /public/books/top-reviewed/covers and /public/books/cover-images
+    // ========================================================================================
+
+    @Test
+    @DisplayName("getTopReviewedCoverImages_defaultLimit_returnsOnlyImageUrls")
+    void getTopReviewedCoverImages_defaultLimit_returnsOnlyImageUrls() throws Exception {
+        when(publicService.getTopReviewedCoverImages(10)).thenReturn(List.of("https://cdn/a.jpg", "https://cdn/b.jpg"));
+
+        mockMvc.perform(get("/public/books/top-reviewed/covers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value("https://cdn/a.jpg"))
+                .andExpect(jsonPath("$.data[1]").value("https://cdn/b.jpg"))
+                .andExpect(jsonPath("$.data.length()").value(2));
+
+        verify(publicService).getTopReviewedCoverImages(10);
+    }
+
+    @Test
+    @DisplayName("getTopReviewedCoverImages_customLimit_passesItOn")
+    void getTopReviewedCoverImages_customLimit_passesItOn() throws Exception {
+        when(publicService.getTopReviewedCoverImages(3)).thenReturn(List.of());
+
+        mockMvc.perform(get("/public/books/top-reviewed/covers").param("limit", "3"))
+                .andExpect(status().isOk());
+
+        verify(publicService).getTopReviewedCoverImages(3);
+    }
+
+    @Test
+    @DisplayName("getCoverImages_defaultPaging_returnsImageUrlsWithPagingDetails")
+    void getCoverImages_defaultPaging_returnsImageUrlsWithPagingDetails() throws Exception {
+        when(publicService.getCoverImages(0, 50)).thenReturn(new PageResponse<>(List.of("https://cdn/a.jpg"), 0, 50, 1L, 1, true));
+
+        mockMvc.perform(get("/public/books/cover-images"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0]").value("https://cdn/a.jpg"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
+
+        verify(publicService).getCoverImages(0, 50);
+    }
 }

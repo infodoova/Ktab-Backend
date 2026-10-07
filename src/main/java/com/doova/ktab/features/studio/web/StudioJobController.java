@@ -1,5 +1,10 @@
 package com.doova.ktab.features.studio.web;
 
+import com.doova.ktab.annotation.ApiVersion;
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.utils.response.ResponseUtils;
+import org.springframework.context.MessageSource;
 import com.doova.ktab.features.audiobook.AudiobookLauncher;
 import com.doova.ktab.features.studio.config.StudioProperties;
 import com.doova.ktab.features.studio.model.BookAudioChapter;
@@ -33,7 +38,8 @@ import java.util.Optional;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/studio")
+@ApiVersion(value = 1, keepLegacyPath = true)
+@RequestMapping(path = "/studio", produces = "application/json")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 @Slf4j
 @Tag(name = "Studio Audiobook", description = "Endpoints for managing audiobook generation (Studio or Ktab's own TTS)")
@@ -46,6 +52,7 @@ public class StudioJobController {
     private final BookAudioChapterRepository audioChapterRepository;
     private final StudioProperties studioProperties;
     private final MeterRegistry meterRegistry;
+    private final MessageSource messageSource;
 
     private String pipeline() {
         return studioProperties.isEnabled() ? "STUDIO" : "NATIVE";
@@ -56,29 +63,28 @@ public class StudioJobController {
      */
     @Operation(summary = "Start audiobook generation for a book")
     @PostMapping("/books/{bookId}/audiobook")
-    public ResponseEntity<Map<String, Object>> startAudiobook(@PathVariable Long bookId) throws Exception {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> startAudiobook(@PathVariable Long bookId) throws Exception {
         bookRepository.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found: " + bookId));
 
         Optional<JobExecution> running = audiobookLauncher.runningFor(bookId);
         if (running.isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "status", "RUNNING",
-                    "executionId", running.get().getId(),
-                    "message", "Audiobook generation is already running for book " + bookId
-            ));
+            ApiResponse<Map<String, Object>> conflict = ApiResponse.error(
+                    ApiMessageKey.STUDIO_AUDIOBOOK_ALREADY_RUNNING.getMessage(messageSource), HttpStatus.CONFLICT);
+            conflict.setData(Map.of("status", "RUNNING", "executionId", running.get().getId()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(conflict);
         }
 
         JobExecution execution = audiobookLauncher.launch(bookId);
         meterRegistry.counter("studio.jobs", "status", "started", "pipeline", pipeline()).increment();
         log.info("Started {} for bookId={}, executionId={}", audiobookLauncher.activeJobName(), bookId, execution.getId());
 
-        return ResponseEntity.accepted().body(Map.of(
+        return ResponseUtils.success(Map.of(
                 "executionId", execution.getId(),
                 "bookId", bookId,
                 "status", execution.getStatus().toString(),
                 "pipeline", pipeline()
-        ));
+        ), ApiMessageKey.STUDIO_AUDIOBOOK_STARTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     /**
@@ -87,7 +93,7 @@ public class StudioJobController {
      */
     @Operation(summary = "Get audiobook conversion status for a book")
     @GetMapping("/books/{bookId}/status")
-    public ResponseEntity<Map<String, Object>> getStatus(@PathVariable Long bookId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStatus(@PathVariable Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found: " + bookId));
 
@@ -102,14 +108,14 @@ public class StudioJobController {
                     .map(StudioJobController::nativeChapter).toList();
             resp.put("chaptersCount", chapters.size());
             resp.put("chapters", chapters);
-            return ResponseEntity.ok(resp);
+            return fetched(resp);
         }
 
         Optional<StudioProject> projectOpt = projectRepository.findLiveByBookId(bookId);
 
         if (projectOpt.isEmpty()) {
             resp.put("projectExists", false);
-            return ResponseEntity.ok(resp);
+            return fetched(resp);
         }
 
         StudioProject project = projectOpt.get();
@@ -136,7 +142,11 @@ public class StudioJobController {
         }).toList();
         resp.put("chapters", chapterList);
 
-        return ResponseEntity.ok(resp);
+        return fetched(resp);
+    }
+
+    private ResponseEntity<ApiResponse<Map<String, Object>>> fetched(Map<String, Object> body) {
+        return ResponseUtils.success(body, ApiMessageKey.STUDIO_STATUS_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     private static Map<String, Object> nativeChapter(BookAudioChapter c) {

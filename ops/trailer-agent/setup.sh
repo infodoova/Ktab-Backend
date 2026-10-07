@@ -31,5 +31,10 @@ KTAB_TRAILER_ENVIRONMENT_ID=$ENV_ID
 KTAB_TRAILER_AGENT_ID=$AGENT_ID
 KTAB_TRAILER_AGENT_VERSION=$AGENT_VERSION
 KTAB_TRAILER_VAULT_ID=$VAULT_ID
-Next: sign in to Ktab as ADMIN and connect Higgsfield (POST /api/v1/admin/trailer-agent/higgsfield/connect).
+Next:
+1. Register the trailer webhook in the Anthropic console and put its signing key in ANTHROPIC_WEBHOOK_SIGNING_KEY:
+   https://<your-api-domain>/api/v1/public/trailer-agent/webhook
+2. Set KTAB_PUBLIC_BASE_URL to your public https API address (Higgsfield sends the admin back to it).
+3. Deploy, then sign in to Ktab as ADMIN and connect Higgsfield (POST /api/v1/admin/trailer-agent/higgsfield/connect).
+The app image installs ffmpeg (ffprobe), which the trailer check needs. See docs/contabo_deployment_guide.md, "Book trailers".
 EOF

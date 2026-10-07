@@ -32,6 +32,10 @@ public class PageQaHandler implements StepHandler {
     @Override
     public StepOutcome handle(StorybookJob job) {
         QaContext ctx = persistence.qaContext(job.getStorybookId(), job.getPageIndex(), job.getGeneration());
+        if (ctx.status() == StorybookStatus.FAILED) {
+            // Not "success": that would strand the page, because resume only revives dead jobs.
+            return StepOutcome.fail("book is FAILED; this step reruns when it is resumed");
+        }
         if (ctx.imageId() == null || ctx.imageStatus() != PageImageStatus.GENERATED
                 || ctx.status() != StorybookStatus.ILLUSTRATING) {
             return StepOutcome.success();

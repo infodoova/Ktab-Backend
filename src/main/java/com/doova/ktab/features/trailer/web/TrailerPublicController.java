@@ -1,5 +1,6 @@
 package com.doova.ktab.features.trailer.web;
 
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.features.trailer.agent.TrailerAgentGateway;
 import com.doova.ktab.features.trailer.oauth.HiggsfieldOAuthService;
@@ -41,6 +42,7 @@ public class TrailerPublicController {
         this.oauth = oauth;
     }
 
+    @Operation(summary = "Receive the trailer agent's webhook (called by Anthropic)")
     @PostMapping(path = "/webhook", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> webhook(@RequestBody String rawBody, @RequestHeader Map<String, String> headers) {
         var notice = gateway.verifyWebhook(rawBody, headers); // raw body: re-serialized JSON breaks the HMAC
@@ -63,6 +65,7 @@ public class TrailerPublicController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Finish the Higgsfield OAuth connection (browser callback)")
     @GetMapping(path = "/higgsfield/callback", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> callback(@RequestParam String code, @RequestParam String state) {
         oauth.complete(code, state);

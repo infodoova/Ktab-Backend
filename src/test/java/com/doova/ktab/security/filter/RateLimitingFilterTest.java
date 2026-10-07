@@ -44,6 +44,24 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    @DisplayName("the public early-access signup is held to the strict AUTH tier, like login and registration")
+    void doFilterInternal_whenEarlyAccessSignup_usesTheStrictTier() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/public/early-access");
+        request.setServletPath("/api/v1/public/early-access");
+        request.setRemoteAddr("203.0.113.7");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(rateLimitService.isEnabled()).thenReturn(true);
+        when(rateLimitService.tryConsume(eq("203.0.113.7"), eq(RateLimitTier.AUTH)))
+                .thenReturn(RateLimitResult.permitted(10L, 9L));
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain).doFilter(request, response);
+        verify(rateLimitService).tryConsume("203.0.113.7", RateLimitTier.AUTH);
+    }
+
+    @Test
     @DisplayName("doFilterInternal permits allowed requests and sets quota headers")
     void doFilterInternal_whenAllowed_setsHeadersAndContinues() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/books");

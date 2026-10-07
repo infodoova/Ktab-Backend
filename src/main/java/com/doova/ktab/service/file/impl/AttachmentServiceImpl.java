@@ -33,6 +33,15 @@ public class AttachmentServiceImpl implements AttachmentService {
     }
 
     @Override
+    public java.util.Map<Long, Attachment> getAttachments(java.util.Collection<Long> entityIds, String entityType, String type) {
+        if (entityIds == null || entityIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return attachmentRepository.findAllByEntityTypeAndTypeAndEntityIdIn(entityType, type, entityIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Attachment::getEntityId, a -> a, (first, second) -> first));
+    }
+
+    @Override
     @Transactional
     public void delete(Long id) {
         if (!attachmentRepository.existsById(id)) {

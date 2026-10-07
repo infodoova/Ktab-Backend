@@ -89,7 +89,12 @@ public class StorybookAssetStore {
     }
 
     public void delete(String key) {
-        s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        localCache.remove(key);
+        try {
+            s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        } catch (Exception e) {
+            log.warn("S3 deleteObject failed for key={}: {}", key, e.getMessage());
+        }
     }
 
     public Set<Long> listBookIds() {
@@ -110,6 +115,7 @@ public class StorybookAssetStore {
     }
 
     public void deletePrefix(String prefix) {
+        localCache.keySet().removeIf(k -> k.startsWith(prefix));
         String token = null;
         do {
             ListObjectsV2Response page = s3.listObjectsV2(ListObjectsV2Request.builder()

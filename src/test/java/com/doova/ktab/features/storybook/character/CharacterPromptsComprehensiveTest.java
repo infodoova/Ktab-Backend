@@ -139,7 +139,7 @@ class CharacterPromptsComprehensiveTest {
         String prompt = CharacterPrompts.scene("Sami is playing with blocks on a soft carpet.", TextZone.BOTTOM, false, false);
 
         assertThat(prompt)
-                .contains("Illustrate one page of a children's picture book in 3:4 portrait orientation")
+                .contains("Illustrate one page of a children's picture book in 1:1 square orientation")
                 .contains("Match the art style of the style reference image exactly")
                 .contains("The CHILD is exactly the character in the character sheet")
                 .contains("Scene: Sami is playing with blocks on a soft carpet.")

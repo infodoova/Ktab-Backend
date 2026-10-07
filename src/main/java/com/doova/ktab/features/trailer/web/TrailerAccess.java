@@ -44,4 +44,15 @@ public class TrailerAccess {
     public boolean isAdmin(User user) {
         return UserRole.ADMIN.getCode().equals(user.getRole());
     }
+
+    /**
+     * Who decides on a trailer held for review: an admin, the book's author, or an admin librarian. Which books each of
+     * them may act on is {@link #requireBook}. A plain librarian can see trailers but not decide on them.
+     */
+    public boolean canReview(User user) {
+        String role = user.getRole();
+        return UserRole.ADMIN.getCode().equals(role)
+                || UserRole.AUTHOR.getCode().equals(role)
+                || UserRole.ADMIN_LIBRARIAN.getCode().equals(role);
+    }
 }

@@ -26,8 +26,24 @@ public final class StorybookKeys {
         return "storybook/" + bookId + "/pages/" + pageIndex + "/g" + generation + ".png";
     }
 
+    /** The downscaled JPEG copy of a page image that readers load. */
+    public static String pageImageWeb(Long bookId, int pageIndex, int generation) {
+        return "storybook/" + bookId + "/pages/" + pageIndex + "/g" + generation + ".web.jpg";
+    }
+
     public static String photo(Long bookId) {
         return "storybook/" + bookId + "/photo/source.enc";
+    }
+
+    public static String characterPhoto(Long bookId, String characterId) {
+        if (characterId == null || characterId.isBlank() || "child".equalsIgnoreCase(characterId)) {
+            return photo(bookId);
+        }
+        String slug = characterId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (slug.isEmpty()) {
+            slug = "c" + Integer.toHexString(characterId.hashCode());
+        }
+        return "storybook/" + bookId + "/photo/" + slug + ".enc";
     }
 
     public static String pdf(Long bookId, int renderRound) {

@@ -26,8 +26,10 @@ class JobWorkerCostGuardTest {
             public JobStep step() { return JobStep.ILLUSTRATE_PAGE; }
             public StepOutcome handle(StorybookJob job) { called.set(true); return StepOutcome.success(); }
         };
+        StorybookProperties props = new StorybookProperties();
+        props.getLimits().setMaxBookCostUsd(new java.math.BigDecimal("3.00"));
         JobWorker worker = new JobWorker(mock(JobClaimer.class), recorder, new StepHandlerRegistry(List.of(handler)),
-                new SyncTaskExecutor(), new StorybookProperties(), guard);
+                new SyncTaskExecutor(), props, guard);
         StorybookJob job = new StorybookJob();
         job.setId(1L);
         job.setStorybookId(9L);

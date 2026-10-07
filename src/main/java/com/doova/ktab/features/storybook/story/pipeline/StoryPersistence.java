@@ -32,6 +32,7 @@ public class StoryPersistence {
     private final JobEnqueuer enqueuer;
     private final StorybookStateMachine stateMachine;
     private final EntityManager entityManager;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public StoryContext load(Long bookId) {
@@ -135,6 +136,7 @@ public class StoryPersistence {
             page.setTextZone(p.textZone());
         }
         stateMachine.transition(book, StorybookStatus.STORY_READY);
+        events.publishEvent(new com.doova.ktab.features.storybook.event.StorybookStoryReadyEvent(bookId));
     }
 
     @Transactional

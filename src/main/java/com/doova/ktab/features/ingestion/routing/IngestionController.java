@@ -1,5 +1,12 @@
 package com.doova.ktab.features.ingestion.routing;
 
+import com.doova.ktab.annotation.ApiVersion;
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.utils.response.ResponseUtils;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.enums.book.IngestionRoute;
 import com.doova.ktab.features.ingestion.pdf.PdfClassificationResult;
 import com.doova.ktab.model.attachment.Attachment;
@@ -21,7 +28,8 @@ import java.util.Optional;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/ingestion")
+@ApiVersion(value = 1, keepLegacyPath = true)
+@RequestMapping(path = "/ingestion")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 @Tag(name = "Ingestion Routing API", description = "Endpoints for inspecting book ingestion routes and classification status.")
 public class IngestionController {
@@ -29,13 +37,15 @@ public class IngestionController {
     private final IngestionRouter router;
     private final AttachmentService attachmentService;
     private final BookRepository bookRepository;
+    private final MessageSource messageSource;
 
     /**
      * Routing status for support/admin tooling, so a misrouted book can be understood
      * without a direct DB query. See docs/ocr_engine_v3.md, Phase 2.4.
      */
+    @Operation(summary = "Get a book's ingestion route and classification status")
     @GetMapping("/books/{bookId}/status")
-    public ResponseEntity<Map<String, Object>> status(@PathVariable Long bookId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> status(@PathVariable Long bookId) {
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new IllegalArgumentException("Book not found: " + bookId));
 
@@ -48,29 +58,33 @@ public class IngestionController {
         status.put("ingestionRouteLocked", book.isIngestionRouteLocked());
         status.put("classifierVersion", book.getClassifierVersion());
         status.put("ocrStatus", book.getOcrStatus());
-        return ResponseEntity.ok(status);
+        return ResponseUtils.success(status, ApiMessageKey.INGESTION_STATUS_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**
      * Re-run classification only. Returns the evidence; does not purge content or launch a job.
      */
+    @Operation(summary = "Re-run classification of a book and return the evidence")
     @PostMapping("/books/{bookId}/classify")
-    public ResponseEntity<Map<String, Object>> classify(@PathVariable Long bookId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> classify(@PathVariable Long bookId) {
         String pdfKey = requirePdfKey(bookId);
         PdfClassificationResult result = router.classifyOnly(bookId, pdfKey);
-        return ResponseEntity.ok(Map.of("bookId", bookId, "classification", result));
+        return ResponseUtils.success(Map.of("bookId", bookId, "classification", result),
+                ApiMessageKey.INGESTION_CLASSIFIED.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**
      * Admin override: pins the book to the given route, locked against future reclassification.
      */
+    @Operation(summary = "Override a book's ingestion route (admin)")
     @PostMapping("/books/{bookId}/route")
-    public ResponseEntity<Map<String, Object>> overrideRoute(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> overrideRoute(
             @PathVariable Long bookId,
             @RequestParam IngestionRoute route
     ) {
         router.overrideRoute(bookId, route);
-        return ResponseEntity.ok(Map.of("bookId", bookId, "route", route, "locked", true));
+        return ResponseUtils.success(Map.of("bookId", bookId, "route", route, "locked", true),
+                ApiMessageKey.INGESTION_ROUTE_OVERRIDDEN.getMessage(messageSource), HttpStatus.OK);
     }
 
     private String requirePdfKey(Long bookId) {

@@ -33,6 +33,18 @@ class CharacterSheetPromptsTest {
     }
 
     @Test
+    void aPhotoSheetAndARegeneratedSheetCarryTheLockedOutfitSoTheyMatchThePages() {
+        String outfit = "teal shirt, mustard overalls";
+
+        assertThat(CharacterPrompts.sheetFromPhoto(ChildGender.BOY, AgeBand.AGE_6_8, outfit))
+                .contains("ignore the clothes in any photo").contains(outfit);
+        assertThat(CharacterPrompts.sheetFromPreviousSheet(ChildGender.BOY, AgeBand.AGE_6_8, outfit))
+                .contains(outfit).doesNotContain("fresh pose and outfit");
+        assertThat(CharacterPrompts.sheetFromPhoto(ChildGender.BOY, AgeBand.AGE_6_8, null))
+                .isEqualTo(CharacterPrompts.sheetFromPhoto(ChildGender.BOY, AgeBand.AGE_6_8));
+    }
+
+    @Test
     void everySheetAsksForAPureFlatWhiteBackdrop() {
         String backdrop = "pure flat white";
 

@@ -1,5 +1,6 @@
 package com.doova.ktab.features.trailer.web;
 
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
@@ -32,12 +33,14 @@ public class TrailerAdminController {
     private final MessageSource messages;
 
     /** Returns the Higgsfield authorize URL; the admin opens it and approves Ktab's access. */
+    @Operation(summary = "Get the Higgsfield authorize URL to connect the account (admin)")
     @PostMapping("/higgsfield/connect")
     public ResponseEntity<ApiResponse<Map<String, String>>> connect(@CurrentUser User admin) {
         return ResponseUtils.success(Map.of("authorizeUrl", oauth.begin(admin.getId())),
                 ApiMessageKey.TRAILER_FETCHED.getMessage(messages), HttpStatus.OK);
     }
 
+    @Operation(summary = "Approve or reject a trailer held for review (admin)")
     @PostMapping("/trailers/{id}/review")
     public ResponseEntity<ApiResponse<TrailerView>> review(@CurrentUser User admin, @PathVariable Long id,
                                                            @RequestParam boolean approve) {

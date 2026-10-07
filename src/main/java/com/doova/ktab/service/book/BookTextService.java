@@ -17,6 +17,10 @@ public interface BookTextService {
 
     com.doova.ktab.dto.book.ReaderPageResponse getReaderPage(Long bookId, int page, int wordsPerPage);
 
+    com.doova.ktab.dto.book.BookNavigatorResponse getNavigator(Long bookId, int wordsPerPage);
+
+    com.doova.ktab.dto.book.BookSectionContentResponse getSectionContent(Long bookId, Long sectionId);
+
     com.doova.ktab.utils.pagination.PageResponse<com.doova.ktab.dto.book.InBookTextSearchResponse> searchInBook(
             Long bookId,
             String keyword,

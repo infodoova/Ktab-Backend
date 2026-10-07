@@ -62,5 +62,15 @@ public interface StorybookJobRepository extends JpaRepository<StorybookJob, Long
             WHERE col_storybook_id = :bookId AND col_status = 'DEAD'
             """)
     int reviveDeadJobs(@Param("bookId") Long bookId);
+
+    /** A job that finished long enough ago to be sure it is not mid-transition, but whose result never landed. */
+    @Modifying
+    @Query(nativeQuery = true, value = """
+            UPDATE tbl_storybook_jobs
+            SET col_status = 'PENDING', col_attempts = 0, col_next_run_at = now(), col_finished_at = NULL,
+                col_last_error = NULL, updated_at = now(), version = version + 1
+            WHERE col_idempotency_key = :key AND col_status = 'SUCCEEDED' AND col_finished_at < :finishedBefore
+            """)
+    int reviveSucceeded(@Param("key") String key, @Param("finishedBefore") Instant finishedBefore);
 }
 

@@ -137,12 +137,11 @@ class StorybookEndToEndLiveExecutionIT {
 
         CreateStorybookRequest request = new CreateStorybookRequest(
                 profile.getId(),
-                "first-day-of-school",
                 List.of(Interest.CATS, Interest.DRAWING),
                 new CompanionSpec(CompanionSpec.CompanionType.CAT, "بسبوس", null, CompanionSpec.PetColor.ORANGE),
                 StorySetting.CAIRO,
                 ArtStyle.SOFT_WATERCOLOR,
-                10,
+                15,
                 LanguageVariety.EGYPTIAN,
                 TashkeelLevel.NONE,
                 "إلى بطلنا الصغير سامي، نرجو أن تكون هذه المغامرة بداية لرحلة استكشاف لا تنتهي.",

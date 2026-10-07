@@ -13,6 +13,9 @@ public interface AttachmentService {
 
     Optional<Attachment> getAttachment(Long entityId, String entityType, String type);
 
+    /** The attachment of the given type for each of the entities that has one, keyed by entity id; one query for all. */
+    java.util.Map<Long, Attachment> getAttachments(java.util.Collection<Long> entityIds, String entityType, String type);
+
     void delete(Long id);
 
     void deleteAttachmentsByEntity(Long entityId, String entityType);

@@ -69,6 +69,17 @@ public final class CharacterPrompts {
     public static String sheetFromPhoto(
             ChildGender gender,
             AgeBand band) {
+        return sheetFromPhoto(gender, band, null);
+    }
+
+    /**
+     * {@code clothing} is the locked outfit that every page prompt repeats. Without it the model dresses the
+     * character in whatever the child wears in the photo, and the pages and their QA then disagree with the sheet.
+     */
+    public static String sheetFromPhoto(
+            ChildGender gender,
+            AgeBand band,
+            String clothing) {
         return "Create a stylized children's picture-book character of the child in the photo reference, "
                 + "keeping their recognizable features: face shape, skin tone, hair colour and style, "
                 + "eye colour, glasses and headwear if any. "
@@ -79,18 +90,36 @@ public final class CharacterPrompts {
                 + "three-quarter view in the center, "
                 + "and side profile view on the right. "
                 + "Full body, standing, gentle smile, identical locked outfit in all three views. "
+                + lockedOutfit(clothing)
                 + MODEST + " "
                 + STYLE + " "
                 + BACKDROP + " "
                 + NO_TEXT;
     }
 
+    private static String lockedOutfit(String clothing) {
+        return clothing == null || clothing.isBlank()
+                ? ""
+                : "Outfit, identical in all three views (use exactly this and do not change colours, "
+                        + "ignore the clothes in any photo): " + clothing.strip() + ". ";
+    }
+
     public static String sheetFromPreviousSheet(
             ChildGender gender,
             AgeBand band) {
+        return sheetFromPreviousSheet(gender, band, null);
+    }
+
+    /** With a locked {@code clothing} the new version keeps that outfit; only the pose is fresh. */
+    public static String sheetFromPreviousSheet(
+            ChildGender gender,
+            AgeBand band,
+            String clothing) {
+        boolean locked = clothing != null && !clothing.isBlank();
         return "Create a new version of the character in the first reference image: "
                 + "the same child, keeping their face shape, skin tone, hair, eye colour, "
-                + "glasses and headwear, but with a fresh pose and outfit. "
+                + (locked ? "glasses and headwear, but with a fresh pose. " + lockedOutfit(clothing)
+                          : "glasses and headwear, but with a fresh pose and outfit. ")
                 + "A " + gender.en()
                 + " aged about " + mid(band) + ". "
                 + "Show the character three times side by side on a plain white background: "
@@ -349,7 +378,7 @@ public final class CharacterPrompts {
         StringBuilder sb = new StringBuilder();
 
         sb.append(
-                "Illustrate one page of a children's picture book in 3:4 portrait orientation. ");
+                "Illustrate one page of a children's picture book in 1:1 square orientation. ");
 
         sb.append(STYLE).append(' ');
 
@@ -475,8 +504,9 @@ public final class CharacterPrompts {
         return "Composition: keep the " + zoneName
                 + " text-safe area, approximately 20% of the picture, calm, clean, low-contrast and visually quiet. "
                 + "Use simple background elements such as plain sky, wall, grass, water or floor. "
-                + "Do not place faces, characters, hands, important objects, focal points or essential story details "
-                + "inside this area. Reserve it exclusively for later text placement.";
+                + "Do not place faces, hands, important objects, focal points or essential story details "
+                + "inside this area; characters' feet and legs may reach into its edge, standing on plain ground, grass or water. "
+                + "Reserve it exclusively for later text placement.";
     }
 
     // -------------------------------------------------------------------------
