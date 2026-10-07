@@ -72,6 +72,24 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  ktab-frontend:
+    build:
+      context: ../ktab-frontend
+      args:
+        VITE_API_URL: https://api.ktab.app/api/v1
+        VITE_WS_URL: wss://api.ktab.app/api/v1/ws/reader/tts
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_TOKEN_EXPIRY_MINUTES: "60"
+    container_name: ktab-frontend
+    restart: unless-stopped
+    networks:
+      - ktab-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   ktab-nginx:
     image: nginx:1.27-alpine
     container_name: ktab-nginx
@@ -87,6 +105,8 @@ services:
     depends_on:
       ktab-app:
         condition: service_healthy
+      ktab-frontend:
+        condition: service_started
     networks:
       - ktab-network
     logging:

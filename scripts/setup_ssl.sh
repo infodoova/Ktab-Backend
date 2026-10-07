@@ -6,10 +6,17 @@
 # Environment (optional):
 #   CLIENT_MAX_BODY_SIZE   largest request Nginx accepts (default 100M). The app accepts PDFs up to 200 MB for
 #                          extraction (KTAB_EXTRACTION_MAX_UPLOAD_BYTES), so use e.g. 220M to allow them.
+#   EXTRA_SITES            additional domains to cover with the SAME certificate, each served as a plain reverse
+#                          proxy to its own upstream instead of the main API. Format: one or more
+#                          "domain:upstream_host:upstream_port" entries separated by commas, e.g.
+#                            EXTRA_SITES="ktab.app:ktab-frontend:80"
+#                          Example: EXTRA_SITES="ktab.app:ktab-frontend:80" sudo bash scripts/setup_ssl.sh \
+#                            api.ktab.app admin@ktab.app
 #
-# Safe to run again: a certificate that is still valid for more than 30 days is kept (no downtime), and only the
-# Nginx configuration is rewritten. NOTE: this script writes nginx/conf.d/ktab.conf completely, so every change you
-# want in the HTTPS configuration belongs in this script, not only in that file.
+# Safe to run again: a certificate that already covers every requested domain and is still valid for more than
+# 30 days is kept (no downtime); otherwise it is requested/expanded to include whatever EXTRA_SITES names. Only
+# the Nginx configuration is rewritten. NOTE: this script writes nginx/conf.d/ktab.conf completely, so every
+# change you want in the HTTPS configuration belongs in this script, not only in that file.
 ###############################################################################
 
 set -euo pipefail
@@ -17,6 +24,8 @@ set -euo pipefail
 if [ "$#" -lt 2 ]; then
   echo "Usage: sudo bash scripts/setup_ssl.sh <DOMAIN> <EMAIL>"
   echo "Example: sudo bash scripts/setup_ssl.sh api.ktab.app admin@ktab.app"
+  echo "Example with an extra static site on the same cert:"
+  echo "  EXTRA_SITES=\"ktab.app:ktab-frontend:80\" sudo bash scripts/setup_ssl.sh api.ktab.app admin@ktab.app"
   exit 1
 fi
 
@@ -26,8 +35,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CLIENT_MAX_BODY_SIZE="${CLIENT_MAX_BODY_SIZE:-100M}"
 CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
 
+# Parse EXTRA_SITES into parallel arrays: EXTRA_DOMAINS[i] -> "EXTRA_UPSTREAMS[i]" (host:port)
+EXTRA_DOMAINS=()
+EXTRA_UPSTREAMS=()
+if [ -n "${EXTRA_SITES:-}" ]; then
+  IFS=',' read -ra _site_entries <<< "$EXTRA_SITES"
+  for _entry in "${_site_entries[@]}"; do
+    _site_domain="${_entry%%:*}"
+    _site_upstream="${_entry#*:}"
+    EXTRA_DOMAINS+=("$_site_domain")
+    EXTRA_UPSTREAMS+=("$_site_upstream")
+  done
+fi
+
 echo "============================================================"
-echo "  🔒 Setting up Let's Encrypt SSL for: $DOMAIN"
+echo "  🔒 Setting up Let's Encrypt SSL for: $DOMAIN${EXTRA_DOMAINS:+ + ${EXTRA_DOMAINS[*]}}"
 echo "  Upload limit in Nginx: $CLIENT_MAX_BODY_SIZE"
 echo "============================================================"
 
@@ -42,17 +64,35 @@ if ! command -v certbot >/dev/null 2>&1; then
   apt-get install -y certbot
 fi
 
-# Request a certificate only when there is none, or it expires within 30 days
-if [ -f "$CERT" ] && openssl x509 -checkend 2592000 -noout -in "$CERT" >/dev/null 2>&1; then
-  echo "[*] A valid certificate for $DOMAIN already exists (more than 30 days left): keeping it."
+# Does the existing cert already cover every domain we need (not just $DOMAIN)?
+_cert_covers_all_domains() {
+  [ -f "$CERT" ] || return 1
+  local _san
+  _san="$(openssl x509 -noout -ext subjectAltName -in "$CERT" 2>/dev/null || true)"
+  for _d in "$DOMAIN" "${EXTRA_DOMAINS[@]}"; do
+    grep -q "DNS:${_d}\b" <<< "$_san" || return 1
+  done
+  return 0
+}
+
+# Request/expand the certificate only when it is missing, expiring within 30 days, or missing a domain
+if _cert_covers_all_domains && openssl x509 -checkend 2592000 -noout -in "$CERT" >/dev/null 2>&1; then
+  echo "[*] A valid certificate already covers all requested domains (more than 30 days left): keeping it."
 else
   # Temporarily stop ktab-nginx to free port 80 for the standalone ACME challenge
   echo "[*] Temporarily stopping ktab-nginx to free port 80..."
   docker stop ktab-nginx 2>/dev/null || true
 
-  echo "[*] Requesting SSL certificate from Let's Encrypt for $DOMAIN..."
+  _certbot_domain_args=(-d "$DOMAIN")
+  for _d in "${EXTRA_DOMAINS[@]}"; do
+    _certbot_domain_args+=(-d "$_d")
+  done
+
+  echo "[*] Requesting SSL certificate from Let's Encrypt for: $DOMAIN ${EXTRA_DOMAINS[*]:-}"
   certbot certonly --standalone \
-    -d "$DOMAIN" \
+    --cert-name "$DOMAIN" \
+    --expand \
+    "${_certbot_domain_args[@]}" \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
@@ -159,6 +199,65 @@ server {
 }
 EOF
 
+# Append a plain reverse-proxy site for each EXTRA_SITES entry, on the same certificate
+for _i in "${!EXTRA_DOMAINS[@]}"; do
+  _site_domain="${EXTRA_DOMAINS[$_i]}"
+  _site_upstream="${EXTRA_UPSTREAMS[$_i]}"
+  echo "[*] Adding site block for $_site_domain -> $_site_upstream"
+  cat <<EOF >> "$CONF"
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${_site_domain};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+# HTTPS Server
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${_site_domain};
+
+    ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Re-resolve the upstream's address via Docker's embedded DNS instead of caching it for the
+    # life of the worker process, so a redeployed/recreated container (new IP) is picked up
+    # without requiring an Nginx restart.
+    resolver 127.0.0.11 valid=10s;
+
+    location / {
+        set \$upstream_site ${_site_upstream};
+        proxy_pass http://\$upstream_site;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host \$host;
+        proxy_set_header X-Forwarded-Port \$server_port;
+    }
+}
+EOF
+done
+
 # Setup automatic renewal hooks
 mkdir -p /etc/letsencrypt/renewal-hooks/pre /etc/letsencrypt/renewal-hooks/post
 cat << 'HOOK' > /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh
@@ -189,7 +288,7 @@ else
 fi
 
 echo "============================================================"
-echo "  ✅ SSL configured successfully for https://${DOMAIN}"
+echo "  ✅ SSL configured successfully for https://${DOMAIN}${EXTRA_DOMAINS:+ and ${EXTRA_DOMAINS[*]}}"
 echo "  🔄 Automatic renewal hooks installed in /etc/letsencrypt/renewal-hooks/"
 echo "  Test:  curl -I https://${DOMAIN}/actuator/health"
 echo "============================================================"
