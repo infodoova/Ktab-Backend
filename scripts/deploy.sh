@@ -129,9 +129,14 @@ else
   echo "[*] ktab-db is not running yet (first deploy): nothing to back up."
 fi
 
-# 5. Build the new image first; the running version keeps serving until the build is done
-echo "[*] Building the application image (the old version keeps running meanwhile)..."
-"${COMPOSE[@]}" build ktab-app
+# 5. Build the new images first; the running versions keep serving until the build is done.
+# ktab-frontend is only built if it's defined in docker-compose.yml (older checkouts won't have it).
+echo "[*] Building the application image(s) (the old versions keep running meanwhile)..."
+BUILD_SERVICES=(ktab-app)
+if "${COMPOSE[@]}" config --services | grep -qx ktab-frontend; then
+  BUILD_SERVICES+=(ktab-frontend)
+fi
+"${COMPOSE[@]}" build "${BUILD_SERVICES[@]}"
 
 echo "[*] Starting containers (only what changed is recreated)..."
 "${COMPOSE[@]}" up -d --remove-orphans
