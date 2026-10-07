@@ -101,9 +101,15 @@ server {
 
     client_max_body_size ${CLIENT_MAX_BODY_SIZE};
 
+    # Re-resolve ktab-app's address via Docker's embedded DNS instead of caching it for the
+    # life of the worker process, so a redeployed/recreated ktab-app container (new IP) is
+    # picked up without requiring an Nginx restart.
+    resolver 127.0.0.11 valid=10s;
+
     # Server-sent events: the conclusion text is streamed, so Nginx must not hold it back in a buffer
     location = /api/v1/conclusion/stream {
-        proxy_pass http://ktab-app:8080;
+        set \$upstream_app ktab-app:8080;
+        proxy_pass http://\$upstream_app;
         proxy_http_version 1.1;
 
         proxy_set_header Host \$host;
@@ -121,7 +127,8 @@ server {
     }
 
     location / {
-        proxy_pass http://ktab-app:8080;
+        set \$upstream_app ktab-app:8080;
+        proxy_pass http://\$upstream_app;
         proxy_http_version 1.1;
 
         proxy_set_header Host \$host;
