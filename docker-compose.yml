@@ -3,6 +3,17 @@ services:
     image: postgres:17-alpine
     container_name: ktab-db
     restart: unless-stopped
+    shm_size: "512mb"
+    command:
+      - postgres
+      - -c
+      - shared_buffers=4GB
+      - -c
+      - effective_cache_size=12GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=512MB
     ports:
       - "127.0.0.1:5432:5432"   # Accessible via SSH tunnel only — never publicly exposed
     environment:
@@ -31,6 +42,7 @@ services:
       dockerfile: Dockerfile
     container_name: ktab-app
     restart: unless-stopped
+    mem_limit: 14g
     depends_on:
       ktab-db:
         condition: service_healthy
