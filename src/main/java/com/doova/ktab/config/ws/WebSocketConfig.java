@@ -36,6 +36,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
                         "/api/v1/ws/reader/tts",
                         "/Ktab-0.0.1-SNAPSHOT/ws/reader/tts",
                         "/Ktab-0.0.1-SNAPSHOT/api/v1/ws/reader/tts")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns(origins);
     }
 }
