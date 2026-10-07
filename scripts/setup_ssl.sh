@@ -21,6 +21,20 @@
 
 set -euo pipefail
 
+# If anything below fails after ktab-nginx is stopped (e.g. the certbot challenge can't be
+# validated yet because DNS hasn't propagated), make sure the site doesn't stay dark: bring
+# ktab-nginx back up with whatever config it had before this run touched anything. On a
+# successful run this is a harmless no-op, since the script's own final step already
+# (re)starts ktab-nginx with the freshly written config.
+_restart_nginx_if_script_failed() {
+  local exit_code=$?
+  if [ "$exit_code" -ne 0 ]; then
+    echo "[!] setup_ssl.sh failed (exit $exit_code) — restarting ktab-nginx so the site doesn't stay down." >&2
+    docker start ktab-nginx >/dev/null 2>&1 || true
+  fi
+}
+trap _restart_nginx_if_script_failed EXIT
+
 if [ "$#" -lt 2 ]; then
   echo "Usage: sudo bash scripts/setup_ssl.sh <DOMAIN> <EMAIL>"
   echo "Example: sudo bash scripts/setup_ssl.sh api.ktab.app admin@ktab.app"
