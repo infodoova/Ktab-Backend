@@ -51,6 +51,8 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
 
     Page<Book> findAllByBookSource(BookSource bookSource, Pageable pageable);
 
+    Page<Book> findAllByBookSourceAndTotalReviewsGreaterThan(BookSource bookSource, Integer minReviews, Pageable pageable);
+
     Page<Book> findAllByAuthorId(Long authorId, Pageable pageable);
 
     Page<Book> findAllByAuthorIdAndBookSource(Long authorId, BookSource bookSource, Pageable pageable);

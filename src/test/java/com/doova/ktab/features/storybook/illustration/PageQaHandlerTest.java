@@ -71,9 +71,9 @@ class PageQaHandlerTest {
     }
 
     @Test
-    void staleBookIsSkipped() {
+    void aFailedBookKillsTheJobSoResumeCanReviveIt() {
         when(persistence.qaContext(9L, 2, 1)).thenReturn(ctx(PageImageStatus.GENERATED, StorybookStatus.FAILED));
-        handler.handle(job());
+        assertThat(handler.handle(job()).type()).isEqualTo(StepOutcome.Type.FAIL);
         assertThat(llm.requests()).isEmpty();
     }
 

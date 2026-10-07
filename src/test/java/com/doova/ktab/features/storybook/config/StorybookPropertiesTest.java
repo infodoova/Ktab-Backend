@@ -25,8 +25,8 @@ class StorybookPropertiesTest {
             assertThat(p.getLlm().getModel()).isEqualTo("gpt-6-luna");
             assertThat(p.getImage().getPrimaryModel()).isEqualTo("gemini-3.1-flash-image");
             assertThat(p.getImage().getFallbackModel()).isEqualTo("gemini-3-pro-image");
-            assertThat(p.getImage().getImageSize()).isEqualTo("1K");
-            assertThat(p.getImage().getAspectRatio()).isEqualTo("3:4");
+            assertThat(p.getImage().getImageSize()).isEqualTo("2K");
+            assertThat(p.getImage().getAspectRatio()).isEqualTo("1:1");
             assertThat(p.getImage().getMaxGenerations()).isEqualTo(4);
             assertThat(p.getImage().getPrimaryGenerations()).isEqualTo(2);
             assertThat(p.getPricing().getImagePerImageUsd())

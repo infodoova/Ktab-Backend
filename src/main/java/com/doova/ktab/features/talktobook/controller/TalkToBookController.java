@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping(path = "/books/{bookId}/talk")
+@RequestMapping(path = "/books/{bookId}/talk", produces = "application/json")
 @RequiredArgsConstructor
 @Validated
 @Tag(name = "Talk to Book API", description = "Endpoints for interactive conversational AI agent strictly grounded in book content.")

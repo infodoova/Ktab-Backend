@@ -56,6 +56,20 @@ class ReaderServiceTest {
     }
 
     @Test
+    void theReaderLoadsTheSmallCopyWhereThereIsOneAndTheOriginalWhereThereIsNot() {
+        when(persistence.context(9L)).thenReturn(new RenderContext(9L, StorybookStatus.READY, "يومي", "سامي", null,
+                TashkeelLevel.NONE,
+                List.of(new RenderModelFactory.PageSource(0, PageKind.COVER, null, TextZone.TOP),
+                        new RenderModelFactory.PageSource(1, PageKind.STORY, "ذَهَبَ سامي.", TextZone.BOTTOM)),
+                Map.of(0, "k0", 1, "k1"), Map.of(1, "k1.web")));
+
+        ReaderManifest m = service.manifest(owner, 9L);
+
+        assertThat(m.pages().get(0).imageUrl()).isEqualTo("https://signed/k0");
+        assertThat(m.pages().get(2).imageUrl()).isEqualTo("https://signed/k1.web");
+    }
+
+    @Test
     void notReadyIsAConflict() {
         book.setStatus(StorybookStatus.ILLUSTRATING);
         assertThatThrownBy(() -> service.manifest(owner, 9L)).isInstanceOf(StorybookStateConflictException.class);

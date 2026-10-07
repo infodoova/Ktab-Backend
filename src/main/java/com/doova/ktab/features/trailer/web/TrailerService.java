@@ -74,7 +74,7 @@ public class TrailerService {
     public Map<String, String> downloadUrls(User user, Long id) {
         BookTrailer t = owned(user, id);
         boolean allowed = t.getStatus() == TrailerStatus.READY
-                || (t.getStatus() == TrailerStatus.NEEDS_REVIEW && access.isAdmin(user));
+                || (t.getStatus() == TrailerStatus.NEEDS_REVIEW && access.canReview(user));
         if (!allowed || t.getVideoKey() == null) {
             throw new TrailerConflictException(ApiMessageKey.TRAILER_NOT_READY);
         }
@@ -92,8 +92,12 @@ public class TrailerService {
     @Transactional
     public void cancel(User user, Long id) {
         BookTrailer t = owned(user, id);
-        if (!t.getStatus().isActive()) {
-            throw new TrailerConflictException(ApiMessageKey.TRAILER_NOT_READY);
+        // Once the agent has started, money is being spent on generations, so only a queued trailer can be cancelled.
+        // An admin can still stop a running one.
+        boolean allowed = t.getStatus() == TrailerStatus.QUEUED || (access.isAdmin(user) && t.getStatus().isActive());
+        if (!allowed) {
+            throw new TrailerConflictException(t.getStatus().isActive()
+                    ? ApiMessageKey.TRAILER_CANCEL_NOT_ALLOWED : ApiMessageKey.TRAILER_NOT_READY);
         }
         if (t.getSessionId() != null) {
             gateway.interrupt(t.getSessionId());
@@ -103,11 +107,12 @@ public class TrailerService {
     }
 
     @Transactional
-    public TrailerView review(User admin, Long id, boolean approve) {
-        if (!access.isAdmin(admin)) {
-            throw new AccessDeniedException("Only admins review trailers");
+    public TrailerView review(User reviewer, Long id, boolean approve) {
+        if (!access.canReview(reviewer)) {
+            throw new AccessDeniedException("Only an admin, the book's author or an admin librarian review trailers");
         }
-        BookTrailer t = trailers.findById(id).orElseThrow(() -> new ResourceNotFoundException(ApiMessageKey.TRAILER_NOT_FOUND));
+        // 404 when the book is not the reviewer's own (author) or not their organization's (admin librarian)
+        BookTrailer t = owned(reviewer, id);
         if (t.getStatus() != TrailerStatus.NEEDS_REVIEW) {
             throw new TrailerConflictException(ApiMessageKey.TRAILER_NOT_READY);
         }

@@ -84,4 +84,31 @@ class PhotoIntakeServiceTest {
         assertThat(child.getPhotoKey()).isEqualTo("storybook/5/photo/source.enc");
         assertThat(child.getPhotoConsentAt()).isNotNull();
     }
+
+    @Test
+    void attachPhotoBase64_storesEncryptedJpegAndSetsCharacterPhotoKey() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB), "jpeg", out);
+        String base64 = "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+
+        service.attachPhotoBase64(5L, "child", base64, true);
+
+        assertThat(child.getPhotoKey()).isEqualTo("storybook/5/photo/source.enc");
+        assertThat(child.getPhotoConsentAt()).isNotNull();
+        verify(store).put(eq("storybook/5/photo/source.enc"), any(), eq("application/octet-stream"));
+    }
+
+    @Test
+    void supportingCharacterPhotoUploadIsStoredWithCharacterSlug() throws Exception {
+        StorybookCharacter friend = new StorybookCharacter();
+        friend.setCharacterId("friend-sam");
+        friend.setKind(CharacterKind.SUPPORTING);
+        when(characters.findByStorybook_IdAndCharacterId(5L, "friend-sam")).thenReturn(Optional.of(friend));
+
+        service.attachPhoto(5L, "friend-sam", jpeg(50, 50), true);
+
+        assertThat(friend.getPhotoKey()).isEqualTo("storybook/5/photo/friend-sam.enc");
+        assertThat(friend.getPhotoConsentAt()).isNotNull();
+        verify(store).put(eq("storybook/5/photo/friend-sam.enc"), any(), eq("application/octet-stream"));
+    }
 }

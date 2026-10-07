@@ -77,8 +77,8 @@ class StorybookDraftWriterTest {
     void insertDraft_singleChildWithoutCharactersList_createsBookAndChildCharacterAndPublishesEvent() {
         StoryInputs inputs = createInputs(null);
         CreateStorybookRequest req = new CreateStorybookRequest(
-                20L, "first-day-of-school", List.of(Interest.FOOTBALL), null, StorySetting.BEIRUT,
-                ArtStyle.SOFT_WATERCOLOR, 12, LanguageVariety.MSA, TashkeelLevel.FULL, "إلى سامي البطل"
+                20L, List.of(Interest.FOOTBALL), null, StorySetting.BEIRUT,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, "إلى سامي البطل"
         );
         StorybookDraftWriter.ResolvedSettings settings = new StorybookDraftWriter.ResolvedSettings(
                 req, LanguageVariety.MSA, TashkeelLevel.FULL, "إلى سامي البطل"
@@ -88,7 +88,7 @@ class StorybookDraftWriterTest {
 
         assertThat(savedBook.getId()).isEqualTo(42L);
         assertThat(savedBook.getStatus()).isEqualTo(StorybookStatus.DRAFT);
-        assertThat(savedBook.getPageCount()).isEqualTo((short) 12);
+        assertThat(savedBook.getPageCount()).isEqualTo((short) 15);
         assertThat(savedBook.getDedication()).isEqualTo("إلى سامي البطل");
         assertThat(savedBook.getVariety()).isEqualTo(LanguageVariety.MSA);
         assertThat(savedBook.getTashkeelLevel()).isEqualTo(TashkeelLevel.FULL);
@@ -109,7 +109,7 @@ class StorybookDraftWriterTest {
         CompanionSpec companion = new CompanionSpec(CompanionSpec.CompanionType.CAT, "بسبوس", null, CompanionSpec.PetColor.ORANGE);
         StoryInputs inputs = createInputs(companion);
         CreateStorybookRequest req = new CreateStorybookRequest(
-                20L, "first-day-of-school", List.of(Interest.CATS), companion, StorySetting.BEIRUT,
+                20L, List.of(Interest.CATS), companion, StorySetting.BEIRUT,
                 ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
         StorybookDraftWriter.ResolvedSettings settings = new StorybookDraftWriter.ResolvedSettings(
@@ -149,7 +149,7 @@ class StorybookDraftWriterTest {
         );
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                20L, "first-day-of-school", List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+                20L, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
                 18, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 "Friendship and Courage", "Warm and adventurous", "Never give up",
                 "Two siblings climbing a magic hill", List.of("Spiders", "Dark caves"),
@@ -195,8 +195,8 @@ class StorybookDraftWriterTest {
         );
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                20L, "first-day-of-school", List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
-                10, LanguageVariety.MSA, TashkeelLevel.FULL, null,
+                20L, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+                15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 null, null, null, null, null, null, List.of(charWithoutId)
         );
         StorybookDraftWriter.ResolvedSettings settings = new StorybookDraftWriter.ResolvedSettings(
@@ -221,8 +221,8 @@ class StorybookDraftWriterTest {
         );
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                20L, "first-day-of-school", List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
-                10, LanguageVariety.MSA, TashkeelLevel.FULL, null,
+                20L, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+                15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 null, null, null, null, null, null, List.of(anonymousChar)
         );
         StorybookDraftWriter.ResolvedSettings settings = new StorybookDraftWriter.ResolvedSettings(
@@ -246,7 +246,7 @@ class StorybookDraftWriterTest {
         CharacterInput parrot = new CharacterInput("zomorrod", "زمرد", "ANIMAL", "COMPANION", "pet parrot", "green feathers", List.of("brave"), null);
         CharacterInput grandpa = new CharacterInput("grandpa", "الجد", "HUMAN", 68, ChildGender.BOY, "Elder", "grandfather",
                 List.of("wise"), null, "a brown jalabiya and a white keffiyeh", "patience", "stubborn", "reading", "a brass pocket watch", "calm");
-        CreateStorybookRequest req = new CreateStorybookRequest(20L, null, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+        CreateStorybookRequest req = new CreateStorybookRequest(20L, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
                 18, LanguageVariety.MSA, TashkeelLevel.FULL, null, "t", "w", "l", "i", List.of(), "PORTRAIT", List.of(kid, parrot, grandpa));
 
         writer.insertDraft(owner, child, inputs, new StorybookDraftWriter.ResolvedSettings(req, LanguageVariety.MSA, TashkeelLevel.FULL, null));
@@ -271,7 +271,7 @@ class StorybookDraftWriterTest {
         CharacterInput pet = new CharacterInput("pet", "زمرد", "ANIMAL", "COMPANION", "pet", null, List.of(), null);
         CharacterInput friend = new CharacterInput(null, "سلمى", "HUMAN", "FRIEND", "friend", null, List.of(), null);
         CharacterInput neighbour = new CharacterInput(null, null, "HUMAN", "NEIGHBOUR", "neighbour", null, List.of(), null);
-        CreateStorybookRequest req = new CreateStorybookRequest(20L, null, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
+        CreateStorybookRequest req = new CreateStorybookRequest(20L, List.of(), null, null, ArtStyle.SOFT_WATERCOLOR,
                 18, LanguageVariety.MSA, TashkeelLevel.FULL, null, "t", "w", "l", "i", List.of(), "PORTRAIT", List.of(kid, pet, friend, neighbour));
 
         writer.insertDraft(owner, child, inputs, new StorybookDraftWriter.ResolvedSettings(req, LanguageVariety.MSA, TashkeelLevel.FULL, null));

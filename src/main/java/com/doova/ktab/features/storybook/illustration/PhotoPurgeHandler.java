@@ -23,11 +23,10 @@ public class PhotoPurgeHandler implements StepHandler {
 
     @Override
     public StepOutcome handle(StorybookJob job) {
-        String key = persistence.photoKey(job.getStorybookId());
-        if (key != null) {
+        for (String key : persistence.allPhotoKeys(job.getStorybookId())) {
             store.delete(key);
-            persistence.markPhotoPurged(job.getStorybookId());
         }
+        persistence.markPhotoPurged(job.getStorybookId());
         return StepOutcome.success();
     }
 }

@@ -1,5 +1,6 @@
 package com.doova.ktab.features.storybook.web;
 
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
@@ -32,6 +33,7 @@ public class ChildProfileController {
     private final ChildProfileService service;
     private final MessageSource messageSource;
 
+    @Operation(summary = "Create a child profile")
     @PostMapping
     public ResponseEntity<ApiResponse<ChildProfileResponse>> create(@CurrentUser User user,
                                                                     @Valid @RequestBody CreateChildProfileRequest request) {
@@ -39,12 +41,14 @@ public class ChildProfileController {
                 ApiMessageKey.STORYBOOK_CHILD_SAVED.getMessage(messageSource), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "List the caller's child profiles")
     @GetMapping
     public ResponseEntity<ApiResponse<List<ChildProfileResponse>>> list(@CurrentUser User user) {
         return ResponseUtils.success(service.list(user),
                 ApiMessageKey.STORYBOOK_CHILD_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Update a child profile")
     @PutMapping("/{childId}")
     public ResponseEntity<ApiResponse<ChildProfileResponse>> update(@CurrentUser User user, @PathVariable Long childId,
                                                                     @Valid @RequestBody CreateChildProfileRequest request) {
@@ -52,6 +56,7 @@ public class ChildProfileController {
                 ApiMessageKey.STORYBOOK_CHILD_SAVED.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Delete a child profile")
     @DeleteMapping("/{childId}")
     public ResponseEntity<ApiResponse<Void>> delete(@CurrentUser User user, @PathVariable Long childId) {
         service.delete(user, childId);

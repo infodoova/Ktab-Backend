@@ -23,9 +23,10 @@ WORKDIR /app
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
-# Install fontconfig and fonts required for PDFBox rendering & headless AWT graphics
+# Install fontconfig and fonts required for PDFBox rendering & headless AWT graphics, curl for the container healthcheck,
+# and ffmpeg (which provides ffprobe) for the trailer pipeline, which checks every finished video itself
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core curl && \
+    apt-get install -y --no-install-recommends fontconfig fonts-dejavu-core curl ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 # Chromium + its system libraries for the storybook PDF renderer

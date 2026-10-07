@@ -12,8 +12,13 @@ public record CreateChildProfileRequest(
         @NotBlank @Pattern(regexp = CreateChildProfileRequest.ARABIC_NAME) String nameAr,
         @NotNull ChildGender gender,
         @NotNull AgeBand ageBand,
-        @NotNull @Valid ChildAppearance appearance
+        @NotNull @Valid ChildAppearance appearance,
+        String photoBase64
 ) {
+    public CreateChildProfileRequest(String nameAr, ChildGender gender, AgeBand ageBand, ChildAppearance appearance) {
+        this(nameAr, gender, ageBand, appearance, null);
+    }
+
     /**
      * Arabic letters (U+0621-U+063A, U+0641-U+064A, U+0671-U+06D3), tashkeel (U+064B-U+0652, U+0670)
      * and spaces; 2 to 30 characters after trimming. Excludes tatweel (U+0640) and digits.

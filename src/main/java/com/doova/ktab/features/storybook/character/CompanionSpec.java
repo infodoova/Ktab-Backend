@@ -3,7 +3,13 @@ package com.doova.ktab.features.storybook.character;
 import java.util.Objects;
 
 /** One companion at most in the MVP (decision D5). */
-public record CompanionSpec(CompanionType type, String nameAr, ChildAppearance siblingAppearance, PetColor petColor) {
+public record CompanionSpec(
+        CompanionType type,
+        String nameAr,
+        ChildAppearance siblingAppearance,
+        PetColor petColor,
+        String photoBase64
+) {
 
     public CompanionSpec {
         Objects.requireNonNull(type, "type");
@@ -13,6 +19,10 @@ public record CompanionSpec(CompanionType type, String nameAr, ChildAppearance s
         } else {
             Objects.requireNonNull(siblingAppearance, "siblingAppearance is required for a sibling");
         }
+    }
+
+    public CompanionSpec(CompanionType type, String nameAr, ChildAppearance siblingAppearance, PetColor petColor) {
+        this(type, nameAr, siblingAppearance, petColor, null);
     }
 
     public String describeEn() {

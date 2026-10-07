@@ -45,6 +45,7 @@ class StorybookServiceMultiCharacterTest {
     private StorybookPageRepository pages;
     private StorybookCharacterRepository characters;
     private StorybookProperties properties;
+    private com.doova.ktab.features.storybook.character.PhotoIntakeService photoIntakeService;
     private StorybookService service;
 
     private User owner;
@@ -62,10 +63,10 @@ class StorybookServiceMultiCharacterTest {
         pages = mock(StorybookPageRepository.class);
         characters = mock(StorybookCharacterRepository.class);
         properties = new StorybookProperties();
+        photoIntakeService = mock(com.doova.ktab.features.storybook.character.PhotoIntakeService.class);
 
         service = new StorybookService(
                 children,
-                StoryFixtures.CATALOG,
                 moderation,
                 ledger,
                 writer,
@@ -74,7 +75,10 @@ class StorybookServiceMultiCharacterTest {
                 books,
                 pages,
                 characters,
-                properties
+                properties,
+                photoIntakeService,
+                new org.springframework.transaction.support.TransactionTemplate(
+                        mock(org.springframework.transaction.PlatformTransactionManager.class))
         );
 
         owner = new User();
@@ -105,13 +109,13 @@ class StorybookServiceMultiCharacterTest {
 
     private CreateStorybookRequest baseRequest(int pages) {
         return new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, StorySetting.BEIRUT,
+                5L, List.of(), null, StorySetting.BEIRUT,
                 ArtStyle.SOFT_WATERCOLOR, pages, LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {10, 12, 15, 18, 20})
+    @ValueSource(ints = {15, 16, 17, 18, 19, 20})
     void create_allSupportedPageCounts_acceptedSuccessfully(int pageCount) {
         service.create(owner, baseRequest(pageCount));
 
@@ -122,7 +126,7 @@ class StorybookServiceMultiCharacterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {8, 9, 11, 13, 14, 16, 17, 19, 21, 25})
+    @ValueSource(ints = {8, 9, 10, 11, 12, 13, 14, 21, 25})
     void create_unsupportedPageCounts_throwsBadRequestException(int pageCount) {
         assertThatThrownBy(() -> service.create(owner, baseRequest(pageCount)))
                 .isInstanceOf(BadRequestException.class)
@@ -142,7 +146,7 @@ class StorybookServiceMultiCharacterTest {
         );
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, StorySetting.BEIRUT,
+                5L, List.of(), null, StorySetting.BEIRUT,
                 ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 "Adventures in Beirut", "Exciting and warm", "Kindness", "Finding a lost map",
                 List.of("Scary monsters"), "PORTRAIT", List.of(protagonist, companion)
@@ -162,8 +166,8 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_withThreeUniqueInterests_succeeds() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(Interest.CATS, Interest.FOOTBALL, Interest.DRAWING),
-                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 10,
+                5L, List.of(Interest.CATS, Interest.FOOTBALL, Interest.DRAWING),
+                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 15,
                 LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
 
@@ -175,8 +179,8 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_withDuplicateInterests_deduplicatesAndSucceeds() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(Interest.CATS, Interest.CATS, Interest.FOOTBALL, Interest.FOOTBALL),
-                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 10,
+                5L, List.of(Interest.CATS, Interest.CATS, Interest.FOOTBALL, Interest.FOOTBALL),
+                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 15,
                 LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
 
@@ -188,8 +192,8 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_withMoreThanThreeDistinctInterests_throwsTooManyInterests() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(Interest.CATS, Interest.FOOTBALL, Interest.DRAWING, Interest.SPACE),
-                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 10,
+                5L, List.of(Interest.CATS, Interest.FOOTBALL, Interest.DRAWING, Interest.SPACE),
+                null, StorySetting.BEIRUT, ArtStyle.SOFT_WATERCOLOR, 15,
                 LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
 
@@ -201,8 +205,8 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_dialectWithTashkeel_throwsDialectRequiresNoTashkeel() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, null,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.EGYPTIAN, TashkeelLevel.FULL, null
+                5L, List.of(), null, null,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.EGYPTIAN, TashkeelLevel.FULL, null
         );
 
         assertThatThrownBy(() -> service.create(owner, req))
@@ -213,8 +217,8 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_dialectWithoutTashkeel_defaultsToNone() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, null,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.LEBANESE, null, null
+                5L, List.of(), null, null,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.LEBANESE, null, null
         );
 
         service.create(owner, req);
@@ -225,27 +229,13 @@ class StorybookServiceMultiCharacterTest {
     @Test
     void create_msaWithoutTashkeel_throwsTashkeelRequired() {
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, null,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.MSA, null, null
+                5L, List.of(), null, null,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, null, null
         );
 
         assertThatThrownBy(() -> service.create(owner, req))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessage("STORYBOOK_TASHKEEL_REQUIRED");
-    }
-
-    @Test
-    void create_blueprintNotAllowedForAgeBand_throwsBlueprintNotAllowed() {
-        child.setAgeBand(AgeBand.AGE_9_10); // first-day-of-school is for 3-5 and 6-8, not 9-10
-
-        CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, null,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.MSA, TashkeelLevel.FULL, null
-        );
-
-        assertThatThrownBy(() -> service.create(owner, req))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("STORYBOOK_BLUEPRINT_NOT_ALLOWED");
     }
 
     @Test
@@ -255,8 +245,8 @@ class StorybookServiceMultiCharacterTest {
         );
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), companionWithEnglishName, StorySetting.BEIRUT,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.MSA, TashkeelLevel.FULL, null
+                5L, List.of(), companionWithEnglishName, StorySetting.BEIRUT,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null
         );
 
         assertThatThrownBy(() -> service.create(owner, req))
@@ -268,7 +258,7 @@ class StorybookServiceMultiCharacterTest {
     void create_exceedsDailyLimit_throwsLimitReachedBeforeModeration() {
         when(books.countByOwner_IdAndCreatedAtAfter(eq(1L), any())).thenReturn(3L);
 
-        CreateStorybookRequest req = baseRequest(10);
+        CreateStorybookRequest req = baseRequest(15);
 
         assertThatThrownBy(() -> service.create(owner, req))
                 .isInstanceOf(BadRequestException.class)
@@ -287,8 +277,8 @@ class StorybookServiceMultiCharacterTest {
                 .thenReturn(new ModerationService.ModerationOutcome(false, "inappropriate language", llmCall));
 
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, "first-day-of-school", List.of(), null, StorySetting.BEIRUT,
-                ArtStyle.SOFT_WATERCOLOR, 10, LanguageVariety.MSA, TashkeelLevel.FULL, "bad dedication text"
+                5L, List.of(), null, StorySetting.BEIRUT,
+                ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, "bad dedication text"
         );
 
         assertThatThrownBy(() -> service.create(owner, req))
@@ -306,7 +296,7 @@ class StorybookServiceMultiCharacterTest {
             five.add(new CharacterInput("c" + i, "اسم", "HUMAN", i == 0 ? "PROTAGONIST" : "FRIEND", "x", null, List.of(), null));
         }
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, null, List.of(), null, StorySetting.BEIRUT,
+                5L, List.of(), null, StorySetting.BEIRUT,
                 ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 "t", "w", "l", "i", List.of(), "PORTRAIT", five);
 
@@ -322,7 +312,7 @@ class StorybookServiceMultiCharacterTest {
             four.add(new CharacterInput("c" + i, "اسم", "HUMAN", i == 0 ? "PROTAGONIST" : "FRIEND", "x", null, List.of(), null));
         }
         CreateStorybookRequest req = new CreateStorybookRequest(
-                5L, null, List.of(), null, StorySetting.BEIRUT,
+                5L, List.of(), null, StorySetting.BEIRUT,
                 ArtStyle.SOFT_WATERCOLOR, 15, LanguageVariety.MSA, TashkeelLevel.FULL, null,
                 "t", "w", "l", "i", List.of(), "PORTRAIT", four);
 

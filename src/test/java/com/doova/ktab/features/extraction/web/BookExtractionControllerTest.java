@@ -44,7 +44,7 @@ class BookExtractionControllerTest {
     void aRejectedPdfIs422WithItsReason() throws Exception {
         when(service.extract(any())).thenThrow(new PdfRejectedException(PdfRejectedException.Reason.ENCRYPTED, "encrypted"));
 
-        mvc.perform(multipart("/api/books/extract").file(new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1})))
+        mvc.perform(multipart("/books/extract").file(new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1})))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.reason").value("ENCRYPTED"))
                 .andExpect(jsonPath("$.message").value("encrypted"));
@@ -55,14 +55,14 @@ class BookExtractionControllerTest {
         when(service.extract(any())).thenReturn(sample());
         MockMultipartFile file = new MockMultipartFile("file", "a.pdf", "application/pdf", new byte[]{1});
 
-        mvc.perform(multipart("/api/books/extract").file(file))
+        mvc.perform(multipart("/books/extract").file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.structureDetection.source").value("EMBEDDED_OUTLINE"))
                 .andExpect(jsonPath("$.pages").isEmpty())
                 .andExpect(jsonPath("$.chapters[0].text").value("clean"))
                 .andExpect(jsonPath("$.chapters[0].pages").isEmpty());
 
-        mvc.perform(multipart("/api/books/extract").file(file).param("includePages", "true"))
+        mvc.perform(multipart("/books/extract").file(file).param("includePages", "true"))
                 .andExpect(jsonPath("$.pages[0].rawText").value("raw"))
                 .andExpect(jsonPath("$.chapters[0].pages[0].cleanedText").value("clean"));
     }

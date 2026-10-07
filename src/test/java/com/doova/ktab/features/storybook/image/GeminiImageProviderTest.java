@@ -15,12 +15,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GeminiImageProviderTest {
 
     @Test
-    void configAsksForOnePortrait1kImage() {
+    void configAsksForOneSquare2kImage() {
         GenerateContentConfig config = GeminiImageProvider.buildConfig(new StorybookProperties.Image());
 
         assertThat(config.responseModalities().orElseThrow().toString()).contains("IMAGE");
-        assertThat(config.imageConfig().orElseThrow().aspectRatio()).contains("3:4");
-        assertThat(config.imageConfig().orElseThrow().imageSize()).contains("1K");
+        assertThat(config.imageConfig().orElseThrow().aspectRatio()).contains("1:1");
+        assertThat(config.imageConfig().orElseThrow().imageSize()).contains("2K");
     }
 
     @Test

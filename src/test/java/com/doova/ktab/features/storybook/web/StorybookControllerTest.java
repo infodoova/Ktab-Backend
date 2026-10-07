@@ -1,12 +1,11 @@
 package com.doova.ktab.features.storybook.web;
 
 import com.doova.ktab.annotation.CurrentUser;
-import com.doova.ktab.features.storybook.enums.AgeBand;
 import com.doova.ktab.features.storybook.enums.LanguageVariety;
 import com.doova.ktab.features.storybook.enums.StorybookStatus;
 import com.doova.ktab.features.storybook.enums.TashkeelLevel;
-import com.doova.ktab.features.storybook.web.dto.BlueprintSummary;
 import com.doova.ktab.features.storybook.web.dto.StorybookDetail;
+import com.doova.ktab.features.storybook.web.dto.StorybookSummary;
 import com.doova.ktab.model.user.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -66,8 +66,26 @@ class StorybookControllerTest {
     void createReturns201WithTheDraft() throws Exception {
         when(service.create(eq(user), any())).thenReturn(detail());
         mvc.perform(post("/storybook/books").contentType(MediaType.APPLICATION_JSON).content("""
-                {"childProfileId":5,"blueprintKey":"first-day-of-school","style":"SOFT_WATERCOLOR",
-                 "pageCount":10,"variety":"MSA","tashkeelLevel":"FULL"}"""))
+                {"childProfileId":5,"style":"SOFT_WATERCOLOR",
+                 "pageCount":15,"variety":"MSA","tashkeelLevel":"FULL"}"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.id").value(42))
+                .andExpect(jsonPath("$.data.status").value("DRAFT"));
+    }
+
+    @Test
+    void createMultipartReturns201WithTheDraft() throws Exception {
+        when(service.create(eq(user), any(), any(), any(), any(), any())).thenReturn(detail());
+        org.springframework.mock.web.MockMultipartFile jsonPart = new org.springframework.mock.web.MockMultipartFile(
+                "request", "", MediaType.APPLICATION_JSON_VALUE, """
+                {"childProfileId":5,"style":"SOFT_WATERCOLOR",
+                 "pageCount":15,"variety":"MSA","tashkeelLevel":"FULL"}""".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        org.springframework.mock.web.MockMultipartFile photoPart = new org.springframework.mock.web.MockMultipartFile(
+                "childPhoto", "child.jpg", "image/jpeg", "dummy-jpeg-data".getBytes());
+
+        mvc.perform(multipart("/storybook/books")
+                        .file(jsonPart)
+                        .file(photoPart))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.id").value(42))
                 .andExpect(jsonPath("$.data.status").value("DRAFT"));
@@ -76,7 +94,7 @@ class StorybookControllerTest {
     @Test
     void createWithoutPageCountIs400() throws Exception {
         mvc.perform(post("/storybook/books").contentType(MediaType.APPLICATION_JSON).content("""
-                {"childProfileId":5,"blueprintKey":"first-day-of-school","style":"SOFT_WATERCOLOR"}"""))
+                {"childProfileId":5,"style":"SOFT_WATERCOLOR"}"""))
                 .andExpect(status().isBadRequest());
     }
 
@@ -86,13 +104,6 @@ class StorybookControllerTest {
         mvc.perform(get("/storybook/books/42")).andExpect(status().isOk()).andExpect(jsonPath("$.data.childNameAr").value("سامي"));
     }
 
-    @Test
-    void blueprintsAreFilteredByAgeBand() throws Exception {
-        when(service.blueprints(AgeBand.AGE_3_5)).thenReturn(List.of(
-                new BlueprintSummary("first-day-of-school", "يومي الأول في المدرسة", "My First Day at School", "school", false, List.of())));
-        mvc.perform(get("/storybook/blueprints").param("ageBand", "AGE_3_5"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].key").value("first-day-of-school"));
-    }
 
     @Test
     void resumeReturns202Accepted() throws Exception {
@@ -157,5 +168,35 @@ class StorybookControllerTest {
     void cancelReturns202Accepted() throws Exception {
         mvc.perform(post("/storybook/books/42/cancel"))
                 .andExpect(status().isAccepted());
+    }
+
+    @Test
+    void listReturns200WithSummariesIncludingCoverImageUrl() throws Exception {
+        when(service.list(user)).thenReturn(List.of(
+                new StorybookSummary(42L, "سِرُّ الْبَحْرِ", "سامي", StorybookStatus.READY,
+                        16, "https://signed/covers/42.png", java.time.LocalDateTime.now())
+        ));
+
+        mvc.perform(get("/storybook/books"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(42))
+                .andExpect(jsonPath("$.data[0].titleAr").value("سِرُّ الْبَحْرِ"))
+                .andExpect(jsonPath("$.data[0].coverImageUrl").value("https://signed/covers/42.png"));
+    }
+
+    @Test
+    void editStoryReturns200WithUpdatedDetail() throws Exception {
+        when(service.editStory(eq(user), eq(42L), any())).thenReturn(detail());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/storybook/books/42/story")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "titleAr": "مغامرة سامي في الحديقة",
+                                  "pages": [
+                                    {"pageIndex": 1, "textAr": "ذهب سامي إلى الحديقة.", "sceneEn": "Sami in the garden."}
+                                  ]
+                                }"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(42));
     }
 }

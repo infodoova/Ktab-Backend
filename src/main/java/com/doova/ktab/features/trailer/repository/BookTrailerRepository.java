@@ -17,6 +17,8 @@ public interface BookTrailerRepository extends JpaRepository<BookTrailer, Long> 
 
     List<BookTrailer> findByBookIdOrderByIdDesc(Long bookId);
 
+    Optional<BookTrailer> findFirstByBookIdAndStatusOrderByIdDesc(Long bookId, TrailerStatus status);
+
     boolean existsByBookIdAndStatusIn(Long bookId, Collection<TrailerStatus> statuses);
 
     long countByBookIdAndCreatedAtAfterAndStatusNotIn(Long bookId, LocalDateTime after, Collection<TrailerStatus> excluded);

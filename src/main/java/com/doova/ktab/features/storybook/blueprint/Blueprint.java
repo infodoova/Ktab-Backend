@@ -2,11 +2,13 @@ package com.doova.ktab.features.storybook.blueprint;
 
 import com.doova.ktab.features.storybook.enums.AgeBand;
 import com.doova.ktab.features.storybook.enums.StorySetting;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record Blueprint(
         String key,
         int version,
@@ -18,7 +20,8 @@ public record Blueprint(
         boolean religious,
         List<BlueprintBeat> beats
 ) {
-    public static final Set<Integer> PAGE_COUNTS = Set.of(10, 12, 15);
+    /** Valid minPageCount thresholds used in blueprint JSON beat definitions. */
+    public static final Set<Integer> BEAT_THRESHOLDS = Set.of(10, 12, 15);
 
     public static final String CUSTOM_KEY = "custom";
 
@@ -32,7 +35,7 @@ public record Blueprint(
         if (beats.isEmpty()) {
             return List.of();
         }
-        if (!PAGE_COUNTS.contains(pageCount)) {
+        if (!BEAT_THRESHOLDS.contains(pageCount)) {
             throw new IllegalArgumentException("Page count must be 10, 12 or 15, was " + pageCount);
         }
         return beats.stream()

@@ -1,5 +1,6 @@
 package com.doova.ktab.features.trailer.web;
 
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.annotation.CurrentUser;
 import com.doova.ktab.dto.ApiResponse;
@@ -30,44 +31,51 @@ public class TrailerController {
     private final TrailerService service;
     private final MessageSource messages;
 
+    @Operation(summary = "Create a trailer for a book")
     @PostMapping("/books/{bookId}")
     public ResponseEntity<ApiResponse<TrailerView>> create(@CurrentUser User user, @PathVariable Long bookId) {
         return ResponseUtils.success(service.create(user, bookId), ApiMessageKey.TRAILER_CREATED.getMessage(messages), HttpStatus.ACCEPTED);
     }
 
+    @Operation(summary = "List a book's trailers, newest first")
     @GetMapping("/books/{bookId}")
     public ResponseEntity<ApiResponse<List<TrailerView>>> list(@CurrentUser User user, @PathVariable Long bookId) {
         return ResponseUtils.success(service.list(user, bookId), ApiMessageKey.TRAILER_FETCHED.getMessage(messages), HttpStatus.OK);
     }
 
+    @Operation(summary = "Get one trailer and its status")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TrailerView>> get(@CurrentUser User user, @PathVariable Long id) {
         return ResponseUtils.success(service.get(user, id), ApiMessageKey.TRAILER_FETCHED.getMessage(messages), HttpStatus.OK);
     }
 
+    @Operation(summary = "Get download links for a finished trailer")
     @GetMapping("/{id}/download")
     public ResponseEntity<ApiResponse<Map<String, String>>> download(@CurrentUser User user, @PathVariable Long id) {
         return ResponseUtils.success(service.downloadUrls(user, id), ApiMessageKey.TRAILER_FETCHED.getMessage(messages), HttpStatus.OK);
     }
 
+    @Operation(summary = "Cancel a trailer that is still queued")
     @PostMapping("/{id}/cancel")
     public ResponseEntity<ApiResponse<Void>> cancel(@CurrentUser User user, @PathVariable Long id) {
         service.cancel(user, id);
         return ResponseUtils.success(null, ApiMessageKey.TRAILER_CANCELLED.getMessage(messages), HttpStatus.OK);
     }
 
+    @Operation(summary = "Approve or reject a trailer held for review (admin, the book's author or an admin librarian)")
     @PostMapping("/{id}/review")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'AUTHOR', 'ADMIN_LIBRARIAN')")
     public ResponseEntity<ApiResponse<TrailerView>> review(
-            @CurrentUser User admin,
+            @CurrentUser User reviewer,
             @PathVariable Long id,
             @RequestParam boolean approve) {
         return ResponseUtils.success(
-                service.review(admin, id, approve),
+                service.review(reviewer, id, approve),
                 ApiMessageKey.TRAILER_REVIEWED.getMessage(messages),
                 HttpStatus.OK);
     }
 
+    @Operation(summary = "Queue a failed or held trailer again (admin)")
     @PostMapping("/{id}/retry")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<TrailerView>> retry(@CurrentUser User admin, @PathVariable Long id) {

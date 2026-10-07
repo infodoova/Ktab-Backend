@@ -61,11 +61,11 @@ public class CharacterSheetHandler implements StepHandler {
             ImageRequest request;
             if (ctx.photoKey() != null) {
                 byte[] photo = vault.decrypt(store.get(ctx.photoKey()));
-                request = new ImageRequest(model, CharacterPrompts.sheetFromPhoto(ctx.gender(), ctx.ageBand()),
+                request = new ImageRequest(model, CharacterPrompts.sheetFromPhoto(ctx.gender(), ctx.ageBand(), ctx.childClothing()),
                         List.of(new ReferenceImage(photo, "image/jpeg"), new ReferenceImage(style, "image/png")));
                 photoUsed = true;
             } else if (ctx.photoBased() && ctx.childSheetKey() != null) {
-                request = new ImageRequest(model, CharacterPrompts.sheetFromPreviousSheet(ctx.gender(), ctx.ageBand()),
+                request = new ImageRequest(model, CharacterPrompts.sheetFromPreviousSheet(ctx.gender(), ctx.ageBand(), ctx.childClothing()),
                         List.of(new ReferenceImage(store.get(ctx.childSheetKey()), "image/png"), new ReferenceImage(style, "image/png")));
             } else {
                 request = new ImageRequest(model, CharacterPrompts.sheet(ctx.gender(), ctx.ageBand(), ctx.appearance(), ctx.childClothing()),
@@ -90,6 +90,11 @@ public class CharacterSheetHandler implements StepHandler {
                 if (childSheetBytes != null) {
                     refs.add(new ReferenceImage(childSheetBytes, "image/png"));
                 }
+                if (ctx.companionPhotoKey() != null && store.exists(ctx.companionPhotoKey())) {
+                    byte[] companionPhoto = vault.decrypt(store.get(ctx.companionPhotoKey()));
+                    refs.add(new ReferenceImage(companionPhoto, "image/jpeg"));
+                    photoUsed = true;
+                }
                 ImageResult result = generateSheet(new ImageRequest(model,
                         CharacterPrompts.companionSheet(ctx.companion(), childSheetBytes != null), refs), "IMAGE_COMPANION_SHEET", ctx.bookId(), job);
                 store.put(companionKey, result.bytes(), result.mimeType());
@@ -109,6 +114,11 @@ public class CharacterSheetHandler implements StepHandler {
                 List<ReferenceImage> refs = new java.util.ArrayList<>(List.of(new ReferenceImage(style, "image/png")));
                 if (childSheetBytes != null) {
                     refs.add(new ReferenceImage(childSheetBytes, "image/png"));
+                }
+                if (s.photoKey() != null && store.exists(s.photoKey())) {
+                    byte[] supportingPhoto = vault.decrypt(store.get(s.photoKey()));
+                    refs.add(new ReferenceImage(supportingPhoto, "image/jpeg"));
+                    photoUsed = true;
                 }
                 ImageResult result = generateSheet(new ImageRequest(model,
                         CharacterPrompts.supportingSheet(s.describeEn(), s.clothing(), childSheetBytes != null), refs),

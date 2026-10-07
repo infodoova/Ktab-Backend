@@ -1,5 +1,6 @@
 package com.doova.ktab.features.extraction.web;
 
+import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.dto.book.BookNavigatorResponse;
 import com.doova.ktab.dto.book.ReaderPageResponse;
@@ -25,7 +26,8 @@ import java.util.Map;
 @Validated
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(path = {"/api/books", "/api/v1/books"})
+@ApiVersion(value = 1, keepLegacyPath = true)
+@RequestMapping(path = "/books")
 public class BookExtractionController {
 
     private final BookExtractionService service;

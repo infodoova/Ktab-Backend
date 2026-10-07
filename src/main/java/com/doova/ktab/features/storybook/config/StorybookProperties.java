@@ -67,14 +67,18 @@ public class StorybookProperties {
         private String fallbackModel = "gemini-3-pro-image";
         private int primaryMaxReferences = 4;
         private int fallbackMaxReferences = 5;
-        private String aspectRatio = "3:4";
-        private String imageSize = "1K";
+        private String aspectRatio = "1:1";
+        private String imageSize = "2K";
         /** Generations 1..primaryGenerations use the primary model, later ones the fallback (D6). */
         private int primaryGenerations = 2;
         /** First generation plus 3 QA retries (spec: "retried up to 3 times"). */
         private int maxGenerations = 4;
         /** Longest side, in pixels, of images sent to Claude for visual QA. */
         private int qaMaxSidePx = 1024;
+        /** Longest side, in pixels, of the JPEG copy of each page image that readers load. */
+        private int webMaxSidePx = 1400;
+        /** Stop redrawing a page once this many attempts in a row fail the same checks; 0 turns it off. */
+        private int repeatFailureLimit = 2;
     }
 
     @Getter
@@ -114,7 +118,7 @@ public class StorybookProperties {
         private int lookRegenerations = 2;
         private int pageRegenerationsPerBook = 3;
         private int draftsPerUserPerDay = 3;
-        private BigDecimal maxBookCostUsd = new BigDecimal("3.00");
+        private BigDecimal maxBookCostUsd = new BigDecimal("5.00");
     }
 
     @Getter

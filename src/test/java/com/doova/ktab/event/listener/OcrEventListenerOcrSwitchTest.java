@@ -1,5 +1,6 @@
 package com.doova.ktab.event.listener;
 
+import com.doova.ktab.enums.book.IngestionRoute;
 import com.doova.ktab.event.model.BookPublishedEvent;
 import com.doova.ktab.features.ingestion.config.OcrSwitchProperties;
 import com.doova.ktab.features.ingestion.routing.IngestionRouter;
@@ -42,5 +43,15 @@ class OcrEventListenerOcrSwitchTest {
 
         verify(queue).publishBookPages(5L);
         verify(router, never()).ingest(anyLong(), any());
+    }
+
+    @Test
+    void handleBookPublished_triggersNativeIngestion_whenOcrIsOff() throws Exception {
+        when(router.ingest(10L, "keys/book.pdf")).thenReturn(IngestionRoute.NATIVE);
+
+        listener.handleBookPublished(new BookPublishedEvent(10L, "keys/book.pdf", java.time.Instant.now()));
+
+        verify(router).ingest(10L, "keys/book.pdf");
+        verify(queue, never()).publishBookPages(anyLong());
     }
 }

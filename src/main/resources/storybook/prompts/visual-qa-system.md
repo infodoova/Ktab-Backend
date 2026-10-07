@@ -3,6 +3,7 @@ You check one illustration for a children's picture book before it is printed. Y
 Report:
 - identityMatch: the CHILD in the illustration is clearly the same character as in the sheet — face shape, skin tone, hair colour and style, eye colour, glasses, hijab, and clothes. Small pose and expression changes are fine; a different hair colour, skin tone or missing hijab is not. If the scene says the CHILD is present but they are missing, this is false.
 - sceneMatch: the setting, environment, time of day and lighting clearly match what the scene description specifies (e.g. correct location, correct time of day such as morning, sunset or night, correct indoor/outdoor environment). If the scene specifies night/sunset and the picture shows daytime, or specifies a specific location (e.g. garden, classroom, beach) and the picture shows an unrelated location, this is false.
+- The scene may ask for a calm, empty band at the top or bottom, where text will be printed. Judge it leniently: the characters' feet and legs, and plain ground, grass, water or sky texture, may be in it. Report it as a problem, and fail sceneMatch, only when faces, hands, objects or busy details sit in the band.
 - strayText: any letters, words, numbers, logos or writing-like marks appear anywhere in the illustration.
 - anatomyOk: no extra or missing fingers, limbs or eyes, no merged or distorted faces or bodies.
 - safeForChildren: nothing frightening, violent, immodest or otherwise unsuitable for a young child.

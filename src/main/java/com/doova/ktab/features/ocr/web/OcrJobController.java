@@ -1,5 +1,13 @@
 package com.doova.ktab.features.ocr.web;
 
+import com.doova.ktab.annotation.ApiVersion;
+import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.enums.message.ApiMessageKey;
+import com.doova.ktab.exception.ResourceNotFoundException;
+import com.doova.ktab.utils.response.ResponseUtils;
+import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.enums.book.ReadingDirection;
 import com.doova.ktab.enums.book.SpreadSide;
 import com.doova.ktab.enums.status.OcrStatus;
@@ -36,7 +44,8 @@ import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/ocr")
+@ApiVersion(value = 1, keepLegacyPath = true)
+@RequestMapping(path = "/ocr", produces = "application/json")
 @PreAuthorize("hasAnyAuthority('ADMIN', 'ADMIN_LIBRARIAN')")
 @Tag(name = "OCR Job API", description = "Endpoints for launching and managing batch OCR processing and book restructure jobs.")
 public class OcrJobController {
@@ -57,19 +66,21 @@ public class OcrJobController {
     private final SpreadSplitter spreadSplitter;
     private final BorderCropper borderCropper;
     private final OcrSwitchProperties ocrSwitch;
+    private final MessageSource messageSource;
 
     /** 409 while OCR is switched off (KTAB_OCR_ENABLED=false); null when OCR may run. */
-    private ResponseEntity<Map<String, Object>> ocrDisabled() {
+    private ResponseEntity<ApiResponse<Map<String, Object>>> ocrDisabled() {
         return ocrSwitch.isEnabled() ? null
-                : ResponseEntity.status(409).body(Map.of("message", "OCR is disabled (KTAB_OCR_ENABLED=false)"));
+                : ResponseUtils.error(ApiMessageKey.OCR_DISABLED.getMessage(messageSource), HttpStatus.CONFLICT);
     }
 
     /**
      * Upload PDF to S3 and start full OCR pipeline.
      */
+    @Operation(summary = "Start the batch OCR job for a book")
     @PostMapping("/books/{bookId}/start")
-    public ResponseEntity<Map<String, Object>> start(@PathVariable Long bookId) throws Exception {
-        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+    public ResponseEntity<ApiResponse<Map<String, Object>>> start(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<ApiResponse<Map<String, Object>>> disabled = ocrDisabled();
         if (disabled != null) {
             return disabled;
         }
@@ -78,12 +89,15 @@ public class OcrJobController {
                 .findFirst();
 
         if (running.isPresent()) {
-            return ResponseEntity.status(409).body(Map.of("status", "RUNNING", "executionId", running.get().getId()));
+            ApiResponse<Map<String, Object>> conflict = ApiResponse.error(
+                    ApiMessageKey.OCR_JOB_ALREADY_RUNNING.getMessage(messageSource), HttpStatus.CONFLICT);
+            conflict.setData(Map.of("status", "RUNNING", "executionId", running.get().getId()));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(conflict);
         }
 
         Optional<Attachment> attachment = attachmentService.getAttachment(bookId, "Book", "PDF_SOURCE");
         if (attachment.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "No PDF_SOURCE attachment found for bookId " + bookId));
+            return ResponseUtils.error(ApiMessageKey.BOOK_OCR_PDF_MISSING.getMessage(messageSource), HttpStatus.BAD_REQUEST);
         }
 
         String pdfKey = attachment.get().getStoragePath();
@@ -94,15 +108,17 @@ public class OcrJobController {
                 .toJobParameters();
 
         JobExecution exec = jobLauncher.run(ocrJob, params);
-        return ResponseEntity.accepted().body(Map.of("executionId", exec.getId(), "bookId", bookId, "pdfKey", pdfKey, "status", exec.getStatus().toString()));
+        return ResponseUtils.success(Map.of("executionId", exec.getId(), "bookId", bookId, "pdfKey", pdfKey, "status", exec.getStatus().toString()),
+                ApiMessageKey.OCR_JOB_STARTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     /**
      * Restructure job: runs Steps 3 (TOC), 4 (Structure), 6 (Quality) without paying for OCR again.
      */
+    @Operation(summary = "Restructure a book (TOC, structure and quality) without re-running OCR")
     @PostMapping("/books/{bookId}/restructure")
-    public ResponseEntity<Map<String, Object>> restructure(@PathVariable Long bookId) throws Exception {
-        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+    public ResponseEntity<ApiResponse<Map<String, Object>>> restructure(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<ApiResponse<Map<String, Object>>> disabled = ocrDisabled();
         if (disabled != null) {
             return disabled;
         }
@@ -112,15 +128,17 @@ public class OcrJobController {
                 .toJobParameters();
 
         JobExecution exec = jobLauncher.run(restructureJob, params);
-        return ResponseEntity.accepted().body(Map.of("executionId", exec.getId(), "bookId", bookId, "status", exec.getStatus().toString()));
+        return ResponseUtils.success(Map.of("executionId", exec.getId(), "bookId", bookId, "status", exec.getStatus().toString()),
+                ApiMessageKey.OCR_RESTRUCTURE_STARTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     /**
      * Harmonize job: runs Steps 5 (Harmonize) and 6 (Quality).
      */
+    @Operation(summary = "Harmonize a book's pages and re-check quality")
     @PostMapping("/books/{bookId}/harmonize")
-    public ResponseEntity<Map<String, Object>> harmonize(@PathVariable Long bookId) throws Exception {
-        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+    public ResponseEntity<ApiResponse<Map<String, Object>>> harmonize(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<ApiResponse<Map<String, Object>>> disabled = ocrDisabled();
         if (disabled != null) {
             return disabled;
         }
@@ -130,16 +148,18 @@ public class OcrJobController {
                 .toJobParameters();
 
         JobExecution exec = jobLauncher.run(harmonizeJob, params);
-        return ResponseEntity.accepted().body(Map.of("executionId", exec.getId(), "bookId", bookId, "status", exec.getStatus().toString()));
+        return ResponseUtils.success(Map.of("executionId", exec.getId(), "bookId", bookId, "status", exec.getStatus().toString()),
+                ApiMessageKey.OCR_HARMONIZE_STARTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     /**
      * Retry FLAGGED or FAILED pages only.
      */
+    @Operation(summary = "Retry OCR for the flagged or failed pages of a book")
     @PostMapping("/books/{bookId}/pages/retry-flagged")
     @Transactional
-    public ResponseEntity<Map<String, Object>> retryFlagged(@PathVariable Long bookId) throws Exception {
-        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+    public ResponseEntity<ApiResponse<Map<String, Object>>> retryFlagged(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<ApiResponse<Map<String, Object>>> disabled = ocrDisabled();
         if (disabled != null) {
             return disabled;
         }
@@ -159,26 +179,27 @@ public class OcrJobController {
                 .toJobParameters();
 
         JobExecution exec = jobLauncher.run(ocrJob, params);
-        return ResponseEntity.accepted().body(Map.of(
+        return ResponseUtils.success(Map.of(
                 "retriedPagesCount", flaggedPages.size(),
                 "executionId", exec.getId(),
                 "status", exec.getStatus().toString()
-        ));
+        ), ApiMessageKey.OCR_RETRY_FLAGGED_STARTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     /**
      * Manually rotate a page image by degrees (90, 180, 270) and set status to PENDING for re-OCR.
      */
+    @Operation(summary = "Rotate a page image and queue it for OCR again")
     @PostMapping("/books/{bookId}/pages/{pageNumber}/rotate")
     @Transactional
-    public ResponseEntity<Map<String, Object>> rotatePage(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> rotatePage(
             @PathVariable Long bookId,
             @PathVariable int pageNumber,
             @RequestParam int degrees
     ) throws Exception {
         Optional<BookPage> pageOpt = pageRepository.findByBookIdAndPageNumber(bookId, pageNumber);
         if (pageOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException(ApiMessageKey.OCR_PAGE_NOT_FOUND);
         }
 
         BookPage page = pageOpt.get();
@@ -200,26 +221,27 @@ public class OcrJobController {
         page.setStatus(OcrStatus.PENDING);
         pageRepository.save(page);
 
-        return ResponseEntity.ok(Map.of(
+        return ResponseUtils.success(Map.of(
                 "bookId", bookId,
                 "pageNumber", pageNumber,
                 "rotationDegrees", page.getRotationDegrees(),
                 "status", "PENDING"
-        ));
+        ), ApiMessageKey.OCR_PAGE_ROTATED.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**
      * Manually split an unsplit spread page into two pages and renumber subsequent pages.
      */
+    @Operation(summary = "Split a spread page into two pages and renumber the rest")
     @PostMapping("/books/{bookId}/pages/{pageNumber}/split")
     @Transactional
-    public ResponseEntity<Map<String, Object>> splitPage(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> splitPage(
             @PathVariable Long bookId,
             @PathVariable int pageNumber
     ) throws Exception {
         Optional<BookPage> pageOpt = pageRepository.findByBookIdAndPageNumber(bookId, pageNumber);
         if (pageOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException(ApiMessageKey.OCR_PAGE_NOT_FOUND);
         }
 
         Book book = bookRepository.findById(bookId).orElseThrow();
@@ -266,33 +288,35 @@ public class OcrJobController {
         newPage.setStatus(OcrStatus.PENDING);
         pageRepository.save(newPage);
 
-        return ResponseEntity.ok(Map.of(
+        return ResponseUtils.success(Map.of(
                 "bookId", bookId,
                 "splitPageNumber", pageNumber,
                 "newPageNumber", newPageNum,
                 "status", "PENDING"
-        ));
+        ), ApiMessageKey.OCR_PAGE_SPLIT.getMessage(messageSource), HttpStatus.OK);
     }
 
     /**
      * Resume the latest FAILED / STOPPED job for this book.
      */
+    @Operation(summary = "Resume the latest failed or stopped OCR job of a book")
     @PostMapping("/books/{bookId}/resume-latest")
-    public ResponseEntity<Map<String, Object>> resumeLatest(@PathVariable Long bookId) throws Exception {
-        ResponseEntity<Map<String, Object>> disabled = ocrDisabled();
+    public ResponseEntity<ApiResponse<Map<String, Object>>> resumeLatest(@PathVariable Long bookId) throws Exception {
+        ResponseEntity<ApiResponse<Map<String, Object>>> disabled = ocrDisabled();
         if (disabled != null) {
             return disabled;
         }
         JobExecution latest = findLatestForBook(bookId);
         if (latest == null) {
-            return ResponseEntity.notFound().build();
+            throw new ResourceNotFoundException(ApiMessageKey.OCR_JOB_NOT_FOUND);
         }
         if (latest.getStatus() == BatchStatus.COMPLETED) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Latest job already COMPLETED"));
+            return ResponseUtils.error(ApiMessageKey.OCR_JOB_ALREADY_COMPLETED.getMessage(messageSource), HttpStatus.BAD_REQUEST);
         }
 
         JobExecution exec = jobLauncher.run(ocrJob, latest.getJobParameters());
-        return ResponseEntity.accepted().body(Map.of("resumedFromExecutionId", latest.getId(), "newExecutionId", exec.getId(), "status", exec.getStatus().toString()));
+        return ResponseUtils.success(Map.of("resumedFromExecutionId", latest.getId(), "newExecutionId", exec.getId(), "status", exec.getStatus().toString()),
+                ApiMessageKey.OCR_JOB_RESUMED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
     private JobExecution findLatestForBook(Long bookId) {

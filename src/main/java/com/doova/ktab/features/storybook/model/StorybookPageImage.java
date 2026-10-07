@@ -27,6 +27,10 @@ public class StorybookPageImage extends BaseEntity {
     @Column(name = "col_image_key", nullable = false, columnDefinition = "TEXT")
     private String imageKey;
 
+    /** Downscaled JPEG served to readers; null on images made before the copy existed. */
+    @Column(name = "col_web_image_key", columnDefinition = "TEXT")
+    private String webImageKey;
+
     @Column(name = "col_model", nullable = false, length = 100)
     private String model;
 

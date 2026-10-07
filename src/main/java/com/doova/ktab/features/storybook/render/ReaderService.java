@@ -60,6 +60,8 @@ public class ReaderService {
             log.error("storybook {} page {} has no image key; reader will show a missing picture", ctx.bookId(), pageIndex);
             return null;
         }
-        return storage.getFileUrl(key, UrlStrategy.SIGNED);
+        // The reader loads the small JPEG copy; the PDF render keeps using the original (imageKeysByPageIndex).
+        String web = ctx.webImageKeysByPageIndex().get(pageIndex);
+        return storage.getFileUrl(web != null ? web : key, UrlStrategy.SIGNED);
     }
 }

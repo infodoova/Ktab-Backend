@@ -50,18 +50,27 @@ public class StorybookDraftWriter {
         }
         books.save(book);
 
+        boolean hasChild = false;
+        boolean hasCompanion = false;
+        java.util.Set<String> usedIds = new java.util.HashSet<>();
+
         if (settings.request().characters() != null && !settings.request().characters().isEmpty()) {
-            boolean hasChild = false;
-            boolean hasCompanion = false;
-            java.util.Set<String> usedIds = new java.util.HashSet<>();
             for (com.doova.ktab.features.storybook.web.dto.CharacterInput ci : settings.request().characters()) {
                 StorybookCharacter sc = new StorybookCharacter();
                 sc.setStorybook(book);
                 CharacterKind kind;
-                if (!hasChild && !"COMPANION".equalsIgnoreCase(ci.type()) && !"COMPANION".equalsIgnoreCase(ci.role())) {
+                if (isExplicitlyChild(ci)) {
                     kind = CharacterKind.CHILD;
                     hasChild = true;
-                } else if (!hasCompanion) {
+                } else if (isExplicitlyCompanion(ci)) {
+                    kind = CharacterKind.COMPANION;
+                    hasCompanion = true;
+                } else if (isExplicitlySupporting(ci)) {
+                    kind = CharacterKind.SUPPORTING;
+                } else if (!hasChild) {
+                    kind = CharacterKind.CHILD;
+                    hasChild = true;
+                } else if (!hasCompanion && inputs.companion() == null) {
                     kind = CharacterKind.COMPANION;
                     hasCompanion = true;
                 } else {
@@ -70,7 +79,7 @@ public class StorybookDraftWriter {
                 sc.setKind(kind);
                 sc.setCharacterId(uniqueId(ci, kind, usedIds));
                 sc.setCharacterType(ci.type() != null ? ci.type() : (kind == CharacterKind.CHILD ? "HUMAN" : "ANIMAL"));
-                sc.setRole(ci.role() != null ? ci.role() : (kind == CharacterKind.CHILD ? "MAIN" : "COMPANION"));
+                sc.setRole(ci.role() != null ? ci.role() : (kind == CharacterKind.CHILD ? "MAIN" : kind == CharacterKind.COMPANION ? "COMPANION" : "SUPPORTING"));
                 sc.setRelationship(ci.relationship());
                 sc.setClothing(ci.clothes());
                 sc.setPersonality(ci.personality());
@@ -84,22 +93,30 @@ public class StorybookDraftWriter {
                 }
                 characters.save(sc);
             }
-        } else {
+        }
+
+        // If no character in the list was designated as the main child, create the child from inputs
+        if (!hasChild) {
             StorybookCharacter childCharacter = new StorybookCharacter();
             childCharacter.setStorybook(book);
             childCharacter.setKind(CharacterKind.CHILD);
             childCharacter.setCharacterId("child");
+            usedIds.add("child");
             childCharacter.setAttributes(CharacterAttributes.ofChild(inputs.appearance()));
             characters.save(childCharacter);
+            hasChild = true;
+        }
 
-            if (inputs.companion() != null) {
-                StorybookCharacter companion = new StorybookCharacter();
-                companion.setStorybook(book);
-                companion.setKind(CharacterKind.COMPANION);
-                companion.setCharacterId("companion");
-                companion.setAttributes(CharacterAttributes.ofCompanion(inputs.companion()));
-                characters.save(companion);
-            }
+        // If no character in the list was designated as the companion, and inputs has a companion, create it
+        if (!hasCompanion && inputs.companion() != null) {
+            StorybookCharacter companion = new StorybookCharacter();
+            companion.setStorybook(book);
+            companion.setKind(CharacterKind.COMPANION);
+            companion.setCharacterId("companion");
+            usedIds.add("companion");
+            companion.setAttributes(CharacterAttributes.ofCompanion(inputs.companion()));
+            characters.save(companion);
+            hasCompanion = true;
         }
 
         events.publishEvent(new StorybookCreatedEvent(book.getId()));
@@ -115,6 +132,37 @@ public class StorybookDraftWriter {
             id = base + "-" + n;
         }
         return id;
+    }
+
+    private static boolean isExplicitlySupporting(com.doova.ktab.features.storybook.web.dto.CharacterInput ci) {
+        if (ci == null) return false;
+        String role = ci.role() != null ? ci.role().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        String rel = ci.relationship() != null ? ci.relationship().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        if ("SUPPORTING".equals(role) || "MENTOR".equals(role) || "FRIEND".equals(role) || "SECONDARY".equals(role)) {
+            return true;
+        }
+        if (!rel.isEmpty() && !"SELF".equals(rel) && !"MAIN".equals(rel) && !"PROTAGONIST".equals(role)) {
+            if (!"COMPANION".equals(role) && !"COMPANION".equals(ci.type()) && !"SISTER".equals(rel) && !"BROTHER".equals(rel)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isExplicitlyCompanion(com.doova.ktab.features.storybook.web.dto.CharacterInput ci) {
+        if (ci == null) return false;
+        String role = ci.role() != null ? ci.role().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        String type = ci.type() != null ? ci.type().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        String id = ci.id() != null ? ci.id().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        return "COMPANION".equals(role) || "COMPANION".equals(type) || "COMPANION".equals(id) || "PET".equals(role);
+    }
+
+    private static boolean isExplicitlyChild(com.doova.ktab.features.storybook.web.dto.CharacterInput ci) {
+        if (ci == null) return false;
+        String role = ci.role() != null ? ci.role().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        String rel = ci.relationship() != null ? ci.relationship().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        String id = ci.id() != null ? ci.id().trim().toUpperCase(java.util.Locale.ROOT) : "";
+        return "PROTAGONIST".equals(role) || "MAIN".equals(role) || "SELF".equals(rel) || "CHILD".equals(id);
     }
 
     /** The parts of a character the parent described that have no column of their own; the sheet and the story use them. */

@@ -28,7 +28,7 @@ class PageIllustrationHandlerTest {
     private final IllustrationPersistence persistence = mock(IllustrationPersistence.class);
     private final AiCallLedger ledger = mock(AiCallLedger.class);
     private final PageIllustrationHandler handler = new PageIllustrationHandler(images, store, persistence, ledger,
-            new StyleReferences(), new ModelSelector(new StorybookProperties()));
+            new StyleReferences(), new ModelSelector(new StorybookProperties()), new StorybookProperties());
 
     @BeforeEach
     void setUp() {
@@ -68,7 +68,7 @@ class PageIllustrationHandlerTest {
         assertThat(req.getValue().references()).hasSize(3);
         assertThat(req.getValue().prompt()).contains("The CHILD waves.").contains("top text-safe area");
         verify(store).put(eq("storybook/9/pages/3/g1.png"), any(), eq("image/png"));
-        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
+        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png", null,
                 "gemini-3.1-flash-image", new BigDecimal("0.101"));
     }
 
@@ -108,7 +108,7 @@ class PageIllustrationHandlerTest {
         handler.handle(job(3, 1));
 
         verifyNoInteractions(images, ledger);
-        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
+        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png", null,
                 "gemini-3.1-flash-image", BigDecimal.ZERO);
     }
 
@@ -117,7 +117,7 @@ class PageIllustrationHandlerTest {
         when(persistence.pageContext(9L, 3, 1)).thenReturn(ctx(3, 2, 1, false, StorybookStatus.ILLUSTRATING, List.of()));
         handler.handle(job(3, 1));
         when(persistence.pageContext(9L, 4, 1)).thenReturn(ctx(4, 1, 1, false, StorybookStatus.FAILED, List.of()));
-        handler.handle(job(4, 1));
+        assertThat(handler.handle(job(4, 1)).type()).isEqualTo(StepOutcome.Type.FAIL);
         verifyNoInteractions(images);
     }
 
@@ -316,5 +316,39 @@ class PageIllustrationHandlerTest {
         ArgumentCaptor<ImageRequest> req = ArgumentCaptor.forClass(ImageRequest.class);
         verify(images).generate(req.capture());
         assertThat(req.getValue().references()).hasSize(4); // child, style, companion, cover
+    }
+
+    private static byte[] png(int w, int h) throws Exception {
+        java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(img, "png", out);
+        return out.toByteArray();
+    }
+
+    @Test
+    void storesASmallerJpegCopyForReadersAndRecordsItsKey() throws Exception {
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(ctx(3, 1, 1, false, StorybookStatus.ILLUSTRATING, List.of()));
+        when(images.generate(any())).thenReturn(new ImageResult(png(3000, 3000), "image/png", "m", 5));
+
+        handler.handle(job(3, 1));
+
+        ArgumentCaptor<byte[]> jpeg = ArgumentCaptor.forClass(byte[].class);
+        verify(store).put(eq("storybook/9/pages/3/g1.web.jpg"), jpeg.capture(), eq("image/jpeg"));
+        java.awt.image.BufferedImage copy = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(jpeg.getValue()));
+        assertThat(Math.max(copy.getWidth(), copy.getHeight())).isEqualTo(1400);
+        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png",
+                "storybook/9/pages/3/g1.web.jpg", "gemini-3.1-flash-image", new BigDecimal("0.101"));
+    }
+
+    @Test
+    void aCopyThatCannotBeMadeNeverFailsThePage() {
+        when(persistence.pageContext(9L, 3, 1)).thenReturn(ctx(3, 1, 1, false, StorybookStatus.ILLUSTRATING, List.of()));
+        // the default stub returns one byte, which is not an image
+
+        assertThat(handler.handle(job(3, 1)).type()).isEqualTo(StepOutcome.Type.SUCCESS);
+
+        verify(store, never()).put(eq("storybook/9/pages/3/g1.web.jpg"), any(), any());
+        verify(persistence).savePageImage(9L, 100L, 3, 1, "storybook/9/pages/3/g1.png", null,
+                "gemini-3.1-flash-image", new BigDecimal("0.101"));
     }
 }

@@ -22,21 +22,26 @@ public class RenderPersistence {
     private final StorybookPageRepository pages;
     private final StorybookStateMachine stateMachine;
     private final com.doova.ktab.features.storybook.billing.StorybookCreditPort credits;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public RenderContext context(Long bookId) {
         Storybook book = books.findById(bookId).orElseThrow();
         List<StorybookPage> stored = pages.findByStorybook_IdOrderByPageIndexAsc(bookId);
         Map<Integer, String> keys = new HashMap<>();
+        Map<Integer, String> webKeys = new HashMap<>();
         for (StorybookPage p : stored) {
             if (p.getCurrentImage() != null) {
                 keys.put((int) p.getPageIndex(), p.getCurrentImage().getImageKey());
+                if (p.getCurrentImage().getWebImageKey() != null && !p.getCurrentImage().getWebImageKey().isBlank()) {
+                    webKeys.put((int) p.getPageIndex(), p.getCurrentImage().getWebImageKey());
+                }
             }
         }
         return new RenderContext(bookId, book.getStatus(), book.getTitleAr(), book.getInputs().childNameAr(),
                 book.getDedication(), book.getTashkeelLevel(),
                 stored.stream().map(p -> new RenderModelFactory.PageSource(p.getPageIndex(), p.getKind(), p.getTextAr(), p.getTextZone())).toList(),
-                keys);
+                keys, webKeys);
     }
 
     @Transactional
@@ -48,5 +53,6 @@ public class RenderPersistence {
         book.setPdfKey(pdfKey);
         stateMachine.transition(book, StorybookStatus.READY);
         credits.commit(bookId);
+        events.publishEvent(new com.doova.ktab.features.storybook.event.StorybookCompletedEvent(bookId));
     }
 }

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+    <title>تهانينا! كتاب طفلك مكتمل وجاهز للقراءة الآن - كِتاب</title>
+    <style>
+        body, table, td, p, a, li, blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        table, td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+        }
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                padding: 16px 8px !important;
+            }
+            .email-card {
+                padding: 24px 18px !important;
+                border-radius: 8px !important;
+            }
+            .email-title {
+                font-size: 20px !important;
+            }
+            .btn-table {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .cta-button {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                text-align: center !important;
+            }
+        }
+    </style>
+</head>
+
+<body style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: 'Tajawal', 'Cairo', 'Segoe UI', Tahoma, -apple-system, BlinkMacSystemFont, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111; direction: rtl; text-align: right;">
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-wrapper"
+        style="width: 100%; background-color: #f7f7f7; padding: 48px 16px; direction: rtl;">
+        <tr>
+            <td align="center">
+
+                <!-- Card Container -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" class="email-card"
+                    style="max-width: 580px; width: 100%; background-color: #ffffff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 40px 36px; direction: rtl; text-align: right; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+
+                    <!-- Header / Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 20px;">
+                            <img src="cid:ktabLogo" alt="كِتاب" width="56" height="56"
+                                style="display: block; width: 56px; height: 56px; max-width: 56px; border: 0;" />
+                        </td>
+                    </tr>
+
+                    <!-- Title & Greeting -->
+                    <tr>
+                        <td style="color: #222222; font-size: 15px; line-height: 1.8; padding-bottom: 20px; text-align: right;">
+                            <h1 class="email-title" style="margin: 0 0 16px 0; color: #111111; font-size: 24px; font-weight: 800; line-height: 1.4; text-align: center;">
+                                تهانينا! كتاب <span th:text="${CHILD_NAME}">طفلك</span> مكتمل الآن
+                            </h1>
+                            <p style="margin: 0 0 14px 0; font-size: 16px;">
+                                مرحباً <strong th:text="${NAME != null ? NAME : 'عزيزنا المربي'}">عزيزنا المربي</strong>،
+                            </p>
+                            <p style="margin: 0 0 14px 0; color: #444444; line-height: 1.8;">
+                                نبارك لك ولـ <strong th:text="${CHILD_NAME}">طفلك</strong> اكتمال كتاب «<strong th:text="${BOOK_TITLE != null ? BOOK_TITLE : 'المغامرة الرائعة'}">عنوان القصة</strong>»!
+                            </p>
+                            <p style="margin: 0; color: #444444; line-height: 1.8;">
+                                تم رسم كافة اللوحات بدقة 2K فائقة وتجليد الكتاب بصيغة مربعة 21×21 سم بمواصفات طباعة احترافية وتشكيل لغوي متقن. كتابكم الآن جاهز للقراءة والتصفح والتحميل المباشر.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Action Buttons (Identical Uniform Dimensions) -->
+                    <tr>
+                        <td align="center" style="padding-bottom: 28px;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-table"
+                                style="margin: 0 auto 12px auto; width: 280px; max-width: 100%;">
+                                <tr>
+                                    <td align="center" style="border-radius: 8px; background-color: #111111;">
+                                        <a th:href="${READER_URL != null ? READER_URL : (BOOK_URL != null ? BOOK_URL : 'https://ktab-rho.vercel.app')}"
+                                            class="cta-button"
+                                            style="display: block; width: 100%; box-sizing: border-box; background-color: #111111; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; line-height: 20px; padding: 14px 20px; border-radius: 8px; text-align: center; border: 1px solid #111111;">
+                                            تصفح الكتاب في القارئ التفاعلي
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="btn-table"
+                                style="margin: 0 auto; width: 280px; max-width: 100%;">
+                                <tr>
+                                    <td align="center" style="border-radius: 8px; background-color: #f3f4f6;">
+                                        <a th:href="${DOWNLOAD_URL != null ? DOWNLOAD_URL : (BOOK_URL != null ? BOOK_URL : 'https://ktab-rho.vercel.app')}"
+                                            class="cta-button"
+                                            style="display: block; width: 100%; box-sizing: border-box; background-color: #f3f4f6; color: #1f2937; text-decoration: none; font-size: 15px; font-weight: 700; line-height: 20px; padding: 14px 20px; border-radius: 8px; text-align: center; border: 1px solid #d1d5db;">
+                                            تحميل نسخة الطباعة (PDF)
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Sharing Note -->
+                    <tr>
+                        <td style="color: #666666; font-size: 13px; line-height: 1.7; text-align: center; padding-bottom: 24px;">
+                            <p style="margin: 0;">
+                                نتمنى لكم ولـ <span th:text="${CHILD_NAME}">طفلكم</span> وقتاً ممتعاً ولحظات دافئة مليئة بالإلهام والشغف بالقراءة!
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="border-top: 1px solid #eeeeee; padding-bottom: 20px;"></td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="color: #888888; font-size: 12px; line-height: 1.7;">
+                            <p style="margin: 0 0 6px 0; color: #444444; font-weight: 600;">— فريق عمل منصة كِتاب</p>
+                            <p style="margin: 0;">لأي مساعدة، يمكنك الرد أو التواصل عبر <a th:href="${'mailto:' + (SUPPORT_EMAIL != null ? SUPPORT_EMAIL : 'support@ktab.app')}" style="color: #111111; text-decoration: underline;">الدعم الفني</a>.</p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

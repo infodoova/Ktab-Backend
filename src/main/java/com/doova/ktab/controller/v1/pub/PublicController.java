@@ -38,7 +38,28 @@ public class PublicController {
             @RequestParam(defaultValue = "18") int size
     ) {
         PageResponse<BookCoverResponse> response = publicService.getBookCovers(page, size);
-        return ResponseUtils.success(response, ApiMessageKey.OPERATION_SUCCESS.getMessage(messageSource), HttpStatus.OK);
+        return ResponseUtils.success(response, ApiMessageKey.BOOK_COVERS_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get the cover images of the top reviewed books",
+            description = "Cover image URLs only, best rated first, for published books with at least one review. Links are short-lived.")
+    @GetMapping("/books/top-reviewed/covers")
+    public ResponseEntity<ApiResponse<List<String>>> getTopReviewedCoverImages(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseUtils.success(publicService.getTopReviewedCoverImages(limit),
+                ApiMessageKey.BOOK_TOP_REVIEWED_COVERS_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get the cover images of all published books",
+            description = "Cover image URLs only, newest books first, in pages of up to 200 books. Links are short-lived.")
+    @GetMapping("/books/cover-images")
+    public ResponseEntity<ApiResponse<PageResponse<String>>> getCoverImages(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        return ResponseUtils.success(publicService.getCoverImages(page, size),
+                ApiMessageKey.BOOK_COVER_IMAGES_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "Get registration and user roles (Author and Reader only)")

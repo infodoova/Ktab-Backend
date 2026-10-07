@@ -1,5 +1,6 @@
 package com.doova.ktab.service.book;
 
+import java.util.List;
 import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookSearchRequestDto;
 import com.doova.ktab.dto.book.BookCoverResponse;
@@ -41,6 +42,12 @@ public interface BookService {
     PageResponse<BookResponseDto> searchAuthorBooks(User author, com.doova.ktab.dto.book.AuthorBookSearchRequest req, Pageable pageable);
 
     PageResponse<BookCoverResponse> getBookCovers(int page, int size);
+
+    /** Cover image URLs only, of the best-rated published books that have at least one review (best first). */
+    List<String> getTopReviewedCoverImages(int limit);
+
+    /** Cover image URLs only, of the published books, newest first. */
+    PageResponse<String> getCoverImages(int page, int size);
 
     com.doova.ktab.dto.book.BookSourceFileResponseDto getSourceFileForAuthor(Long bookId, User author);
 }

@@ -1,5 +1,6 @@
 package com.doova.ktab.features.storybook.admin;
 
+import io.swagger.v3.oas.annotations.Operation;
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
 import com.doova.ktab.enums.message.ApiMessageKey;
@@ -34,23 +35,27 @@ public class StorybookAdminController {
     public record GrantRequest(@NotNull Long userId, @NotNull @Min(1) @Max(100) Integer units) {
     }
 
+    @Operation(summary = "List page images flagged by QA for review")
     @GetMapping("/flagged-pages")
     public ResponseEntity<ApiResponse<List<FlaggedPageView>>> flagged() {
         return ResponseUtils.success(admin.flaggedPages(), ApiMessageKey.STORYBOOK_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
+    @Operation(summary = "Accept a flagged page image as it is")
     @PostMapping("/pages/{pageId}/accept")
     public ResponseEntity<ApiResponse<Void>> accept(@PathVariable Long pageId) {
         admin.accept(pageId);
         return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_ACTION_ACCEPTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
+    @Operation(summary = "Redraw a flagged page image")
     @PostMapping("/pages/{pageId}/regenerate")
     public ResponseEntity<ApiResponse<Void>> regenerate(@PathVariable Long pageId) {
         admin.regenerate(pageId);
         return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_ACTION_ACCEPTED.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 
+    @Operation(summary = "Grant storybook credits to a user")
     @PostMapping("/credits")
     public ResponseEntity<ApiResponse<Void>> grant(@Valid @RequestBody GrantRequest request) {
         admin.grantCredits(request.userId(), request.units());

@@ -35,7 +35,7 @@ import java.util.Optional;
 
 @ApiVersion(1)
 @RestController
-@RequestMapping("/sessions")
+@RequestMapping(path = "/sessions", produces = "application/json")
 @RequiredArgsConstructor
 @Tag(name = "Interactive Story Sessions API", description = "Endpoints for starting and progressing interactive AI-driven story sessions.")
 public class SessionController {

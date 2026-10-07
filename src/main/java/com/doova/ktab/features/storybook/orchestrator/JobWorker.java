@@ -10,6 +10,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import java.net.InetAddress;
 import java.util.List;
@@ -62,7 +63,14 @@ public class JobWorker {
                 });
             } catch (RuntimeException rejected) {
                 inFlight.decrementAndGet();
-                recorder.record(job.getId(), StepOutcome.retry("executor rejected: " + rejected.getMessage()));
+                try {
+                    recorder.record(job.getId(), StepOutcome.retry("executor rejected: " + rejected.getMessage()));
+                } catch (CannotCreateTransactionException e) {
+                    log.warn("Cannot record executor rejection for job {} (context shutting down): {}",
+                            job.getId(), e.getMessage());
+                } catch (Exception e) {
+                    log.error("Failed to record executor rejection for job {}", job.getId(), e);
+                }
             }
         }
     }
@@ -89,7 +97,14 @@ public class JobWorker {
                 outcome = StepOutcome.retry(e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
-        recorder.record(job.getId(), outcome);
+        try {
+            recorder.record(job.getId(), outcome);
+        } catch (CannotCreateTransactionException e) {
+            log.warn("Cannot record outcome for storybook job {} (application shutting down / database unavailable): {}",
+                    job.getId(), e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to record outcome for storybook job {}", job.getId(), e);
+        }
     }
 
     private static String hostname() {

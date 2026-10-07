@@ -19,8 +19,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Event listener that triggers ingestion when a book is published.
- * Supports both Spring Batch (single instance, via {@link IngestionRouter}) and
- * SQS-based (distributed) processing.
+ * Dispatches to {@link IngestionRouter} (which routes to native extraction or OCR).
  */
 @Component
 @RequiredArgsConstructor
@@ -77,7 +76,7 @@ public class OcrEventListener {
             sample.stop(meterRegistry.timer("ocr.event.handling.duration", "status", "success"));
 
         } catch (Exception e) {
-            log.error("Failed to start OCR processing for bookId={}: {}", event.bookId(), e.getMessage(), e);
+            log.error("Failed to start ingestion processing for bookId={}: {}", event.bookId(), e.getMessage(), e);
 
             // Update book OCR status to FAILED
             try {

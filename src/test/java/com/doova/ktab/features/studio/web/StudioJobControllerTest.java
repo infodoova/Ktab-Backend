@@ -38,7 +38,8 @@ class StudioJobControllerTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcBuilders.standaloneSetup(new StudioJobController(launcher, books, projects,
-                mock(StudioChapterRepository.class), audio, studio, new SimpleMeterRegistry())).build();
+                mock(StudioChapterRepository.class), audio, studio, new SimpleMeterRegistry(),
+                mock(org.springframework.context.MessageSource.class))).build();
         Book book = new Book();
         book.setHasAudio(false);
         when(books.findById(7L)).thenReturn(Optional.of(book));
@@ -53,10 +54,10 @@ class StudioJobControllerTest {
         when(exec.getStatus()).thenReturn(BatchStatus.STARTING);
         when(launcher.launch(7L)).thenReturn(exec);
 
-        mvc.perform(post("/api/studio/books/7/audiobook"))
+        mvc.perform(post("/studio/books/7/audiobook"))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.executionId").value(55))
-                .andExpect(jsonPath("$.pipeline").value("NATIVE"));
+                .andExpect(jsonPath("$.data.executionId").value(55))
+                .andExpect(jsonPath("$.data.pipeline").value("NATIVE"));
     }
 
     @Test
@@ -65,8 +66,10 @@ class StudioJobControllerTest {
         when(running.getId()).thenReturn(9L);
         when(launcher.runningFor(7L)).thenReturn(Optional.of(running));
 
-        mvc.perform(post("/api/studio/books/7/audiobook")).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status").value("RUNNING"));
+        mvc.perform(post("/studio/books/7/audiobook")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data.status").value("RUNNING"))
+                .andExpect(jsonPath("$.data.executionId").value(9));
         verify(launcher, never()).launch(any());
     }
 
@@ -80,13 +83,13 @@ class StudioJobControllerTest {
         c.setDurationMs(5000);
         when(audio.findByBook_IdOrderBySortOrderAsc(7L)).thenReturn(List.of(c));
 
-        mvc.perform(get("/api/studio/books/7/status")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.pipeline").value("NATIVE"))
-                .andExpect(jsonPath("$.hasAudio").value(false))
-                .andExpect(jsonPath("$.running").value(false))
-                .andExpect(jsonPath("$.chapters[0].sortOrder").value(1))
-                .andExpect(jsonPath("$.chapters[0].title").value("الفصل الأول"))
-                .andExpect(jsonPath("$.chapters[0].durationMs").value(5000));
+        mvc.perform(get("/studio/books/7/status")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pipeline").value("NATIVE"))
+                .andExpect(jsonPath("$.data.hasAudio").value(false))
+                .andExpect(jsonPath("$.data.running").value(false))
+                .andExpect(jsonPath("$.data.chapters[0].sortOrder").value(1))
+                .andExpect(jsonPath("$.data.chapters[0].title").value("الفصل الأول"))
+                .andExpect(jsonPath("$.data.chapters[0].durationMs").value(5000));
     }
 
     @Test
@@ -94,8 +97,8 @@ class StudioJobControllerTest {
         studio.setEnabled(true);
         when(projects.findLiveByBookId(7L)).thenReturn(Optional.empty());
 
-        mvc.perform(get("/api/studio/books/7/status")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.pipeline").value("STUDIO"))
-                .andExpect(jsonPath("$.projectExists").value(false));
+        mvc.perform(get("/studio/books/7/status")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.pipeline").value("STUDIO"))
+                .andExpect(jsonPath("$.data.projectExists").value(false));
     }
 }

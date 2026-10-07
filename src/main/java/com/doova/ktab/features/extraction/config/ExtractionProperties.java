@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @Setter
 public class ExtractionProperties {
 
-    /** Largest PDF accepted by POST /api/books/extract and the native ingestion job. */
+    /** Largest PDF accepted by POST /api/v1/books/extract and the native ingestion job. */
     private long maxUploadBytes = 200L * 1024 * 1024;
     /** A chapter shorter than this many characters gets a SHORT_CHAPTER warning. */
     private int shortChapterChars = 300;

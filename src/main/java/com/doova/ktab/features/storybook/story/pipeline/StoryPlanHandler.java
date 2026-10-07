@@ -41,6 +41,14 @@ public class StoryPlanHandler implements StepHandler {
                 StoryPromptBuilder.brief(ctx.theme(), ctx.storyTone(), ctx.lesson(), ctx.storyIdea(), ctx.thingsToAvoid())
                         + com.doova.ktab.features.storybook.story.SupportingCast.legend(ctx.supporting()));
         ledger.recordLlm(ctx.bookId(), job.getId(), LlmPurpose.STORY_PLAN, call);
+        java.util.Set<String> invented = com.doova.ktab.features.storybook.story.CastGuard.unknownTags(call.value(),
+                ctx.request().companion() != null,
+                ctx.supporting().stream().map(com.doova.ktab.features.storybook.story.SupportingCast::ref).toList());
+        if (!invented.isEmpty()) {
+            // The picture prompts only describe the child, the companion and the listed supporting characters.
+            throw new com.doova.ktab.features.storybook.story.StoryPlanInvalidException(
+                    "Story plan uses characters this book does not have: " + invented);
+        }
         persistence.savePlan(ctx.bookId(), call.value(), job.getGeneration());
         return StepOutcome.success();
     }

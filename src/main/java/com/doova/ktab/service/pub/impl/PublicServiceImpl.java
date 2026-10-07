@@ -30,6 +30,20 @@ public class PublicServiceImpl implements PublicService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<String> getTopReviewedCoverImages(int limit) {
+        log.debug("Public catalog: fetching top reviewed cover images limit={}", limit);
+        return bookService.getTopReviewedCoverImages(limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<String> getCoverImages(int page, int size) {
+        log.debug("Public catalog: fetching cover images page={} size={}", page, size);
+        return bookService.getCoverImages(page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<RoleMetadataDto> getRoles() {
         log.debug("Public catalog: fetching registration roles");
         return metadataService.getRoles();
