@@ -163,15 +163,16 @@ public class PromptFactory {
             </previous_choice>
 
             <writing_rules>
-            1. Language: rich Modern Standard Arabic (فصحى), third person only. First person is forbidden
+            1. Language: clear, elegant Modern Standard Arabic (فصحى), third person only. First person is forbidden
                everywhere, including inner thoughts (أنا، نحن، شعرتُ، رأيتُ). The narrator is external,
                detached, and cinematic.
             2. Length: exactly 1 single concise paragraph (50–80 words) for fast, smooth reading.
                Strictly forbidden to output multiple paragraphs or long filler exposition.
             3. Opening: except in scene 1, the opening sentence immediately reflects the concrete consequence
                of the previous choice according to its outcome and consequence_seed. Never ignore or undo the previous choice.
-            4. Show, don't tell: at least two senses beyond sight (sound, smell, touch, heat, taste).
-               Emotions are shown through the body and actions, never named directly.
+            4. Show, don't tell: one or two concrete sensory details beyond sight (sound, smell, touch, heat),
+               each tied to something that exists in the scene. Emotions are shown through the body and
+               actions, never named directly. Never pile up several images in one sentence.
             5. Dialogue: at most 1 short line, integrated seamlessly into the paragraph only if it adds urgency.
             6. Ending: the paragraph concludes by freezing the critical moment of decision. The pressure must be felt,
                but the choices are never listed or hinted as a menu inside the script, and the text never addresses
@@ -180,6 +181,23 @@ public class PromptFactory {
             8. Obey the constitution and forbiddenElements absolutely. No coincidence rescues the protagonist.
             9. Use characters, objects, and locations from story_bible by name. Do not invent major new
                characters; minor extras are allowed.
+            10. Arabic quality (this matters more than style). Write the way a good Arab novelist writes for
+               a wide audience, not a translation from English:
+               - Clear on first reading: every sentence has one plain subject and one plain action, and a
+                 reader must be able to picture it. If a sentence needs a second reading, rewrite it.
+               - Use common, correct vocabulary and standard grammar (agreement of gender, number and case
+                 in verbs, adjectives, and pronouns). No invented compound terms, no stacked genitive chains
+                 of more than two nouns (not: عدّاد التحديث الكبير لسجل المختبر الجانبي).
+               - At most one metaphor in the whole paragraph, and it must be easy to understand. No
+                 personifying machines or abstractions ("sounds that break", "memory of a sky") unless the
+                 meaning is obvious.
+               - Technical or futuristic settings: name a thing by what it is and does (شاشة، جهاز، مريض، نبض)
+                 instead of strange coined parts. Every object mentioned must be physically plausible and
+                 clearly related to the action.
+               - Sentences stay short to medium (up to about 20 words). Every pronoun clearly refers to one
+                 person or thing.
+               - Before answering, silently reread the script as a native reader and fix anything that is
+                 unclear, ungrammatical, or reads like a literal translation.
             </writing_rules>
 
             <choice_rules>
@@ -470,6 +488,7 @@ public class PromptFactory {
             6. Bookend: echo the opening image of scene 1 with a changed meaning.
             7. The final sentence embodies the philosophy of the story without stating it directly.
             8. Arabic فصحى, third person only, strictly 1 single concise paragraph (60–90 words) for fast reading. Definitively resolve the conflict without filler. No miracles, nothing from forbiddenElements.
+            9. Write clear, grammatical Arabic that reads like a native novelist, not a translation: short to medium sentences, common vocabulary, at most one easy metaphor, no stacked genitive chains, no strange coined terms.
             </rules>
 
             <output_format>
