@@ -23,6 +23,11 @@ import java.util.function.Consumer;
 @Slf4j
 public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTtsService {
 
+    /** The model the timestamps endpoint is always asked for first. */
+    private static final String TIMESTAMPS_MODEL_ID = "eleven_multilingual_v2";
+    private static final double VOICE_STABILITY = 1.0;
+    private static final double VOICE_SIMILARITY_BOOST = 0.75;
+
     private final WebClient webClient;
     private final ElevenLabsProperties props;
 
@@ -45,7 +50,7 @@ public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTts
         log.info(">>> EL_SERVICE_REQ voiceId={} textLen={} prevIds={}", resolvedVoiceId, (text != null ? text.length() : 0), previousRequestIds);
         String preferredModel = firstNonBlank(props.getModelId(), "eleven_multilingual_v2");
         String fallbackModel = firstNonBlank(props.getTimestampsFallbackModelId(), "eleven_multilingual_v2");
-        preferredModel = "eleven_multilingual_v2";
+        preferredModel = TIMESTAMPS_MODEL_ID;
 
         log.debug("ElevenLabs timestamps models preferred='{}' fallback='{}'", preferredModel, fallbackModel);
 
@@ -65,7 +70,23 @@ public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTts
         });
     }
 
-    private String resolveVoiceId(String voiceId) {
+    /** The model requested first; part of what determines the audio, so the audio cache keys on it. */
+    public String timestampsModelId() {
+        return TIMESTAMPS_MODEL_ID;
+    }
+
+    /** The audio encoding requested from ElevenLabs. */
+    public String outputFormat() {
+        return firstNonBlank(props.getOutputFormat(), "mp3_44100_128");
+    }
+
+    /** The voice settings sent with every request, as a stable string for the audio cache key. */
+    public String voiceSettingsSignature() {
+        return "stability=" + VOICE_STABILITY + ";similarity_boost=" + VOICE_SIMILARITY_BOOST;
+    }
+
+    /** Resolves a requested voice (or alias, or the configured default) to the ElevenLabs voice id that is sent. */
+    public String resolveVoiceId(String voiceId) {
         String requested = firstNonBlank(voiceId, props.getVoiceId());
         String resolved = requested == null ? null : props.getVoiceAliases().getOrDefault(requested, requested);
         if (resolved == null || resolved.isBlank()) {
@@ -97,9 +118,9 @@ public class ElevenLabsTimestampTtsServiceImpl implements ElevenLabsTimestampTts
             body.put("previous_request_ids", previousRequestIds.size() > 3 ? previousRequestIds.subList(previousRequestIds.size() - 3, previousRequestIds.size()) : previousRequestIds);
         }
 
-        body.put("voice_settings", Map.of("stability", 1.0, "similarity_boost", 0.75));
+        body.put("voice_settings", Map.of("stability", VOICE_STABILITY, "similarity_boost", VOICE_SIMILARITY_BOOST));
 
-        return webClient.post().uri(uri -> uri.path("/v1/text-to-speech/{voiceId}/with-timestamps").queryParam("output_format", firstNonBlank(props.getOutputFormat(), "mp3_44100_128")).build(voiceId))
+        return webClient.post().uri(uri -> uri.path("/v1/text-to-speech/{voiceId}/with-timestamps").queryParam("output_format", outputFormat()).build(voiceId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
