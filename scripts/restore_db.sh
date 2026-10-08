@@ -107,12 +107,12 @@ if [[ "$MAGIC" == "PGDMP" ]]; then
   if [[ "$BACKUP_FILE" == *.gz ]]; then
     gunzip -c "$BACKUP_FILE" | docker exec -i ktab-db pg_restore \
       -U "$DB_USER" -d "$DB_NAME" \
-      --no-owner --no-acl --if-exists -v 2>&1 | tail -25
+      --no-owner --no-acl -v 2>&1 | tee /tmp/pg_restore.log | tail -25
     RESTORE_STATUS=${PIPESTATUS[1]}
   else
     docker exec -i ktab-db pg_restore \
       -U "$DB_USER" -d "$DB_NAME" \
-      --no-owner --no-acl --if-exists -v < "$BACKUP_FILE" 2>&1 | tail -25
+      --no-owner --no-acl -v < "$BACKUP_FILE" 2>&1 | tee /tmp/pg_restore.log | tail -25
     RESTORE_STATUS=${PIPESTATUS[0]}
   fi
   set -e
@@ -123,6 +123,7 @@ if [[ "$MAGIC" == "PGDMP" ]]; then
     echo "[!] pg_restore finished with minor warnings (non-fatal). Data restored successfully."
   elif [ "$RESTORE_STATUS" -gt 1 ]; then
     echo "[-] ERROR: pg_restore failed with fatal error code $RESTORE_STATUS" >&2
+    echo "    Check /tmp/pg_restore.log for details." >&2
     if [ "$APP_WAS_RUNNING" = "1" ]; then
       docker compose --env-file .env.production up -d ktab-app
     fi
