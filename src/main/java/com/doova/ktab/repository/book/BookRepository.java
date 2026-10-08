@@ -53,6 +53,8 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
 
     Page<Book> findAllByBookSourceAndTotalReviewsGreaterThan(BookSource bookSource, Integer minReviews, Pageable pageable);
 
+    Page<Book> findAllByTotalReviewsGreaterThan(Integer minReviews, Pageable pageable);
+
     Page<Book> findAllByAuthorId(Long authorId, Pageable pageable);
 
     Page<Book> findAllByAuthorIdAndBookSource(Long authorId, BookSource bookSource, Pageable pageable);
@@ -84,11 +86,12 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     @Query("""
                 SELECT b FROM Book b
                 WHERE b.id <> :bookId
-                  AND b.bookSource = com.doova.ktab.enums.book.BookSource.AUTHOR
+                  AND b.status = com.doova.ktab.enums.status.BookStatus.PUBLISHED
                   AND (b.mainGenre.id = :mainGenreId)
                   AND (
-                        b.ageRangeMin <= :ageMax 
-                    AND b.ageRangeMax >= :ageMin
+                        :ageMax IS NULL OR :ageMin IS NULL OR
+                        b.ageRangeMin IS NULL OR b.ageRangeMax IS NULL OR
+                        (b.ageRangeMin <= :ageMax AND b.ageRangeMax >= :ageMin)
                   )
             """)
     List<Book> findBroadCandidates(@Param("bookId") Long bookId, @Param("mainGenreId") Long mainGenreId, @Param("ageMin") Integer ageMin, @Param("ageMax") Integer ageMax);

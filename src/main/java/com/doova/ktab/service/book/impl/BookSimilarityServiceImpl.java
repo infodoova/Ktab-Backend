@@ -68,6 +68,10 @@ public class BookSimilarityServiceImpl implements BookSimilarityService {
     }
 
     private double computeAgeOverlap(Book target, Book candidate) {
+        if (target.getAgeRangeMin() == null || target.getAgeRangeMax() == null
+                || candidate.getAgeRangeMin() == null || candidate.getAgeRangeMax() == null) {
+            return 0.5;
+        }
         int overlap = Math.min(target.getAgeRangeMax(), candidate.getAgeRangeMax())
                 - Math.max(target.getAgeRangeMin(), candidate.getAgeRangeMin());
 
@@ -100,11 +104,22 @@ public class BookSimilarityServiceImpl implements BookSimilarityService {
         Book target = bookRepository.findById(bookId)
                 .orElseThrow(() -> new EntityNotFoundException("Book with ID " + bookId + " not found"));
 
+        if (target.getMainGenre() == null) {
+            return PageResponse.empty(page, size);
+        }
+
         List<Book> candidates = bookRepository.findBroadCandidates(
                 bookId,
                 target.getMainGenre().getId(),
                 target.getAgeRangeMin(),
                 target.getAgeRangeMax());
+
+        if (candidates.isEmpty()) {
+            candidates = bookRepository.findAllByStatus(
+                    com.doova.ktab.enums.status.BookStatus.PUBLISHED,
+                    org.springframework.data.domain.PageRequest.of(0, 20)
+            ).getContent();
+        }
 
         Map<Long, Long> collabMap = loadCollaborativeScores(bookId);
         Long maxCollabCount = collabMap.values().stream().max(Long::compareTo).orElse(1L);

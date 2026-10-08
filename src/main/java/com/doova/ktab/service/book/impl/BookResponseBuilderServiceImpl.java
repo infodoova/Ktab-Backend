@@ -43,10 +43,14 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
         dto.setBookSource(book.getBookSource());
         dto.setCustomAuthorName(book.getCustomAuthorName());
 
-        if (book.getCustomAuthorName() != null && !book.getCustomAuthorName().isBlank()) {
+        if (com.doova.ktab.enums.book.BookSource.LIBRARY.equals(book.getBookSource())) {
             dto.setAuthorName(book.getCustomAuthorName());
-        } else if (book.getAuthor() != null) {
-            dto.setAuthorName(book.getAuthor().getFullName());
+        } else {
+            if (book.getAuthor() != null) {
+                dto.setAuthorName(book.getAuthor().getFullName());
+            } else {
+                dto.setAuthorName(book.getCustomAuthorName());
+            }
         }
 
         if (book.getLibraryOrganization() != null) {

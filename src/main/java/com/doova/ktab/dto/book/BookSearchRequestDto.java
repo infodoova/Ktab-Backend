@@ -20,7 +20,7 @@ public record BookSearchRequestDto(
 
     public BookSearchRequestDto(String title, List<Long> mainGenreIds, List<Long> subGenreIds, Integer age,
                                 BigDecimal minAverageRating, int page, int size) {
-        this(title, mainGenreIds, subGenreIds, age, minAverageRating, BookSource.AUTHOR, page, size);
+        this(title, mainGenreIds, subGenreIds, age, minAverageRating, null, page, size);
     }
 
     public BookSearchRequestDto {
@@ -28,6 +28,5 @@ public record BookSearchRequestDto(
         if (size <= 0) size = 10;
         if (mainGenreIds == null) mainGenreIds = Collections.emptyList();
         if (subGenreIds == null) subGenreIds = Collections.emptyList();
-        if (bookSource == null) bookSource = BookSource.AUTHOR;
     }
 }

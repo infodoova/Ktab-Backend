@@ -91,8 +91,8 @@ class BookDiscoveryControllerTest {
     }
 
     @Test
-    @DisplayName("searchBooks_defaultSearch_enforcesAuthorBookSource")
-    void searchBooks_defaultSearch_enforcesAuthorBookSource() throws Exception {
+    @DisplayName("searchBooks_whenBookSourceOmitted_allowsAllBookSources")
+    void searchBooks_whenBookSourceOmitted_allowsAllBookSources() throws Exception {
         when(bookService.searchBooks(any(), any()))
                 .thenReturn(new PageResponse<>(List.of(), 0, 10, 0, 0, true));
 
@@ -107,10 +107,9 @@ class BookDiscoveryControllerTest {
         org.mockito.ArgumentCaptor<BookSearchRequestDto> captor = org.mockito.ArgumentCaptor.forClass(BookSearchRequestDto.class);
         verify(bookService, atLeastOnce()).searchBooks(captor.capture(), any());
 
-        org.junit.jupiter.api.Assertions.assertEquals(
-                com.doova.ktab.enums.book.BookSource.AUTHOR,
+        org.junit.jupiter.api.Assertions.assertNull(
                 captor.getValue().bookSource(),
-                "Search must default to BookSource.AUTHOR and exclude LIBRARY books"
+                "Search must allow all books (both AUTHOR and LIBRARY) when bookSource is omitted"
         );
     }
 

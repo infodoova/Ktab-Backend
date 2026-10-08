@@ -194,4 +194,55 @@ class BookResponseBuilderServiceTest {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
+
+    @Test
+    @DisplayName("build_whenBookSourceIsLibrary_setsAuthorNameToCustomAuthorName")
+    void build_whenBookSourceIsLibrary_setsAuthorNameToCustomAuthorName() {
+        testBook.setBookSource(com.doova.ktab.enums.book.BookSource.LIBRARY);
+        testBook.setCustomAuthorName("Ghassan Kanafani");
+
+        when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+
+        BookResponseDto result = responseBuilder.build(testBook);
+
+        assertNotNull(result);
+        assertEquals(com.doova.ktab.enums.book.BookSource.LIBRARY, result.getBookSource());
+        assertEquals("Ghassan Kanafani", result.getAuthorName());
+        assertEquals("Ghassan Kanafani", result.getCustomAuthorName());
+    }
+
+    @Test
+    @DisplayName("build_whenBookSourceIsAuthor_setsAuthorNameToAuthorFullName")
+    void build_whenBookSourceIsAuthor_setsAuthorNameToAuthorFullName() {
+        testBook.setBookSource(com.doova.ktab.enums.book.BookSource.AUTHOR);
+        com.doova.ktab.model.user.User authorUser = new com.doova.ktab.model.user.User();
+        authorUser.setFirstName("Mahmoud");
+        authorUser.setLastName("Darwish");
+        testBook.setAuthor(authorUser);
+        testBook.setCustomAuthorName("Should Be Ignored");
+
+        when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+
+        BookResponseDto result = responseBuilder.build(testBook);
+
+        assertNotNull(result);
+        assertEquals(com.doova.ktab.enums.book.BookSource.AUTHOR, result.getBookSource());
+        assertEquals("Mahmoud Darwish", result.getAuthorName());
+    }
+
+    @Test
+    @DisplayName("build_whenBookSourceIsAuthorWithoutUser_fallsBackToCustomAuthorName")
+    void build_whenBookSourceIsAuthorWithoutUser_fallsBackToCustomAuthorName() {
+        testBook.setBookSource(com.doova.ktab.enums.book.BookSource.AUTHOR);
+        testBook.setAuthor(null);
+        testBook.setCustomAuthorName("Nizar Qabbani");
+
+        when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+
+        BookResponseDto result = responseBuilder.build(testBook);
+
+        assertNotNull(result);
+        assertEquals(com.doova.ktab.enums.book.BookSource.AUTHOR, result.getBookSource());
+        assertEquals("Nizar Qabbani", result.getAuthorName());
+    }
 }

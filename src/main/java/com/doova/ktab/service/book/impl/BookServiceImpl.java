@@ -237,7 +237,7 @@ public class BookServiceImpl implements BookService {
 
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
 
-        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
+        var booksPage = bookRepository.findAllByStatus(BookStatus.PUBLISHED, pageable);
 
         return new PageResponse<>(booksPage.getContent().stream().map(responseBuilder::build).toList(), booksPage.getNumber(), booksPage.getSize(), booksPage.getTotalElements(), booksPage.getTotalPages(), booksPage.isLast());
     }
@@ -365,9 +365,10 @@ public class BookServiceImpl implements BookService {
             predicates.add(cb.ge(root.get("averageRating"), req.minAverageRating()));
         }
 
-        // BOOK SOURCE: Only return author books, exclude librarian / institutional books
-        BookSource source = req.bookSource() != null ? req.bookSource() : BookSource.AUTHOR;
-        predicates.add(cb.equal(root.get("bookSource"), source));
+        // BOOK SOURCE: Filter by bookSource only if explicitly specified (returns both AUTHOR and LIBRARY by default)
+        if (req.bookSource() != null) {
+            predicates.add(cb.equal(root.get("bookSource"), req.bookSource()));
+        }
 
         return predicates;
     }
@@ -381,7 +382,7 @@ public class BookServiceImpl implements BookService {
         enablePublishedFilter();
 
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
-        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
+        var booksPage = bookRepository.findAll(pageable);
 
         List<BookCoverResponse> covers = booksPage.getContent().stream()
                 .map(book -> {
@@ -433,7 +434,7 @@ public class BookServiceImpl implements BookService {
                 .and(Sort.by(Sort.Direction.DESC, "id"));
         // A book with no cover image is skipped, so look at more books than asked for.
         List<Book> candidates = bookRepository
-                .findAllByBookSourceAndTotalReviewsGreaterThan(BookSource.AUTHOR, 0, PageRequest.of(0, wanted * 3, bestFirst))
+                .findAllByTotalReviewsGreaterThan(0, PageRequest.of(0, wanted * 3, bestFirst))
                 .getContent();
 
         Map<Long, String> coverUrls = coverImageUrls(candidates);
@@ -451,7 +452,7 @@ public class BookServiceImpl implements BookService {
 
         var pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), COVER_IMAGES_MAX_PAGE_SIZE),
                 Sort.by(Sort.Direction.DESC, "publishDate").and(Sort.by(Sort.Direction.DESC, "id")));
-        var booksPage = bookRepository.findAllByBookSource(BookSource.AUTHOR, pageable);
+        var booksPage = bookRepository.findAll(pageable);
 
         Map<Long, String> coverUrls = coverImageUrls(booksPage.getContent());
         List<String> urls = booksPage.getContent().stream()
