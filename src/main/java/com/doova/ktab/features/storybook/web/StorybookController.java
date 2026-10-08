@@ -42,12 +42,40 @@ public class StorybookController {
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService;
     private final com.doova.ktab.features.storybook.render.ReaderService readerService;
     private final CancelService cancelService;
+    private final PageReviewService pageReviewService;
 
     @Operation(summary = "Regenerate one page illustration of a finished book")
     @PostMapping("/books/{bookId}/pages/{pageIndex}/regenerate")
     public ResponseEntity<ApiResponse<Void>> regeneratePage(@CurrentUser User user, @PathVariable Long bookId,
                                                             @PathVariable int pageIndex) {
         pageRegenerationService.regenerate(user, bookId, pageIndex);
+        return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_PAGE_REGENERATING.getMessage(messageSource), HttpStatus.ACCEPTED);
+    }
+
+    @Operation(summary = "List the pages waiting for the owner's decision",
+            description = "While the book is in QA: the pages the automatic checks could not settle, with their picture and the problems found.")
+    @GetMapping("/books/{bookId}/review")
+    public ResponseEntity<ApiResponse<java.util.List<com.doova.ktab.features.storybook.admin.FlaggedPageView>>> reviewPages(
+            @CurrentUser User user, @PathVariable Long bookId) {
+        return ResponseUtils.success(pageReviewService.flagged(user, bookId),
+                ApiMessageKey.STORYBOOK_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Accept a page picture as it is",
+            description = "For a page waiting in QA. When no page is left waiting, the book goes on to the PDF.")
+    @PostMapping("/books/{bookId}/review/pages/{pageIndex}/accept")
+    public ResponseEntity<ApiResponse<Void>> acceptReviewedPage(@CurrentUser User user, @PathVariable Long bookId,
+                                                                @PathVariable int pageIndex) {
+        pageReviewService.accept(user, bookId, pageIndex);
+        return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_PAGE_ACCEPTED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Draw a page waiting in QA again",
+            description = "Counts against the book's page regeneration limit. The book goes back to illustrating.")
+    @PostMapping("/books/{bookId}/review/pages/{pageIndex}/regenerate")
+    public ResponseEntity<ApiResponse<Void>> regenerateReviewedPage(@CurrentUser User user, @PathVariable Long bookId,
+                                                                    @PathVariable int pageIndex) {
+        pageReviewService.regenerate(user, bookId, pageIndex);
         return ResponseUtils.success(null, ApiMessageKey.STORYBOOK_PAGE_REGENERATING.getMessage(messageSource), HttpStatus.ACCEPTED);
     }
 

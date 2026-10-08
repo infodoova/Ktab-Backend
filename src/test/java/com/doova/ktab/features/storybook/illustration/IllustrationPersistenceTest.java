@@ -301,4 +301,117 @@ class IllustrationPersistenceTest {
 
         verifyNoInteractions(enqueuer);
     }
+
+    private static final VisualQaResponse SCENE_ONLY =
+            new VisualQaResponse(true, false, false, true, true, List.of("Rocks intrude into the bottom text area."));
+
+    @Test
+    void aPageThatFailsOnlyTheSceneCheckTwiceIsAcceptedAutomaticallyAndTheBookMovesOn() {
+        Storybook book = drawingBook();
+        StorybookPage page = page(101L, 1, PageKind.STORY, 2, 1);
+        StorybookPageImage first = image(201L, 1, PageImageStatus.QA_FAILED, SCENE_ONLY);
+        StorybookPageImage second = image(202L, 2, PageImageStatus.GENERATED, null);
+        when(pages.findById(101L)).thenReturn(Optional.of(page));
+        when(images.findById(202L)).thenReturn(Optional.of(second));
+        when(images.findByPage_IdAndGeneration(101L, 1)).thenReturn(Optional.of(first));
+        when(images.findByPage_IdAndGeneration(101L, 2)).thenReturn(Optional.of(second));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(page));
+
+        persistence.recordQa(10L, 101L, 202L, 2, SCENE_ONLY);
+
+        assertThat(second.getStatus()).isEqualTo(PageImageStatus.ACCEPTED_AUTO);
+        assertThat(page.getCurrentImage()).isSameAs(second);
+        verify(enqueuer, never()).enqueue(eq(10L), eq(JobStep.ILLUSTRATE_PAGE), anyInt(), anyInt());
+        verify(stateMachine).transition(book, StorybookStatus.RENDERING);
+        verify(enqueuer).enqueue(10L, JobStep.RENDER_PDF, -1, 0);
+    }
+
+    @Test
+    void aSceneOnlyFailureOnTheFirstAttemptIsStillRedrawnOnce() {
+        drawingBook();
+        StorybookPage page = page(101L, 1, PageKind.STORY, 1, 1);
+        StorybookPageImage first = image(201L, 1, PageImageStatus.GENERATED, null);
+        when(pages.findById(101L)).thenReturn(Optional.of(page));
+        when(images.findById(201L)).thenReturn(Optional.of(first));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(page));
+
+        persistence.recordQa(10L, 101L, 201L, 1, SCENE_ONLY);
+
+        assertThat(first.getStatus()).isEqualTo(PageImageStatus.QA_FAILED);
+        verify(enqueuer).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 1, 2);
+    }
+
+    @Test
+    void aSceneOnlyFailureOnTheLastAllowedAttemptIsAcceptedAutomatically() {
+        drawingBook();
+        StorybookPage page = page(101L, 1, PageKind.STORY, 4, 1);
+        StorybookPageImage fourth = image(204L, 4, PageImageStatus.GENERATED, null);
+        when(pages.findById(101L)).thenReturn(Optional.of(page));
+        when(images.findById(204L)).thenReturn(Optional.of(fourth));
+        when(images.findByPage_IdAndGeneration(101L, 3)).thenReturn(Optional.of(
+                image(203L, 3, PageImageStatus.QA_FAILED, new VisualQaResponse(true, true, true, true, true, List.of("text")))));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(page));
+
+        persistence.recordQa(10L, 101L, 204L, 4, SCENE_ONLY);
+
+        assertThat(fourth.getStatus()).isEqualTo(PageImageStatus.ACCEPTED_AUTO);
+    }
+
+    @Test
+    void anythingBesidesTheSceneStillNeedsAPerson() {
+        for (VisualQaResponse hard : List.of(
+                new VisualQaResponse(false, false, false, true, true, List.of("different child")),
+                new VisualQaResponse(true, false, true, true, true, List.of("letters in the picture")),
+                new VisualQaResponse(true, false, false, false, true, List.of("extra fingers")),
+                new VisualQaResponse(true, false, false, true, false, List.of("frightening")))) {
+            drawingBook();
+            StorybookPage page = page(101L, 1, PageKind.STORY, 4, 1);
+            StorybookPageImage last = image(204L, 4, PageImageStatus.GENERATED, null);
+            when(pages.findById(101L)).thenReturn(Optional.of(page));
+            when(images.findById(204L)).thenReturn(Optional.of(last));
+            when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(page));
+
+            persistence.recordQa(10L, 101L, 204L, 4, hard);
+
+            assertThat(last.getStatus()).as(hard.problems().get(0)).isEqualTo(PageImageStatus.FLAGGED);
+        }
+    }
+
+    @Test
+    void autoAcceptCanBeTurnedOff() {
+        properties.getImage().setAutoAcceptLayoutFailures(false);
+        drawingBook();
+        StorybookPage page = page(101L, 1, PageKind.STORY, 4, 1);
+        StorybookPageImage last = image(204L, 4, PageImageStatus.GENERATED, null);
+        when(pages.findById(101L)).thenReturn(Optional.of(page));
+        when(images.findById(204L)).thenReturn(Optional.of(last));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(page));
+
+        persistence.recordQa(10L, 101L, 204L, 4, SCENE_ONLY);
+
+        assertThat(last.getStatus()).isEqualTo(PageImageStatus.FLAGGED);
+    }
+
+    @Test
+    void aCoverThatIsAcceptedAutomaticallyReleasesTheStoryPages() {
+        drawingBook();
+        StorybookPage cover = page(100L, 0, PageKind.COVER, 4, 1);
+        StorybookPage story = page(101L, 1, PageKind.STORY, 1, 1);
+        StorybookPageImage last = image(204L, 4, PageImageStatus.GENERATED, null);
+        when(pages.findById(100L)).thenReturn(Optional.of(cover));
+        when(images.findById(204L)).thenReturn(Optional.of(last));
+        when(pages.findByStorybook_IdOrderByPageIndexAsc(10L)).thenReturn(List.of(cover, story));
+
+        persistence.recordQa(10L, 100L, 204L, 4, SCENE_ONLY);
+
+        assertThat(last.getStatus()).isEqualTo(PageImageStatus.ACCEPTED_AUTO);
+        verify(enqueuer).enqueue(10L, JobStep.ILLUSTRATE_PAGE, 1, 1);
+    }
+
+    @Test
+    void onlyTheSceneCheckFailingCountsAsALayoutFailure() {
+        assertThat(IllustrationPersistence.onlyTheLayoutFailed(SCENE_ONLY)).isTrue();
+        assertThat(IllustrationPersistence.onlyTheLayoutFailed(WRONG_OUTFIT)).isFalse();
+        assertThat(IllustrationPersistence.onlyTheLayoutFailed(new VisualQaResponse(true, true, false, true, true, List.of()))).isFalse();
+    }
 }

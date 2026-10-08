@@ -19,10 +19,11 @@ This documentation is for frontend engineers implementing the client-side user e
    - [6.6 Approve Character Design Sheet](#66-approve-character-design-sheet)
    - [6.7 Regenerate Character Design Sheet](#67-regenerate-character-design-sheet)
    - [6.8 Regenerate Single Page Illustration](#68-regenerate-single-page-illustration)
-   - [6.9 Get Interactive Reader Manifest](#69-get-interactive-reader-manifest)
-   - [6.10 Download Final PDF](#610-download-final-pdf)
-   - [6.11 Cancel Storybook Generation](#611-cancel-storybook-generation)
-   - [6.12 Child Profiles Management (Optional Standalone CRUD)](#612-child-profiles-management-optional-standalone-crud)
+   - [6.9 Review Pages Flagged in QA (Owner)](#69-review-pages-flagged-in-qa-owner)
+   - [6.10 Get Interactive Reader Manifest](#610-get-interactive-reader-manifest)
+   - [6.11 Download Final PDF](#611-download-final-pdf)
+   - [6.12 Cancel Storybook Generation](#612-cancel-storybook-generation)
+   - [6.13 Child Profiles Management (Optional Standalone CRUD)](#613-child-profiles-management-optional-standalone-crud)
 7. [Frontend Code Implementation Examples](#7-frontend-code-implementation-examples)
    - [Option A: `multipart/form-data` with File Objects (Recommended)](#option-a-multipartform-data-with-file-objects-recommended)
    - [Option B: `application/json` with Base64 Data URIs](#option-b-applicationjson-with-base64-data-uris)
@@ -91,9 +92,22 @@ export type StorybookStatus =
   | "STORY_READY"
   | "CHARACTER_READY"
   | "ILLUSTRATING"
+  | "QA"          // pages the automatic checks could not settle wait for the OWNER (section 6.9)
   | "RENDERING"
-  | "COMPLETED"
-  | "FAILED";
+  | "READY"       // finished: reader + PDF available
+  | "FAILED"
+  | "CANCELLED";
+
+// One page the owner must decide about while status === "QA"
+export interface FlaggedPage {
+  bookId: number;
+  pageId: number;
+  pageIndex: number;       // use this in the accept/regenerate paths
+  generation: number;      // how many times the page has been drawn
+  imageUrl: string;        // signed URL, expires - refetch instead of caching
+  sceneEn: string;
+  problems: string[];      // what the automatic check found (English)
+}
 
 export type ArtStyle = "SOFT_WATERCOLOR";
 
@@ -378,8 +392,12 @@ stateDiagram-v2
     CHARACTER_READY --> CHARACTER_READY : POST /books/{id}/character/regenerate
     CHARACTER_READY --> ILLUSTRATING : POST /books/{id}/character/approve
     ILLUSTRATING --> RENDERING : All 2K illustrations generated
-    RENDERING --> COMPLETED : PDF compiled & validated
-    COMPLETED --> ILLUSTRATING : POST /books/{id}/pages/{idx}/regenerate
+    ILLUSTRATING --> QA : Some pages need the owner's decision
+    QA --> RENDERING : Owner accepts every flagged page
+    QA --> ILLUSTRATING : Owner redraws a flagged page
+    QA --> FAILED : Pipeline error
+    RENDERING --> READY : PDF compiled & validated
+    READY --> ILLUSTRATING : POST /books/{id}/pages/{idx}/regenerate
     DRAFT --> FAILED : Pipeline error
     STORY_READY --> FAILED : Pipeline error
     CHARACTER_READY --> FAILED : Pipeline error
@@ -397,10 +415,13 @@ Every response from `GET /books/{id}` and `POST /books` includes a localized Ara
 | `STORY_READY` | `اكتملت صياغة القصة وهي جاهزة لمراجعتكم واعتمادكم (أرسلنا إشعاراً ورابط المراجعة إلى بريدك الإلكتروني).` | Yes (HITL #1 Story email) | Render story script review modal or text reader. Deep link from email routes parent straight here. | Parent clicks **«اعتماد القصة»** (`POST /books/{id}/story/approve`). |
 | `CHARACTER_READY` | `لوحة ملامح شخصية طفلكم جاهزة للمعاينة والاعتماد (أرسلنا إشعاراً ورابط المعاينة إلى بريدك الإلكتروني).` | Yes (HITL #2 Look Sheet email) | Display 4-panel watercolor look sheet from `characterSheetUrl`. Deep link from email routes parent straight here. | Parent clicks **«اعتماد الرسم»** (`POST /books/{id}/character/approve`) or **«إعادة الرسم»** (`POST /books/{id}/character/regenerate`). |
 | `ILLUSTRATING` | `يجري رسم وتلوين صفحات القصة بالألوان المائية بدقة فائقة...` | No (Internal painting) | Display progress bar: count of illustrated pages (`pages[].imageUrl != null`) out of `pageCount`. | Poll `GET /books/{id}` every 3s. |
+| `QA` | `اكتمل رسم الصفحات، وبعضها يحتاج إلى قراركم: اعتمدوا الصورة كما هي أو اطلبوا إعادة رسمها.` | No | Show the flagged pages from `GET /books/{id}/review` (picture + problems) with **«اعتماد»** and **«إعادة الرسم»** buttons per page. | Owner decides each page (section 6.9). |
 | `RENDERING` | `يجري تجهيز وتجليد الكتاب النهائي للطباعة والمطالعة...` | No (Internal compilation) | Display book binding / layout compilation spinner. | Poll `GET /books/{id}` every 2–3s. |
-| `READY` / `COMPLETED` | `كتاب طفلكم مكتمل وجاهز للقراءة والتصفح والتحميل (تم إرسال روابط القراءة والتحميل إلى بريدك الإلكتروني).` | Yes (Reader & PDF email) | Enable primary **«تصفح الكتاب»** button (`/reader`) and secondary **«تحميل نسخة الطباعة (PDF)»** button (`/download`). | Parent enjoys reading online and downloads the print PDF. |
+| `READY` | `كتاب طفلكم مكتمل وجاهز للقراءة والتصفح والتحميل (تم إرسال روابط القراءة والتحميل إلى بريدك الإلكتروني).` | Yes (Reader & PDF email) | Enable primary **«تصفح الكتاب»** button (`/reader`) and secondary **«تحميل نسخة الطباعة (PDF)»** button (`/download`). | Parent enjoys reading online and downloads the print PDF. |
 | `FAILED` | `حدث خطأ أثناء معالجة القصة، يمكنكم إعادة المحاولة.` | No | Display error state with `failureReason` and an active **«استئناف / إعادة المحاولة»** button. | Click **«استئناف»** (`POST /books/{id}/resume`). |
 | `CANCELLED` | `تم إلغاء إعداد القصة.` | No | Display cancellation notice. | Parent can start a new book. |
+
+> **No action needed for most pages.** Pages whose only problem is the layout (e.g. scenery drifting into the text area) are accepted automatically and never reach `QA`. A book is in `QA` only when a page has a real problem (wrong character, stray text, anatomy, safety) and has run out of automatic redraws. The `QA` status can be absent entirely for a book; do not build the UI as if it were a required step.
 
 ---
 
@@ -415,6 +436,8 @@ When the frontend triggers lifecycle actions, the backend envelope returns a des
 | `POST /books/{id}/character/approve` | `202 ACCEPTED` | `تم اعتماد رسم الشخصية بنجاح وبدأ رسم صفحات الكتاب، وسنرسل لك بريداً إلكترونياً فور اكتماله.` |
 | `POST /books/{id}/character/regenerate` | `202 ACCEPTED` | `جاري إعادة رسم لوحة الشخصية بمظهر جديد.` |
 | `POST /books/{id}/pages/{idx}/regenerate` | `202 ACCEPTED` | `جاري إعادة رسم الصفحة المختارة.` |
+| `POST /books/{id}/review/pages/{idx}/accept` | `200 OK` | `تم اعتماد صورة الصفحة كما هي.` |
+| `POST /books/{id}/review/pages/{idx}/regenerate` | `202 ACCEPTED` | `جاري إعادة رسم الصفحة المختارة.` |
 | `POST /books/{id}/photo` | `202 ACCEPTED` | `تم رفع وتشفير الصورة بنجاح.` |
 | `POST /books/{id}/resume` | `202 ACCEPTED` | `تم استئناف إعداد القصة بنجاح.` |
 | `POST /books/{id}/cancel` | `202 ACCEPTED` | `تم إلغاء إعداد القصة.` |
@@ -500,7 +523,7 @@ Advances the book from `STORY_READY` to character sheet generation.
 
 ---
 
-### 6.5 Approve Character Design Sheet
+### 6.6 Approve Character Design Sheet
 Advances the book from `CHARACTER_READY` to illustrating the full book pages. Reference photos are permanently purged right after this step.
 
 * **Method:** `POST`
@@ -509,7 +532,7 @@ Advances the book from `CHARACTER_READY` to illustrating the full book pages. Re
 
 ---
 
-### 6.6 Regenerate Character Design Sheet
+### 6.7 Regenerate Character Design Sheet
 Requests a newly painted character look sheet. Decrements `lookRegenerationsLeft`.
 
 * **Method:** `POST`
@@ -518,7 +541,7 @@ Requests a newly painted character look sheet. Decrements `lookRegenerationsLeft
 
 ---
 
-### 6.7 Regenerate Single Page Illustration
+### 6.8 Regenerate Single Page Illustration
 Re-generates the illustration for a specific page without touching other pages.
 
 * **Method:** `POST`
@@ -529,7 +552,21 @@ Re-generates the illustration for a specific page without touching other pages.
 
 ---
 
-### 6.8 Get Interactive Reader Manifest
+### 6.9 Review Pages Flagged in QA (Owner)
+The automatic checks settle most pages by themselves (a page whose only problem is the layout is accepted automatically). Pages with a real problem (wrong character, stray text, anatomy, safety) wait for the **book's owner**; no admin is involved. Only while `status === "QA"`.
+
+* **List:** `GET /api/v1/storybook/books/{bookId}/review` → `200` with `ApiResponse<FlaggedPage[]>`
+  `FlaggedPage = { bookId, pageId, pageIndex, generation, imageUrl (signed), sceneEn, problems: string[] }`
+* **Accept as is:** `POST /api/v1/storybook/books/{bookId}/review/pages/{pageIndex}/accept` → `200`. When no page is left waiting the book moves on to the PDF.
+* **Draw again:** `POST /api/v1/storybook/books/{bookId}/review/pages/{pageIndex}/regenerate` → `202`. Counts against the book's page-regeneration limit (`400` when used up); the book returns to `ILLUSTRATING`.
+* Another user's book answers `404`; a book not in `QA` answers `409` for redraws.
+* **Polling:** keep polling `GET /books/{id}` while in `ILLUSTRATING`; stop and show the review UI on `QA`; after a decision go back to polling (`RENDERING` then `READY`).
+* **Drawing can take several minutes** when the image service is busy; the backend retries by itself, so do not offer a retry button for that. Offer **«استئناف»** (`POST /books/{id}/resume`) only on `FAILED`.
+* Remaining redraws: `pageRegenerationsLeft` in `StorybookDetail` (shared by this flow and 6.8). Disable the redraw button at `0`.
+
+---
+
+### 6.10 Get Interactive Reader Manifest
 Returns an RTL-structured manifest designed specifically for web flipping book readers (e.g. `page-flip`, `swiper`, or custom canvas reader).
 
 * **Method:** `GET`
@@ -538,7 +575,7 @@ Returns an RTL-structured manifest designed specifically for web flipping book r
 
 ---
 
-### 6.9 Download Final PDF
+### 6.11 Download Final PDF
 Fetches a temporary presigned URL to download the high-resolution 300 DPI square print PDF.
 
 * **Method:** `GET`
@@ -547,7 +584,7 @@ Fetches a temporary presigned URL to download the high-resolution 300 DPI square
 
 ---
 
-### 6.10 Cancel Storybook Generation
+### 6.12 Cancel Storybook Generation
 Stops any ongoing background image or story generation.
 
 * **Method:** `POST`
@@ -556,7 +593,7 @@ Stops any ongoing background image or story generation.
 
 ---
 
-### 6.11 Child Profiles Management (Optional Standalone CRUD)
+### 6.13 Child Profiles Management (Optional Standalone CRUD)
 If the frontend offers a saved "Child Profiles" tab in settings:
 
 * **Create:** `POST /api/v1/storybook/children` (`CreateChildProfileRequest` $\rightarrow$ `ChildProfileResponse`)
@@ -696,7 +733,9 @@ export async function pollStorybookStatus(
 
         // Stop polling on terminal states or states requiring parent action
         if (
-          data.status === "COMPLETED" ||
+          data.status === "READY" ||
+          data.status === "QA" ||           // owner must decide, see 6.9
+          data.status === "CANCELLED" ||
           data.status === "STORY_READY" ||
           data.status === "CHARACTER_READY" ||
           data.status === "FAILED"
@@ -902,7 +941,7 @@ The backend automatically dispatches transactional HTML emails to the parent at 
 | **1. Storybook Created** | `POST /books` completed | `بدأت رحلة كتاب {child}: ماذا سيحدث الآن؟` | متابعة تقدم الكتاب | `/storybook/books/:id` |
 | **2. Story Script Ready (HITL #1)** | `DRAFT` $\rightarrow$ `STORY_READY` | `قصة «{title}» جاهزة لمراجعتك واعتمادك` | قراءة القصة واعتمادها | `/storybook/books/:id` (opens story review modal/tab) |
 | **3. Character Look Sheet Ready (HITL #2)** | `STORY_READY` $\rightarrow$ `CHARACTER_READY` | `لوحة رسم شخصية {child} جاهزة للاعتماد` | معاينة واعتماد رسم الشخصية | `/storybook/books/:id` (opens look sheet approval modal) |
-| **4. Book Generation Completed** | `RENDERING` $\rightarrow$ `COMPLETED` | `تهانينا! كتاب «{title}» مكتمل وجاهز للقراءة الآن` | 1. تصفح في القارئ التفاعلي<br>2. تحميل نسخة الطباعة (PDF) | 1. `/storybook/books/:id/reader`<br>2. `/storybook/books/:id/download` |
+| **4. Book Generation Completed** | `RENDERING` $\rightarrow$ `READY` | `تهانينا! كتاب «{title}» مكتمل وجاهز للقراءة الآن` | 1. تصفح في القارئ التفاعلي<br>2. تحميل نسخة الطباعة (PDF) | 1. `/storybook/books/:id/reader`<br>2. `/storybook/books/:id/download` |
 
 > [!NOTE]
 > All emails are localized in elegant Arabic, responsive on mobile devices, and respect user privacy by reminding parents about the automatic ephemeral photo purge.

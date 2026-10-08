@@ -195,6 +195,7 @@ public class IllustrationPersistence {
 
     private static final java.util.Set<com.doova.ktab.features.storybook.enums.PageImageStatus> DONE_OK =
             java.util.EnumSet.of(com.doova.ktab.features.storybook.enums.PageImageStatus.QA_PASSED,
+                    com.doova.ktab.features.storybook.enums.PageImageStatus.ACCEPTED_AUTO,
                     com.doova.ktab.features.storybook.enums.PageImageStatus.ACCEPTED_BY_ADMIN);
 
     @Transactional(readOnly = true)
@@ -229,6 +230,14 @@ public class IllustrationPersistence {
             page.setGeneration(generation + 1);
             enqueuer.enqueue(bookId, JobStep.ILLUSTRATE_PAGE, page.getPageIndex(), generation + 1);
             com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("retry");
+        } else if (properties.getImage().isAutoAcceptLayoutFailures() && onlyTheLayoutFailed(verdict)) {
+            // Out of attempts, but the picture is the right child, safe, with no stray text and sound anatomy: only the
+            // scene check failed (typically the empty band kept for the text). That is not worth holding a book for a person.
+            image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.ACCEPTED_AUTO);
+            page.setCurrentImage(image);
+            com.doova.ktab.features.storybook.metrics.StorybookMetrics.qaVerdict("auto_accepted");
+            log.info("storybook {} page {}: accepted automatically after {} attempt(s); only the scene check failed: {}",
+                    bookId, page.getPageIndex(), attemptInRound, verdict.problems());
         } else {
             image.setStatus(com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED);
             page.setCurrentImage(image);
@@ -261,6 +270,14 @@ public class IllustrationPersistence {
             sameInARow++;
         }
         return sameInARow >= limit;
+    }
+
+    /**
+     * True when the scene check is the ONLY thing that failed: the child matches, there is no stray text, the anatomy is
+     * sound and the picture is safe. Anything else about a picture needs a person.
+     */
+    static boolean onlyTheLayoutFailed(VisualQaResponse v) {
+        return !v.sceneMatch() && v.identityMatch() && !v.strayText() && v.anatomyOk() && v.safeForChildren();
     }
 
     private static java.util.Set<String> failedChecks(VisualQaResponse v) {

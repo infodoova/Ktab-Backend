@@ -18,4 +18,13 @@ public interface StorybookPageImageRepository extends JpaRepository<StorybookPag
             order by i.createdAt asc
             """)
     List<StorybookPageImage> findFlaggedCurrentImages();
+
+    @org.springframework.data.jpa.repository.Query("""
+            select i from StorybookPageImage i join fetch i.page p join fetch p.storybook b
+            where i.status = com.doova.ktab.features.storybook.enums.PageImageStatus.FLAGGED
+              and p.currentImage = i
+              and b.id = :bookId
+            order by p.pageIndex asc
+            """)
+    List<StorybookPageImage> findFlaggedCurrentImagesByStorybookId(@org.springframework.data.repository.query.Param("bookId") Long bookId);
 }

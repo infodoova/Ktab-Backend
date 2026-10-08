@@ -79,6 +79,20 @@ public class StorybookProperties {
         private int webMaxSidePx = 1400;
         /** Stop redrawing a page once this many attempts in a row fail the same checks; 0 turns it off. */
         private int repeatFailureLimit = 2;
+        /**
+         * Most picture requests in flight at once, across all workers. The provider's per-minute quota is what runs out
+         * first (HTTP 429), not the server, so this is deliberately lower than the number of workers.
+         */
+        private int maxConcurrentCalls = 2;
+        /**
+         * When a page runs out of attempts and only the scene check failed (the child, text, anatomy and safety are fine),
+         * accept the picture automatically instead of flagging the book for a person. Any other failure still goes to a person.
+         */
+        private boolean autoAcceptLayoutFailures = true;
+        /** How many times one request is repeated after an HTTP 429 before the job is given back to the queue. */
+        private int rateLimitRetries = 4;
+        /** First wait after an HTTP 429. It doubles on each repeat (with a random spread), and every other request pauses too. */
+        private java.time.Duration rateLimitBackoff = java.time.Duration.ofSeconds(20);
     }
 
     @Getter

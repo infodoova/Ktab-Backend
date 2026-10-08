@@ -176,6 +176,7 @@ public enum ApiMessageKey {
     STORYBOOK_LOOK_APPROVED("storybook.look.approved"),
     STORYBOOK_LOOK_REGENERATING("storybook.look.regenerating"),
     STORYBOOK_PAGE_REGENERATING("storybook.page.regenerating"),
+    STORYBOOK_PAGE_ACCEPTED("storybook.page.accepted"),
     STORYBOOK_RESUMED("storybook.resumed"),
     STORYBOOK_CANCELLED("storybook.cancelled"),
     STORYBOOK_PHOTO_UPLOADED("storybook.photo.uploaded"),

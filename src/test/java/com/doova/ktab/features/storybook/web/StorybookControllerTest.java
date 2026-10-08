@@ -42,6 +42,7 @@ class StorybookControllerTest {
     private final com.doova.ktab.features.storybook.illustration.PageRegenerationService pageRegenerationService = mock(com.doova.ktab.features.storybook.illustration.PageRegenerationService.class);
     private final com.doova.ktab.features.storybook.render.ReaderService readerService = mock(com.doova.ktab.features.storybook.render.ReaderService.class);
     private final CancelService cancelService = mock(CancelService.class);
+    private final PageReviewService pageReviewService = mock(PageReviewService.class);
     private MockMvc mvc;
     private final User user = new User();
 
@@ -53,7 +54,7 @@ class StorybookControllerTest {
             public Object resolveArgument(MethodParameter p, ModelAndViewContainer m, NativeWebRequest r, WebDataBinderFactory f) { return user; }
         };
         mvc = MockMvcBuilders.standaloneSetup(new StorybookController(service, messages, resumeService, storyApprovalService,
-                photoIntakeService, lookService, pageRegenerationService, readerService, cancelService))
+                photoIntakeService, lookService, pageRegenerationService, readerService, cancelService, pageReviewService))
                 .setCustomArgumentResolvers(currentUser).build();
     }
 
@@ -198,5 +199,35 @@ class StorybookControllerTest {
                                 }"""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(42));
+    }
+
+    @Test
+    void theOwnerSeesThePagesWaitingForTheirDecision() throws Exception {
+        when(pageReviewService.flagged(user, 42L)).thenReturn(java.util.List.of(
+                new com.doova.ktab.features.storybook.admin.FlaggedPageView(42L, 728L, 15, 2, "https://img/p15.jpg",
+                        "Crossing the stream.", java.util.List.of("Rocks intrude into the bottom text area."))));
+
+        mvc.perform(get("/storybook/books/42/review"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].pageIndex").value(15))
+                .andExpect(jsonPath("$.data[0].imageUrl").value("https://img/p15.jpg"))
+                .andExpect(jsonPath("$.data[0].problems[0]").value("Rocks intrude into the bottom text area."));
+    }
+
+    @Test
+    void theOwnerAcceptsAPageByItsIndex() throws Exception {
+        mvc.perform(post("/storybook/books/42/review/pages/15/accept"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        org.mockito.Mockito.verify(pageReviewService).accept(user, 42L, 15);
+    }
+
+    @Test
+    void theOwnerRedrawsAPageAndGets202() throws Exception {
+        mvc.perform(post("/storybook/books/42/review/pages/15/regenerate"))
+                .andExpect(status().isAccepted());
+
+        org.mockito.Mockito.verify(pageReviewService).regenerate(user, 42L, 15);
     }
 }
