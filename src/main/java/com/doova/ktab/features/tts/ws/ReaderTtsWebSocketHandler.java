@@ -212,12 +212,18 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
 
             Mono<Void> pipeline = Flux.fromIterable(chunksForV3).index().concatMap(tuple -> processChunk(session, params.voiceId(), chunksForV3, tuple, "", "")).then();
 
-            Disposable d = pipeline.doFinally(sig -> {
+            Disposable d = pipeline.doOnError(error -> {
+                log.error("WS_TTS_SYNTHESIS_FAILED sid={}", sid, error);
+                sendError(session, "SYNTHESIS_FAILED", "TTS generation failed");
+            }).doFinally(sig -> {
                 log.info("<<< WS_STREAM_FINISH sid={} status={}", sid, sig.name());
                 timer.stop(meterRegistry.timer("tts.websocket.request.duration", "status", sig.name()));
-                sendJson(session, Map.of("type", "complete"));
+                // A failed synthesis already reported an error; "complete" would mask it as an empty success.
+                if (sig != reactor.core.publisher.SignalType.ON_ERROR) {
+                    sendJson(session, Map.of("type", "complete"));
+                }
                 startNextStream(session);
-            }).subscribe();
+            }).subscribe(ignored -> {}, error -> {});
 
             activeStreams.put(sid, d);
 
@@ -257,10 +263,7 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
 
                 .then()
 
-                .onErrorResume(e -> {
-                    log.error("❌ Chunk TTS failed idx={} err={}", idx, e.toString());
-                    return Mono.empty();
-                });
+                .doOnError(e -> log.error("Chunk TTS failed idx={} err={}", idx, e.toString()));
     }
 
 
@@ -326,7 +329,9 @@ public class ReaderTtsWebSocketHandler extends TextWebSocketHandler {
 
     private void sendJson(WebSocketSession session, Object payload) {
         if (!(payload instanceof Map && "pong".equals(((Map<?, ?>) payload).get("type")))) {
-             log.info("<<< WS_SEND_JSON sid={} payload={}", session.getId(), payload);
+             String logged = String.valueOf(payload);
+             log.info("<<< WS_SEND_JSON sid={} payload={}", session.getId(),
+                     logged.length() > 300 ? logged.substring(0, 300) + "...(" + logged.length() + " chars)" : logged);
         }
         executeLocked(session, () -> {
             sendMessage(session, new TextMessage(objectMapper.writeValueAsString(payload)));
