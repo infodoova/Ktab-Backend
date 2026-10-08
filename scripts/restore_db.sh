@@ -92,18 +92,41 @@ else
   MAGIC=$(head -c 5 "$BACKUP_FILE" || true)
 fi
 
-# 3. Execute restore
+# 3. Clean wipe of public schema to guarantee pristine restoration
+echo "[*] Recreating 'public' schema to guarantee a clean slate..."
+docker exec -i ktab-db psql -U "$DB_USER" -d "$DB_NAME" \
+  -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO \"$DB_USER\"; GRANT ALL ON SCHEMA public TO public;"
+
+# 4. Execute restore
 echo "[*] Executing database restore..."
+RESTORE_STATUS=0
 if [[ "$MAGIC" == "PGDMP" ]]; then
   echo "    Detected: PostgreSQL custom format — using pg_restore"
+  set +e
+  set +o pipefail
   if [[ "$BACKUP_FILE" == *.gz ]]; then
     gunzip -c "$BACKUP_FILE" | docker exec -i ktab-db pg_restore \
       -U "$DB_USER" -d "$DB_NAME" \
-      --no-owner --no-acl --clean --if-exists -v 2>&1 | tail -20
+      --no-owner --no-acl --if-exists -v 2>&1 | tail -25
+    RESTORE_STATUS=${PIPESTATUS[1]}
   else
     docker exec -i ktab-db pg_restore \
       -U "$DB_USER" -d "$DB_NAME" \
-      --no-owner --no-acl --clean --if-exists -v < "$BACKUP_FILE" 2>&1 | tail -20
+      --no-owner --no-acl --if-exists -v < "$BACKUP_FILE" 2>&1 | tail -25
+    RESTORE_STATUS=${PIPESTATUS[0]}
+  fi
+  set -e
+  set -o pipefail
+
+  # pg_restore returns 0 on success, 1 on success with non-fatal warnings, and 2 on fatal errors
+  if [ "$RESTORE_STATUS" -eq 1 ]; then
+    echo "[!] pg_restore finished with minor warnings (non-fatal). Data restored successfully."
+  elif [ "$RESTORE_STATUS" -gt 1 ]; then
+    echo "[-] ERROR: pg_restore failed with fatal error code $RESTORE_STATUS" >&2
+    if [ "$APP_WAS_RUNNING" = "1" ]; then
+      docker compose --env-file .env.production up -d ktab-app
+    fi
+    exit "$RESTORE_STATUS"
   fi
 else
   echo "    Detected: Plain SQL format — using psql"
@@ -116,7 +139,7 @@ fi
 
 echo "[*] Database restored."
 
-# 4. Start the app again so Spring refreshes its connection pool and caches
+# 5. Start the app again so Spring refreshes its connection pool and caches
 if [ "$APP_WAS_RUNNING" = "1" ]; then
   echo "[*] Starting ktab-app again..."
   docker compose --env-file .env.production up -d ktab-app
