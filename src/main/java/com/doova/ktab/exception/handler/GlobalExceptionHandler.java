@@ -68,6 +68,8 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse(ApiMessageKey.VALIDATION_FAILED.getMessage(messageSource));
 
+        // Field names and rule messages only, never the submitted values.
+        log.warn("Request validation failed: {}", fieldErrors);
         return ResponseEntity.badRequest().body(ApiResponse.validationError(message, fieldErrors, HttpStatus.BAD_REQUEST));
     }
 
@@ -89,8 +91,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({MissingServletRequestParameterException.class, MissingPathVariableException.class, HttpMessageNotReadableException.class})
     public ResponseEntity<ApiResponse<Void>> handleBadRequestErrors(Exception ex) {
-        log.debug("Malformed client request: {}", ex.getMessage());
+        log.warn("Malformed client request: {}", rootCause(ex));
         return ResponseEntity.badRequest().body(ApiResponse.error(ApiMessageKey.VALIDATION_FAILED.getMessage(messageSource), HttpStatus.BAD_REQUEST));
+    }
+
+    /** The innermost cause as "Type: first line of its message", cut short, so a log line says why without echoing a payload. */
+    static String rootCause(Throwable ex) {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String message = root.getMessage() == null ? "" : root.getMessage().lines().findFirst().orElse("");
+        String text = root.getClass().getSimpleName() + (message.isBlank() ? "" : ": " + message);
+        return text.length() > 200 ? text.substring(0, 200) + "..." : text;
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

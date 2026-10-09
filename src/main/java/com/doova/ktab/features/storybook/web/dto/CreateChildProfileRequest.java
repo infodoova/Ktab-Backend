@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 public record CreateChildProfileRequest(
-        @NotBlank @Pattern(regexp = CreateChildProfileRequest.ARABIC_NAME) String nameAr,
+        @NotBlank @Pattern(regexp = CreateChildProfileRequest.ARABIC_NAME, message = "{validation.child.name.invalid}") String nameAr,
         @NotNull ChildGender gender,
         @NotNull AgeBand ageBand,
         @NotNull @Valid ChildAppearance appearance,
