@@ -45,6 +45,29 @@ public class WebSecurityConfig {
         @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,http://192.168.1.16:5173,http://192.168.*:*,https://ktab-rho.vercel.app,https://kristan-prickliest-ezekiel.ngrok-free.dev,https://melisa-balsamiferous-aubrie.ngrok-free.dev,https://*.ngrok-free.dev,https://*.ngrok.app}")
         private String allowedOrigins;
 
+        private static final String GOOGLE_REDIRECT_PATH = "/auth/google/redirect";
+
+        static boolean isGoogleRedirect(String requestUri) {
+                return requestUri != null && requestUri.endsWith(GOOGLE_REDIRECT_PATH);
+        }
+
+        /**
+         * "Sign in with Google" in redirect mode makes the browser POST the result straight from Google's page to
+         * this one endpoint, so the request carries Origin "https://accounts.google.com" or the literal "null"
+         * (iPhone browsers send that after Google's redirect). Neither is a website origin, and the global rule would
+         * answer 403 "Invalid CORS request" before the controller runs. This is a navigation, not a script reading a
+         * response, so nothing is exposed: POST only, no credentials. The endpoint is protected by Google's signature and
+         * the nonce cookie instead.
+         */
+        static CorsConfiguration googleRedirectCors() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(List.of("https://accounts.google.com", "null"));
+                config.setAllowedMethods(List.of("POST"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(false);
+                return config;
+        }
+
         @Bean
         public SecurityFilterChain securityFilterChain(
                         HttpSecurity http,
@@ -68,6 +91,9 @@ public class WebSecurityConfig {
                                         String reqOrigin = request.getHeader("Origin");
                                         log.info("CORS check for Origin: {}, Method: {}, Path: {}", reqOrigin,
                                                         request.getMethod(), request.getRequestURI());
+                                        if (isGoogleRedirect(request.getRequestURI())) {
+                                                return googleRedirectCors();
+                                        }
                                         CorsConfiguration config = new CorsConfiguration();
                                         config.setAllowedOriginPatterns(sanitizedOrigins);
                                         config.setAllowedMethods(
