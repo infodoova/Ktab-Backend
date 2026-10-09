@@ -2,8 +2,10 @@ package com.doova.ktab.controller.v1.auth;
 
 import com.doova.ktab.annotation.ApiVersion;
 import com.doova.ktab.dto.ApiResponse;
+import com.doova.ktab.dto.user.UserResponseDto;
 import com.doova.ktab.enums.message.ApiMessageKey;
 import com.doova.ktab.model.user.RefreshToken;
+import com.doova.ktab.model.user.User;
 import com.doova.ktab.security.model.UserPrincipal;
 import com.doova.ktab.service.auth.GoogleOAuth2Service;
 import com.doova.ktab.service.auth.JWTService;
@@ -11,6 +13,8 @@ import com.doova.ktab.service.auth.PendingGoogleTokenService;
 import com.doova.ktab.service.auth.RefreshTokenService;
 import com.doova.ktab.utils.response.ResponseUtils;
 import com.doova.ktab.utils.web.CookieUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -62,6 +66,7 @@ public class GoogleRedirectAuthController {
     private final RefreshTokenService refreshTokenService;
     private final CookieUtils cookieUtils;
     private final MessageSource messageSource;
+    private final ObjectMapper objectMapper;
     private final String frontendUrl;
 
     public GoogleRedirectAuthController(
@@ -71,6 +76,7 @@ public class GoogleRedirectAuthController {
             RefreshTokenService refreshTokenService,
             CookieUtils cookieUtils,
             MessageSource messageSource,
+            ObjectMapper objectMapper,
             @Value("${ktab.google.redirect.frontend-url:${ktab.app.frontend-url}}") String frontendUrl
     ) {
         this.googleOAuth2Service = googleOAuth2Service;
@@ -79,6 +85,7 @@ public class GoogleRedirectAuthController {
         this.refreshTokenService = refreshTokenService;
         this.cookieUtils = cookieUtils;
         this.messageSource = messageSource;
+        this.objectMapper = objectMapper;
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
@@ -128,18 +135,32 @@ public class GoogleRedirectAuthController {
             cookieUtils.setAccessTokenCookie(response, jwtService.generateToken(principal));
             RefreshToken rt = refreshTokenService.createRefreshToken(principal.user(), request.getHeader("User-Agent"));
             cookieUtils.setRefreshTokenCookie(response, rt.getToken());
-            return to(loginUrl("success", null));
+            return to(loginUrl("success", userFragment(principal.user())));
         }
 
         // New user: the website asks which kind of account they want, then calls /auth/google/complete.
         String pendingToken = pendingGoogleTokenService.issue(email, firstName(payload), lastName(payload));
-        return to(loginUrl("pending", pendingToken));
+        return to(loginUrl("pending", "pending=" + URLEncoder.encode(pendingToken, StandardCharsets.UTF_8)));
     }
 
-    /** The token goes in the fragment so it is never sent to a server or written to an access log. */
-    private String loginUrl(String result, String pendingToken) {
+    /** Anything after the "#" is never sent to a server or written to an access log. */
+    private String loginUrl(String result, String fragment) {
         String url = frontendUrl + "/login?google=" + result;
-        return pendingToken == null ? url : url + "#pending=" + URLEncoder.encode(pendingToken, StandardCharsets.UTF_8);
+        return fragment == null ? url : url + "#" + fragment;
+    }
+
+    /**
+     * The same profile the login endpoint returns in its body, so the website can treat both the same way. A redirect has
+     * no body, hence the fragment: URL-safe Base64 (no padding) of the profile as JSON.
+     */
+    private String userFragment(User user) {
+        try {
+            byte[] json = objectMapper.writeValueAsBytes(UserResponseDto.from(user));
+            return "user=" + Base64.getUrlEncoder().withoutPadding().encodeToString(json);
+        } catch (JsonProcessingException e) {
+            log.warn("GOOGLE_REDIRECT_PROFILE_NOT_ENCODED userId={}", user.getId());
+            return null;
+        }
     }
 
     private static ResponseEntity<Void> to(String url) {
