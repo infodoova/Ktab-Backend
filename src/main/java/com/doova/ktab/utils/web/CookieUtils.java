@@ -20,6 +20,7 @@ public class CookieUtils {
 
     public static final String ACCESS_TOKEN_COOKIE_NAME = "ACCESS_TOKEN";
     public static final String REFRESH_TOKEN_COOKIE_NAME = "REFRESH_TOKEN";
+    public static final String GOOGLE_NONCE_COOKIE_NAME = "GOOGLE_NONCE";
 
     private static final Set<String> VALID_SAME_SITE_VALUES = Set.of("Strict", "Lax", "None");
 
@@ -71,6 +72,34 @@ public class CookieUtils {
     public void clearAllAuthCookies(HttpServletResponse response) {
         clearAccessTokenCookie(response);
         clearRefreshTokenCookie(response);
+    }
+
+    /**
+     * A short-lived random value that ties a "Sign in with Google" redirect to the browser that started it.
+     * Google posts the result back from another site, so in production this cookie has to be SameSite=None
+     * (a Lax cookie is not sent on a cross-site POST). It is not a session, so it is never trusted on its own.
+     */
+    public void setGoogleNonceCookie(HttpServletResponse response, String nonce, long maxAge) {
+        Objects.requireNonNull(response, "response must not be null");
+        if (nonce == null || nonce.isBlank()) {
+            throw new IllegalArgumentException("nonce must not be blank");
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, googleNonceCookie(nonce, maxAge).toString());
+    }
+
+    public void clearGoogleNonceCookie(HttpServletResponse response) {
+        Objects.requireNonNull(response, "response must not be null");
+        response.addHeader(HttpHeaders.SET_COOKIE, googleNonceCookie("", 0).toString());
+    }
+
+    private ResponseCookie googleNonceCookie(String value, long maxAge) {
+        return ResponseCookie.from(GOOGLE_NONCE_COOKIE_NAME, value)
+                .httpOnly(true)
+                .secure(secure)
+                .path("/")
+                .maxAge(Duration.ofSeconds(validateMaxAge(maxAge, "maxAge")))
+                .sameSite(secure ? "None" : "Lax")
+                .build();
     }
 
     public Optional<String> extractCookieValue(HttpServletRequest request, String cookieName) {
