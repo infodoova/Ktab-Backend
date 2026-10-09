@@ -31,6 +31,14 @@ public interface PublicService {
     List<String> getTopReviewedCoverImages(int limit);
 
     /**
+     * The same books as {@link #getTopReviewedCoverImages}, in the same order, with their title, description and the
+     * audio that introduces them when they have one.
+     *
+     * @param limit how many to return (1 to 50)
+     */
+    List<BookCoverResponse> getTopReviewedBooks(int limit);
+
+    /**
      * Cover image URLs only, of the published books, newest first.
      *
      * @param page zero-based page index

@@ -2,6 +2,7 @@ package com.doova.ktab.service.book.impl;
 
 import com.doova.ktab.dto.book.BookRequestDto;
 import com.doova.ktab.dto.book.BookSearchRequestDto;
+import com.doova.ktab.dto.book.BookAboutAudioResponse;
 import com.doova.ktab.dto.book.BookCoverResponse;
 import com.doova.ktab.dto.book.BookResponseDto;
 import com.doova.ktab.enums.book.BookSource;
@@ -14,6 +15,7 @@ import com.doova.ktab.model.attachment.Attachment;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.model.user.User;
 import com.doova.ktab.repository.book.BookRepository;
+import com.doova.ktab.service.book.BookAboutAudioService;
 import com.doova.ktab.service.book.BookService;
 import com.doova.ktab.service.book.BookStatusTransition;
 import com.doova.ktab.service.book.BookFileService;
@@ -42,9 +44,13 @@ import java.time.Duration;
 import java.time.Instant;
 import com.doova.ktab.dto.book.BookSourceFileResponseDto;
 import com.doova.ktab.exception.ResourceNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
+
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.List;
 
@@ -60,6 +66,14 @@ public class BookServiceImpl implements BookService {
     private final BookResponseBuilderService responseBuilder;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final BookAboutAudioService aboutAudioService;
+
+    /**
+     * Books the top reviewed covers always show, in this order (ktab.public.top-reviewed-cover-book-ids, comma separated).
+     * Empty means no fixed list: the covers are then picked by reviews.
+     */
+    @Value("${ktab.public.top-reviewed-cover-book-ids:}")
+    private List<Long> pinnedCoverBookIds = List.of();
 
     // =========================================================
     // FILTER
@@ -384,6 +398,7 @@ public class BookServiceImpl implements BookService {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishDate"));
         var booksPage = bookRepository.findAll(pageable);
 
+        Map<Long, BookAboutAudioResponse> audios = aboutAudioService.findAll(booksPage.getContent().stream().map(Book::getId).toList());
         List<BookCoverResponse> covers = booksPage.getContent().stream()
                 .map(book -> {
                     String coverUrl = attachmentService
@@ -391,19 +406,7 @@ public class BookServiceImpl implements BookService {
                             .map(attachment -> fileStorageService.getFileUrl(attachment.getStoragePath(), UrlStrategy.SIGNED))
                             .orElse(null);
 
-                    return BookCoverResponse.builder()
-                            .id(book.getId())
-                            .title(book.getTitle())
-                            .coverImageUrl(coverUrl)
-                            .description(book.getDescription())
-                            .language(book.getLanguage())
-                            .ageRangeMin(book.getAgeRangeMin())
-                            .ageRangeMax(book.getAgeRangeMax())
-                            .pageCount(book.getPageCount())
-                            .publishDate(book.getPublishDate())
-                            .mainGenre(book.getMainGenre() != null ? book.getMainGenre().getNameAr() : null)
-                            .subGenre(book.getSubGenre() != null ? book.getSubGenre().getNameAr() : null)
-                            .build();
+                    return toCoverResponse(book, coverUrl, audios.get(book.getId()));
                 })
                 .toList();
 
@@ -422,13 +425,42 @@ public class BookServiceImpl implements BookService {
     // =========================================================
     private static final int TOP_REVIEWED_MAX = 50;
     private static final int COVER_IMAGES_MAX_PAGE_SIZE = 200;
+    /** When topping up with the newest books: how many books per query, and how many queries at most. */
+    private static final int TOP_UP_PAGE_SIZE = 50;
+    private static final int TOP_UP_MAX_PAGES = 4;
+
+    /** A selected book together with the signed link to its cover image. */
+    private record BookWithCover(Book book, String coverUrl) {
+    }
 
     @Override
     @Transactional(readOnly = true)
     public List<String> getTopReviewedCoverImages(int limit) {
+        return selectTopReviewed(limit).stream().map(BookWithCover::coverUrl).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookCoverResponse> getTopReviewedBooks(int limit) {
+        List<BookWithCover> selected = selectTopReviewed(limit);
+        Map<Long, BookAboutAudioResponse> audios = aboutAudioService.findAll(selected.stream().map(s -> s.book().getId()).toList());
+        return selected.stream()
+                .map(s -> toCoverResponse(s.book(), s.coverUrl(), audios.get(s.book().getId())))
+                .toList();
+    }
+
+    /**
+     * The books shown as the top reviewed: the configured fixed list when there is one, otherwise the reviewed books first
+     * (best rated first) topped up with the newest published books. Books without a cover image are left out.
+     */
+    private List<BookWithCover> selectTopReviewed(int limit) {
         enablePublishedFilter();
 
         int wanted = Math.min(Math.max(limit, 1), TOP_REVIEWED_MAX);
+        if (pinnedCoverBookIds != null && !pinnedCoverBookIds.isEmpty()) {
+            return pinnedBooks(wanted);
+        }
+
         Sort bestFirst = Sort.by(Sort.Direction.DESC, "averageRating")
                 .and(Sort.by(Sort.Direction.DESC, "totalReviews"))
                 .and(Sort.by(Sort.Direction.DESC, "id"));
@@ -438,11 +470,88 @@ public class BookServiceImpl implements BookService {
                 .getContent();
 
         Map<Long, String> coverUrls = coverImageUrls(candidates);
-        return candidates.stream()
-                .map(book -> coverUrls.get(book.getId()))
-                .filter(Objects::nonNull)
-                .limit(wanted)
-                .toList();
+        List<BookWithCover> selected = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (Book book : candidates) {
+            seen.add(book.getId());
+            String url = coverUrls.get(book.getId());
+            if (url != null && selected.size() < wanted) {
+                selected.add(new BookWithCover(book, url));
+            }
+        }
+
+        if (selected.size() < wanted) {
+            addNewestBooks(selected, seen, wanted);
+        }
+        return selected;
+    }
+
+    /**
+     * The configured books, in the configured order, whatever the reviews say. A configured book that is not published,
+     * does not exist or has no cover image is left out (and logged) instead of being replaced by another one.
+     */
+    private List<BookWithCover> pinnedBooks(int wanted) {
+        List<Long> ids = pinnedCoverBookIds.stream().distinct().toList();
+        Map<Long, Book> published = new HashMap<>();
+        for (Book book : bookRepository.findAllById(ids)) {
+            if (book.getStatus() == BookStatus.PUBLISHED) {
+                published.put(book.getId(), book);
+            }
+        }
+        Map<Long, String> coverUrls = coverImageUrls(new ArrayList<>(published.values()));
+
+        List<BookWithCover> selected = new ArrayList<>();
+        for (Long id : ids) {
+            String url = published.containsKey(id) ? coverUrls.get(id) : null;
+            if (url == null) {
+                log.warn("Pinned top reviewed cover: book {} is not published or has no cover image, skipped", id);
+            } else if (selected.size() < wanted) {
+                selected.add(new BookWithCover(published.get(id), url));
+            }
+        }
+        return selected;
+    }
+
+    /**
+     * Tops the list up with the newest published books, so a catalog with few reviewed books still gets a full list.
+     * Books already in the list, and books without a cover image, are skipped.
+     */
+    private void addNewestBooks(List<BookWithCover> selected, Set<Long> seen, int wanted) {
+        Sort newestFirst = Sort.by(Sort.Direction.DESC, "publishDate").and(Sort.by(Sort.Direction.DESC, "id"));
+
+        for (int page = 0; page < TOP_UP_MAX_PAGES && selected.size() < wanted; page++) {
+            var booksPage = bookRepository.findAll(PageRequest.of(page, TOP_UP_PAGE_SIZE, newestFirst));
+            List<Book> books = booksPage.getContent().stream().filter(book -> !seen.contains(book.getId())).toList();
+
+            Map<Long, String> coverUrls = coverImageUrls(books);
+            for (Book book : books) {
+                String url = coverUrls.get(book.getId());
+                if (url != null && selected.size() < wanted) {
+                    selected.add(new BookWithCover(book, url));
+                    seen.add(book.getId());
+                }
+            }
+            if (booksPage.isLast()) {
+                break;
+            }
+        }
+    }
+
+    private BookCoverResponse toCoverResponse(Book book, String coverUrl, BookAboutAudioResponse aboutAudio) {
+        return BookCoverResponse.builder()
+                .id(book.getId())
+                .title(book.getTitle())
+                .coverImageUrl(coverUrl)
+                .description(book.getDescription())
+                .language(book.getLanguage())
+                .ageRangeMin(book.getAgeRangeMin())
+                .ageRangeMax(book.getAgeRangeMax())
+                .pageCount(book.getPageCount())
+                .publishDate(book.getPublishDate())
+                .mainGenre(book.getMainGenre() != null ? book.getMainGenre().getNameAr() : null)
+                .subGenre(book.getSubGenre() != null ? book.getSubGenre().getNameAr() : null)
+                .aboutAudio(aboutAudio)
+                .build();
     }
 
     @Override

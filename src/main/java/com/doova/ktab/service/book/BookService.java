@@ -46,6 +46,9 @@ public interface BookService {
     /** Cover image URLs only, of the best-rated published books that have at least one review (best first). */
     List<String> getTopReviewedCoverImages(int limit);
 
+    /** The same books as {@link #getTopReviewedCoverImages}, in the same order, as full cover responses with their about-the-book audio. */
+    List<BookCoverResponse> getTopReviewedBooks(int limit);
+
     /** Cover image URLs only, of the published books, newest first. */
     PageResponse<String> getCoverImages(int page, int size);
 

@@ -142,6 +142,37 @@ class PublicControllerTest {
     }
 
     @Test
+    @DisplayName("getTopReviewedBooks_returnsTheBooksWithTheirAboutAudio")
+    void getTopReviewedBooks_returnsTheBooksWithTheirAboutAudio() throws Exception {
+        var audio = com.doova.ktab.dto.book.BookAboutAudioResponse.builder()
+                .url("https://cdn/audio.mp3").description("A short introduction.").durationSeconds(40).mimeType("audio/mpeg").build();
+        when(publicService.getTopReviewedBooks(10)).thenReturn(List.of(
+                BookCoverResponse.builder().id(110L).title("With audio").coverImageUrl("https://cdn/110.jpg").aboutAudio(audio).build(),
+                BookCoverResponse.builder().id(122L).title("Without audio").coverImageUrl("https://cdn/122.jpg").build()));
+
+        mockMvc.perform(get("/public/books/top-reviewed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(110))
+                .andExpect(jsonPath("$.data[0].aboutAudio.url").value("https://cdn/audio.mp3"))
+                .andExpect(jsonPath("$.data[0].aboutAudio.description").value("A short introduction."))
+                .andExpect(jsonPath("$.data[0].aboutAudio.durationSeconds").value(40))
+                .andExpect(jsonPath("$.data[1].id").value(122))
+                .andExpect(jsonPath("$.data[1].aboutAudio").doesNotExist());
+
+        verify(publicService).getTopReviewedBooks(10);
+    }
+
+    @Test
+    @DisplayName("getTopReviewedBooks_customLimit_passesItOn")
+    void getTopReviewedBooks_customLimit_passesItOn() throws Exception {
+        when(publicService.getTopReviewedBooks(6)).thenReturn(List.of());
+
+        mockMvc.perform(get("/public/books/top-reviewed").param("limit", "6")).andExpect(status().isOk());
+
+        verify(publicService).getTopReviewedBooks(6);
+    }
+
+    @Test
     @DisplayName("getCoverImages_defaultPaging_returnsImageUrlsWithPagingDetails")
     void getCoverImages_defaultPaging_returnsImageUrlsWithPagingDetails() throws Exception {
         when(publicService.getCoverImages(0, 50)).thenReturn(new PageResponse<>(List.of("https://cdn/a.jpg"), 0, 50, 1L, 1, true));

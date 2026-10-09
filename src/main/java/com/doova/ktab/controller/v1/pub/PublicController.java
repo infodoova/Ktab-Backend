@@ -42,13 +42,28 @@ public class PublicController {
     }
 
     @Operation(summary = "Get the cover images of the top reviewed books",
-            description = "Cover image URLs only, best rated first, for published books with at least one review. Links are short-lived.")
+            description = "Cover image URLs only. When a fixed list of books is configured (ktab.public.top-reviewed-cover-book-ids), "
+                    + "exactly those books are returned, in that order. Otherwise published books with at least one review come first, "
+                    + "best rated first, and when fewer than `limit` books have reviews the list is topped up with the newest published books. "
+                    + "Links are short-lived.")
     @GetMapping("/books/top-reviewed/covers")
     public ResponseEntity<ApiResponse<List<String>>> getTopReviewedCoverImages(
             @RequestParam(defaultValue = "10") int limit
     ) {
         return ResponseUtils.success(publicService.getTopReviewedCoverImages(limit),
                 ApiMessageKey.BOOK_TOP_REVIEWED_COVERS_FETCHED.getMessage(messageSource), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Get the top reviewed books with their about-the-book audio",
+            description = "The same books, in the same order, as the top reviewed covers endpoint, but as full book entries: id, title, "
+                    + "description, cover image link and, when the book has one, `aboutAudio` (a short-lived link to the audio that "
+                    + "introduces the book, its description and its length). Links are short-lived.")
+    @GetMapping("/books/top-reviewed")
+    public ResponseEntity<ApiResponse<List<BookCoverResponse>>> getTopReviewedBooks(
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        return ResponseUtils.success(publicService.getTopReviewedBooks(limit),
+                ApiMessageKey.BOOK_TOP_REVIEWED_FETCHED.getMessage(messageSource), HttpStatus.OK);
     }
 
     @Operation(summary = "Get the cover images of all published books",

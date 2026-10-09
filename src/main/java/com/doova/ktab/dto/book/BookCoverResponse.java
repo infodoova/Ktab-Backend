@@ -23,4 +23,8 @@ public class BookCoverResponse {
     private Instant publishDate;
     private String mainGenre;
     private String subGenre;
+
+    /** The audio that introduces the book, when it has one. */
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private BookAboutAudioResponse aboutAudio;
 }

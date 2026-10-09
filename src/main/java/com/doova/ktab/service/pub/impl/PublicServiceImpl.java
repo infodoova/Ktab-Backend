@@ -37,6 +37,13 @@ public class PublicServiceImpl implements PublicService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<BookCoverResponse> getTopReviewedBooks(int limit) {
+        log.debug("Public catalog: fetching top reviewed books limit={}", limit);
+        return bookService.getTopReviewedBooks(limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<String> getCoverImages(int page, int size) {
         log.debug("Public catalog: fetching cover images page={} size={}", page, size);
         return bookService.getCoverImages(page, size);

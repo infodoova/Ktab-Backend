@@ -29,6 +29,10 @@ public class BookResponseDto {
 
     private String coverImageUrl;
 
+    /** The audio that introduces the book, when it has one. */
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private BookAboutAudioResponse aboutAudio;
+
     @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
     private String pdfDownloadUrl;
 

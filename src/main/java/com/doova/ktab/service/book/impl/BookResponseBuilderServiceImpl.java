@@ -6,6 +6,7 @@ import com.doova.ktab.mappers.book.BookMapper;
 import com.doova.ktab.model.attachment.Attachment;
 import com.doova.ktab.model.book.Book;
 import com.doova.ktab.service.file.AttachmentService;
+import com.doova.ktab.service.book.BookAboutAudioService;
 import com.doova.ktab.service.book.BookResponseBuilderService;
 import com.doova.ktab.service.file.FileStorageService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
     private final BookMapper bookMapper;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
+    private final BookAboutAudioService aboutAudioService;
 
     @Override
     public BookResponseDto build(Book book) {
@@ -64,6 +66,8 @@ public class BookResponseBuilderServiceImpl implements BookResponseBuilderServic
         // Load cover (public/signed)
         Optional<Attachment> cover = attachmentService.getAttachment(book.getId(), BOOK_ENTITY_TYPE, COVER_IMAGE_TYPE);
         cover.ifPresent(att -> dto.setCoverImageUrl(fileStorageService.getFileUrl(att.getStoragePath(), UrlStrategy.SIGNED)));
+
+        aboutAudioService.find(book.getId()).ifPresent(dto::setAboutAudio);
 
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         boolean isReader = auth != null && auth.getAuthorities().stream()

@@ -36,6 +36,9 @@ class BookResponseBuilderServiceTest {
     @Mock
     private FileStorageService fileStorageService;
 
+    @Mock
+    private BookAboutAudioService aboutAudioService;
+
     @InjectMocks
     private BookResponseBuilderServiceImpl responseBuilder;
 
@@ -244,5 +247,28 @@ class BookResponseBuilderServiceTest {
         assertNotNull(result);
         assertEquals(com.doova.ktab.enums.book.BookSource.AUTHOR, result.getBookSource());
         assertEquals("Nizar Qabbani", result.getAuthorName());
+    }
+    @Test
+    @DisplayName("build_bookWithAnAboutAudio_returnsItWithTheBook")
+    void build_bookWithAnAboutAudio_returnsItWithTheBook() {
+        when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+        var audio = com.doova.ktab.dto.book.BookAboutAudioResponse.builder()
+                .url("https://storage.ktab.com/audio.mp3").description("A short introduction.").durationSeconds(40).mimeType("audio/mpeg").build();
+        when(aboutAudioService.find(94L)).thenReturn(Optional.of(audio));
+
+        BookResponseDto result = responseBuilder.build(testBook);
+
+        assertSame(audio, result.getAboutAudio());
+    }
+
+    @Test
+    @DisplayName("build_bookWithoutAnAboutAudio_hasNone")
+    void build_bookWithoutAnAboutAudio_hasNone() {
+        when(bookMapper.toResponseDto(testBook)).thenReturn(baseDto);
+        when(aboutAudioService.find(94L)).thenReturn(Optional.empty());
+
+        BookResponseDto result = responseBuilder.build(testBook);
+
+        assertNull(result.getAboutAudio());
     }
 }
