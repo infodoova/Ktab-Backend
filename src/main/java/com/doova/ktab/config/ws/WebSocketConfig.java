@@ -21,7 +21,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final ReaderTtsWebSocketHandler readerTtsWebSocketHandler;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,https://ktab-rho.vercel.app}")
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:4200,http://localhost:5173,http://localhost:5174,https://ktab.app}")
     private List<String> allowedOrigins;
 
     /**
@@ -46,7 +46,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
                     .map(o -> o.replaceFirst("^(https?://[^/]+).*", "$1"))
                     .distinct()
                     .toArray(String[]::new)
-                : new String[]{"http://localhost:3000", "https://ktab-rho.vercel.app"};
+                : new String[]{"http://localhost:3000", "https://ktab.app"};
 
         registry.addHandler(readerTtsWebSocketHandler,
                         "/ws/reader/tts",

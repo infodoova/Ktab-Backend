@@ -12,7 +12,8 @@ public interface UserService {
 
     String authenticateAndGenerateToken(UserLoginRequest request);
 
-    void verifyEmail(VerifyCodeRequest req);
+    /** Activates the account and returns it, so the caller can start a session without a separate login. */
+    User verifyEmail(VerifyCodeRequest req);
 
     void sendResetCode(SendResetPasswordRequest req);
 

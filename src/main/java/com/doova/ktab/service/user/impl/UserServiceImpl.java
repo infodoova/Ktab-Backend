@@ -120,7 +120,7 @@ public class UserServiceImpl implements UserService {
     // ============================
 
     @Override
-    public void verifyEmail(VerifyCodeRequest req) {
+    public User verifyEmail(VerifyCodeRequest req) {
 
         User user = userRepository.findByEmail(req.email())
                 .orElseThrow(() -> new BadRequestException(ApiMessageKey.RESOURCE_NOT_FOUND));
@@ -132,7 +132,7 @@ public class UserServiceImpl implements UserService {
         }
 
         user.setActive(Status.ACTIVE.getCode());
-        userRepository.save(user);
+        return userRepository.save(user);
     }
 
     // ============================

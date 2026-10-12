@@ -172,4 +172,32 @@ class UserServiceImplTest {
         assertThat(mailCaptor.getValue().templateName()).isEqualTo("password-reset-success");
         assertThat(mailCaptor.getValue().templateVariables()).containsEntry("NAME", "Alice");
     }
+
+    @Test
+    @DisplayName("verifyEmail_validCode_activatesAccountAndReturnsIt")
+    void verifyEmail_validCode_activatesAccountAndReturnsIt() {
+        User user = User.builder().email("john.doe@example.com").active(com.doova.ktab.enums.status.Status.INACTIVE.getCode()).build();
+        when(userRepository.findByEmail("john.doe@example.com")).thenReturn(java.util.Optional.of(user));
+        when(userCodeService.verify(user, "123456", "EMAIL_VERIFY")).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        User verified = userService.verifyEmail(new com.doova.ktab.dto.user.VerifyCodeRequest("john.doe@example.com", "123456"));
+
+        assertThat(verified).isSameAs(user);
+        assertThat(verified.getActive()).isEqualTo(com.doova.ktab.enums.status.Status.ACTIVE.getCode());
+    }
+
+    @Test
+    @DisplayName("verifyEmail_wrongCode_throwsAndDoesNotActivate")
+    void verifyEmail_wrongCode_throwsAndDoesNotActivate() {
+        User user = User.builder().email("john.doe@example.com").active(com.doova.ktab.enums.status.Status.INACTIVE.getCode()).build();
+        when(userRepository.findByEmail("john.doe@example.com")).thenReturn(java.util.Optional.of(user));
+        when(userCodeService.verify(user, "000000", "EMAIL_VERIFY")).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.verifyEmail(new com.doova.ktab.dto.user.VerifyCodeRequest("john.doe@example.com", "000000")))
+                .isInstanceOf(BadRequestException.class);
+
+        assertThat(user.getActive()).isEqualTo(com.doova.ktab.enums.status.Status.INACTIVE.getCode());
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.never()).save(any());
+    }
 }

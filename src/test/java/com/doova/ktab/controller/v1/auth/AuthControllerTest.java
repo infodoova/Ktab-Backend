@@ -106,4 +106,33 @@ class AuthControllerTest {
         verify(cookieUtils).setRefreshTokenCookie(response, "mock-refresh-token");
         verify(refreshTokenService).createRefreshToken(testUser, "Mozilla/5.0");
     }
+
+    @Test
+    @DisplayName("verify_validCode_setsAccessAndRefreshTokenCookiesSoNoLoginIsNeeded")
+    void verify_validCode_setsAccessAndRefreshTokenCookiesSoNoLoginIsNeeded() {
+        com.doova.ktab.dto.user.VerifyCodeRequest req = new com.doova.ktab.dto.user.VerifyCodeRequest("ali@darhashem.com", "123456");
+        when(service.verifyEmail(req)).thenReturn(testUser);
+        when(jwtService.generateToken(any(UserPrincipal.class))).thenReturn("mock-access-token");
+        when(request.getHeader("User-Agent")).thenReturn("Mozilla/5.0");
+        when(refreshTokenService.createRefreshToken(testUser, "Mozilla/5.0"))
+                .thenReturn(RefreshToken.builder().token("mock-refresh-token").user(testUser).build());
+
+        ResponseEntity<ApiResponse<UserResponseDto>> result = authController.verify(req, request, response);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertEquals("ali@darhashem.com", result.getBody().getData().email());
+        verify(cookieUtils).setAccessTokenCookie(response, "mock-access-token");
+        verify(cookieUtils).setRefreshTokenCookie(response, "mock-refresh-token");
+    }
+
+    @Test
+    @DisplayName("verify_wrongCode_issuesNoSession")
+    void verify_wrongCode_issuesNoSession() {
+        com.doova.ktab.dto.user.VerifyCodeRequest req = new com.doova.ktab.dto.user.VerifyCodeRequest("ali@darhashem.com", "000000");
+        when(service.verifyEmail(req)).thenThrow(new com.doova.ktab.exception.BadRequestException(com.doova.ktab.enums.message.ApiMessageKey.AUTH_INVALID_OR_EXPIRED_CODE));
+
+        assertThrows(com.doova.ktab.exception.BadRequestException.class, () -> authController.verify(req, request, response));
+
+        verifyNoInteractions(cookieUtils, jwtService, refreshTokenService);
+    }
 }

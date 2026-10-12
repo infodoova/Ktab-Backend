@@ -145,11 +145,21 @@ public class AuthController {
     // VERIFY EMAIL
     // ============================
 
-    @Operation(summary = "Verify email")
+    @Operation(summary = "Verify email — activates the account and signs the user in (sets ACCESS_TOKEN and REFRESH_TOKEN as HttpOnly cookies), so no separate login is needed")
     @PostMapping(path = "/verify", consumes = "application/json")
-    public ResponseEntity<ApiResponse<Void>> verify(@Valid @RequestBody VerifyCodeRequest req) {
-        service.verifyEmail(req);
-        return ResponseUtils.success(null, ApiMessageKey.AUTH_EMAIL_VERIFIED.getMessage(messageSource), HttpStatus.OK);
+    public ResponseEntity<ApiResponse<UserResponseDto>> verify(
+            @Valid @RequestBody VerifyCodeRequest req,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        User user = service.verifyEmail(req);
+        UserPrincipal principal = new UserPrincipal(user);
+
+        cookieUtils.setAccessTokenCookie(response, jwtService.generateToken(principal));
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, request.getHeader("User-Agent"));
+        cookieUtils.setRefreshTokenCookie(response, refreshToken.getToken());
+
+        return ResponseUtils.success(UserResponseDto.from(user),ApiMessageKey.AUTH_EMAIL_VERIFIED.getMessage(messageSource), HttpStatus.OK);
     }
 
     // ============================
