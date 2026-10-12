@@ -33,7 +33,7 @@ public class StorybookNotificationListener {
     private final EmailService emailService;
     private final StorybookRepository storybookRepository;
 
-    @Value("${ktab.app.frontend-url:https://ktab.app}")
+    @Value("${ktab.storybook.frontend-url:https://ktab.app}")
     private String frontendUrl;
 
     /**
